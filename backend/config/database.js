@@ -9,7 +9,11 @@ let db = null;
 
 async function connectDatabase() {
     try {
-        const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/hotel-cybersecurity';
+        const mongoURI = process.env.MONGODB_URI;
+
+        if (!mongoURI) {
+            throw new Error('MONGODB_URI is required');
+        }
 
         const connection = await mongoose.connect(mongoURI, {
             maxPoolSize: 20,

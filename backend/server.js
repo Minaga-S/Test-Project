@@ -32,8 +32,6 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
     .filter(Boolean);
 
 const defaultAllowedOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
     'https://minaga-s.github.io',
 ];
 
@@ -124,7 +122,7 @@ async function startServer() {
 
         // Start server
         const server = app.listen(PORT, () => {
-            console.log(`✓ Server running on http://localhost:${PORT}`);
+            console.log(`✓ Server running on port ${PORT}`);
             console.log(`✓ Environment: ${process.env.NODE_ENV}`);
         });
 
