@@ -1,65 +1,142 @@
 # Hotel Cybersecurity Governance System
 
-AI-Assisted Cybersecurity Threat Assessment and Governance System for Small Hotels.
+## Executive Summary
 
-## Tech Stack
+The Hotel Cybersecurity Governance System is a web-based platform designed to help small and medium hotels manage cybersecurity risk in a practical, non-technical, and operationally useful way. It combines structured security workflows with AI-assisted analysis so hotel teams can report incidents, understand risk, and take corrective action without needing deep cybersecurity expertise.
 
-- Frontend: HTML, CSS, Vanilla JavaScript
-- Backend: Node.js, Express, MongoDB
-- Auth/Security: JWT, bcryptjs, helmet, cors
+This system is built to bridge the gap between day-to-day hotel operations and security governance by turning technical security events into clear decisions, dashboards, and follow-up actions.
 
-## Hosted Setup
+## What This Website Is
 
-This project is configured for hosted deployment only:
+This website is a cybersecurity operations and governance portal for hotels. It provides:
 
-- Frontend: GitHub Pages
-- Backend: Render
+- a centralized interface for reporting and tracking incidents,
+- an asset-oriented view of the organization’s digital exposure,
+- risk scoring and prioritization,
+- governance-aligned recommendations mapped to recognized security practices.
 
-## Test Login Accounts
+In short, it is a decision-support system for hotel cybersecurity management.
 
-These users are seeded on backend start (if no users exist yet):
+## What This Website Is For
+
+The primary purpose of the platform is to enable hotels to:
+
+1. Identify and register critical digital assets (systems, devices, applications).
+2. Report security incidents in plain language.
+3. Analyze incidents using AI-assisted classification and context.
+4. Quantify risk to support prioritization and escalation.
+5. Map findings to cybersecurity governance controls for remediation planning.
+6. Monitor trends through dashboards for management-level visibility.
+
+It is intentionally designed for environments where dedicated security teams may be limited, but accountability and risk visibility are still required.
+
+## Target Users
+
+### Operational Staff
+- Report incidents quickly through simple forms.
+- Capture observations without technical jargon.
+
+### Security / IT Managers
+- Review incident history, impact, and risk levels.
+- Track patterns and recurring weaknesses.
+- Use governance mappings to plan mitigation.
+
+### Management / Decision Makers
+- View concise risk indicators and trend dashboards.
+- Prioritize remediation effort based on business impact.
+
+## Core Functional Areas
+
+### 1) Authentication and Access
+- Secure user authentication using token-based access control.
+- Role-oriented usage patterns for administrative and staff users.
+
+### 2) Asset Management
+- Inventory of hotel digital assets and their attributes.
+- Foundation for asset-centric risk and incident analysis.
+
+### 3) Incident Reporting and Tracking
+- Structured incident capture and status progression.
+- Searchable incident history and traceability.
+
+### 4) AI-Assisted Threat and Risk Analysis
+- Natural-language incident interpretation.
+- Threat categorization and recommendation support.
+- Risk level derivation for prioritization.
+
+### 5) Dashboard and Governance Visibility
+- High-level indicators for assets, incidents, and risk posture.
+- Recent incident summaries and visual trend insights.
+
+## Business Value
+
+The platform delivers measurable value by:
+
+- reducing response ambiguity with standardized incident handling,
+- improving prioritization through consistent risk scoring,
+- increasing governance readiness by aligning actions to control frameworks,
+- giving leadership clear cybersecurity visibility for planning and accountability.
+
+## System Architecture (High Level)
+
+- Frontend: Static web client (HTML, CSS, JavaScript)
+- Backend API: Node.js + Express
+- Database: MongoDB
+- Security: JWT authentication, password hashing, CORS controls, secure headers
+
+The frontend provides user workflows and dashboards, while the backend enforces business logic, persistence, and protected API access.
+
+## Current Deployment Model
+
+This project is configured for hosted usage:
+
+- Frontend hosted on GitHub Pages
+- Backend hosted on Render
+
+This separation supports simple static delivery for UI and scalable API hosting for application logic.
+
+## Setup and Deployment (Reference)
+
+### Frontend Deployment
+
+The repository includes a GitHub Actions workflow at `.github/workflows/deploy-frontend.yml` that deploys the `frontend` directory to GitHub Pages on pushes to `main`.
+
+### Backend Deployment
+
+The backend is designed to run as a Node.js web service (for example on Render). A production deployment requires:
+
+- `MONGODB_URI`
+- `JWT_SECRET`
+- `JWT_EXPIRATION`
+- `JWT_REFRESH_SECRET`
+- `JWT_REFRESH_EXPIRATION`
+- `OPENAI_API_KEY` (if AI endpoints are used)
+- `OPENAI_MODEL`
+- `CORS_ORIGIN`
+
+### Production API Endpoint
+
+The frontend API base URL is configured in `frontend/js/api-client.js` via `PROD_API_BASE_URL` and must point to the deployed backend domain.
+
+## CORS Configuration (Production)
+
+Set `CORS_ORIGIN` to your hosted frontend origin, for example:
+
+```env
+CORS_ORIGIN=https://minaga-s.github.io
+```
+
+## Test Accounts
+
+If database seeding is enabled, default test users are:
 
 - `admin@test.com` / `Admin123456`
 - `staff@test.com` / `Staff123456`
 
-## Deploy Frontend to GitHub Pages
+## Future Improvement Opportunities
 
-This repo includes a workflow at `.github/workflows/deploy-frontend.yml` that deploys the `frontend` folder to GitHub Pages when you push to `main`.
-
-### First-time GitHub setup
-
-1. Push this project to a GitHub repository.
-2. In GitHub, open **Settings → Pages**.
-3. Under **Build and deployment**, choose **Source: GitHub Actions**.
-4. Push to `main` (or run the workflow manually from the Actions tab).
-
-Your site will be published at:
-
-`https://<your-username>.github.io/<your-repo>/`
-
-## Important: Backend Cannot Be Hosted on GitHub Pages
-
-GitHub Pages hosts only static frontend files. Your backend API must be hosted separately (for example Render, Railway, Fly.io, or any Node host).
-
-After deploying backend, update this constant:
-
-- File: `frontend/js/api-client.js`
-- Constant: `PROD_API_BASE_URL`
-
-Set it to your backend API URL, for example:
-
-```js
-const PROD_API_BASE_URL = 'https://your-backend-domain.com/api';
-```
-
-Then commit and push again so GitHub Pages uses the correct API endpoint.
-
-## CORS for Production
-
-In backend `.env`, include your GitHub Pages origin in `CORS_ORIGIN`, for example:
-
-```env
-CORS_ORIGIN=https://<your-username>.github.io
-```
-
-(If needed, include the repo path variant used by your deployment policy.)
+- stronger role-based authorization boundaries,
+- audit logs and action-level traceability,
+- alerting and notification workflows,
+- automated compliance reporting exports,
+- extended analytics for trend forecasting.
