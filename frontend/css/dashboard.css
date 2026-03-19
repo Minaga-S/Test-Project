@@ -1,0 +1,601 @@
+/* ============================================
+   DASHBOARD METRICS
+   ============================================ */
+
+.metrics-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid var(--primary-color);
+    transition: var(--transition);
+}
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card-primary {
+    border-left-color: var(--primary-color);
+}
+
+.metric-card-warning {
+    border-left-color: var(--warning-color);
+}
+
+.metric-card-danger {
+    border-left-color: var(--danger-color);
+}
+
+.metric-card-success {
+    border-left-color: var(--success-color);
+}
+
+.metric-content h3 {
+    font-size: var(--font-size-sm);
+    color: var(--gray-color);
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin: 0 0 0.25rem 0;
+}
+
+.metric-card small {
+    font-size: var(--font-size-sm);
+    color: var(--gray-color);
+}
+
+.metric-icon {
+    font-size: 3rem;
+    opacity: 0.2;
+}
+
+/* ============================================
+   CHARTS SECTION
+   ============================================ */
+
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.chart-container-half {
+    grid-column: span 1;
+}
+
+.chart-container-full {
+    grid-column: 1 / -1;
+}
+
+.chart-header {
+    margin-bottom: 1.5rem;
+}
+
+.chart-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+/* ============================================
+   TABLE STYLES
+   ============================================ */
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+}
+
+thead {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid var(--light-color);
+}
+
+th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--secondary-color);
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--light-color);
+    font-size: var(--font-size-sm);
+}
+
+tbody tr {
+    transition: var(--transition);
+}
+
+tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Risk Level Colors in Tables */
+.risk-critical {
+    color: var(--critical-color);
+    font-weight: 600;
+}
+
+.risk-high {
+    color: var(--high-color);
+    font-weight: 600;
+}
+
+.risk-medium {
+    color: var(--medium-color);
+    font-weight: 600;
+}
+
+.risk-low {
+    color: var(--low-color);
+    font-weight: 600;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.status-open {
+    background-color: #ffeaa7;
+    color: #d63031;
+}
+
+.status-in-progress {
+    background-color: #a8e6cf;
+    color: #0073b1;
+}
+
+.status-resolved {
+    background-color: #c7ecee;
+    color: #27ae60;
+}
+
+/* ============================================
+   INCIDENTS SECTION
+   ============================================ */
+
+.incidents-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+/* ============================================
+   QUICK ACTIONS
+   ============================================ */
+
+.quick-actions-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.quick-actions-section h2 {
+    margin-bottom: 1.5rem;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    transition: var(--transition);
+    text-decoration: none;
+    color: white;
+    font-weight: 500;
+}
+
+.action-btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), #1e8449);
+}
+
+.action-btn-secondary {
+    background: linear-gradient(135deg, var(--secondary-color), #1a252f);
+}
+
+.action-btn-tertiary {
+    background: linear-gradient(135deg, var(--info-color), #2980b9);
+}
+
+.action-btn-quaternary {
+    background: linear-gradient(135deg, var(--warning-color), #d68910);
+}
+
+.action-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.action-icon {
+    font-size: 2rem;
+}
+
+/* ============================================
+   FILTER SECTION
+   ============================================ */
+
+.filter-section {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-input,
+.filter-select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--light-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    transition: var(--transition);
+}
+
+.search-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+}
+
+/* ============================================
+   DETAIL SECTIONS
+   ============================================ */
+
+.detail-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--box-shadow);
+}
+
+.detail-section h3 {
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--light-color);
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-item label {
+    font-size: var(--font-size-sm);
+    color: var(--gray-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.35rem;
+}
+
+.detail-item p {
+    margin: 0;
+    font-size: var(--font-size-base);
+    color: var(--secondary-color);
+    font-weight: 500;
+}
+
+.description-box {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary-color);
+}
+
+/* ============================================
+   RISK SECTION
+   ============================================ */
+
+.risk-matrix-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 2rem;
+}
+
+.risk-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+}
+
+.risk-item {
+    text-align: center;
+}
+
+.risk-item label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--secondary-color);
+}
+
+.risk-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--light-color);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.risk-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+    width: 75%;
+}
+
+.risk-score-large {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+}
+
+.risk-matrix-container {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+}
+
+/* ============================================
+   ASSET RISK GRID
+   ============================================ */
+
+.asset-risk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.asset-risk-card {
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    color: white;
+}
+
+.asset-risk-card h3 {
+    color: white;
+    margin-bottom: 1rem;
+}
+
+.asset-risk-critical {
+    background: linear-gradient(135deg, var(--critical-color), #a93226);
+}
+
+.asset-risk-high {
+    background: linear-gradient(135deg, var(--high-color), #cb4335);
+}
+
+.asset-risk-medium {
+    background: linear-gradient(135deg, var(--medium-color), #d68910);
+}
+
+.asset-risk-low {
+    background: linear-gradient(135deg, var(--low-color), #1e8449);
+}
+
+.asset-list {
+    font-size: var(--font-size-sm);
+}
+
+.asset-list p {
+    margin: 0.25rem 0;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* ============================================
+   RECOMMENDATIONS
+   ============================================ */
+
+.recommendations-list,
+.recommendations-priority-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.recommendation-item,
+.priority-item {
+    background: white;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary-color);
+    box-shadow: var(--box-shadow);
+}
+
+.priority-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.priority-item.critical {
+    border-left-color: var(--critical-color);
+}
+
+.priority-item.high {
+    border-left-color: var(--high-color);
+}
+
+.priority-item.medium {
+    border-left-color: var(--medium-color);
+}
+
+.priority-item.low {
+    border-left-color: var(--low-color);
+}
+
+.recommendation-item strong {
+    color: var(--secondary-color);
+}
+
+.recommendation-item p {
+    margin: 0.5rem 0 0 0;
+    font-size: var(--font-size-sm);
+    color: #555;
+}
+
+/* ============================================
+   NIST MAPPING
+   ============================================ */
+
+.nist-mapping {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.nist-item {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+}
+
+.nist-item label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--secondary-color);
+}
+
+.nist-item div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.nist-tag {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+    .charts-section {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-container-half {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .metrics-section {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-section {
+        flex-direction: column;
+    }
+
+    .filter-group {
+        min-width: auto;
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .table-responsive {
+        font-size: var(--font-size-sm);
+    }
+
+    th, td {
+        padding: 0.75rem 0.5rem;
+    }
+}
