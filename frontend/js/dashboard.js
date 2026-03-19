@@ -27,7 +27,8 @@ async function initializeDashboard() {
 
 async function displayUserInfo() {
     try {
-        const user = getLocalStorage('user') || await apiClient.getProfile();
+        const profileResponse = getLocalStorage('user') || await apiClient.getProfile();
+        const user = profileResponse?.user || profileResponse;
         
         if (user) {
             document.getElementById('user-name').textContent = user.fullName || user.email;
@@ -45,10 +46,15 @@ function setupLogoutButton() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to logout?')) {
-                logout();
+                handleLogout();
             }
         });
     }
+}
+
+function handleLogout() {
+    apiClient.logout();
+    window.location.href = 'index.html';
 }
 
 async function loadDashboardData() {
