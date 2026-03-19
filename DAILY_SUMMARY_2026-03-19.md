@@ -31,10 +31,18 @@
 - Fixed missing logout handler on dashboard (`logout is not defined`).
 - Improved dashboard resilience for wrapped API responses (metrics/charts/profile).
 
+### 7) Hosted-only mode finalization
+- Removed local runtime fallbacks and aligned app behavior for hosted deployment only.
+- Frontend API now targets hosted backend URL directly (no localhost switching).
+- Backend CORS defaults now focus on hosted origin handling.
+- Backend DB config now requires explicit `MONGODB_URI` (no localhost fallback).
+- Documentation updated to hosted setup flow only.
+
 ## What We Accomplished
 - End-to-end system now runs both locally and in hosted setup (GitHub Pages + Render).
 - Authentication works through deployed frontend/backend pipeline after CORS fixes.
 - Dashboard critical runtime errors were fixed.
+- Application behavior was finalized for hosted-only usage (GitHub Pages + Render).
 - Repository is synced and successfully pushed to: https://github.com/Minaga-S/Test-Project
 
 ## Current Verified State
