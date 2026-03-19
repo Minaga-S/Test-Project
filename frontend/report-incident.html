@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Issue - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/forms.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="report-incident-page">
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#27ae60" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#27ae60" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#27ae60"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="assets.html" class="nav-item">
+                    <span class="icon">🖥️</span>
+                    <span>Assets</span>
+                </a>
+                <a href="report-incident.html" class="nav-item active">
+                    <span class="icon">⚠️</span>
+                    <span>Report Issue</span>
+                </a>
+                <a href="incident-logs.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    <span>Incidents</span>
+                </a>
+                <a href="risk-analysis.html" class="nav-item">
+                    <span class="icon">📈</span>
+                    <span>Risk Analysis</span>
+                </a>
+                <a href="settings.html" class="nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Report a Cyber Issue</h1>
+                    <p class="header-subtitle">Describe what happened and we'll analyze it</p>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="dashboard-content">
+                <section class="report-section">
+                    <!-- Info Card -->
+                    <div class="info-box">
+                        <h3>📝 How to Report an Issue</h3>
+                        <p>Simply describe what happened with your computer, network, or system. Don't worry about technical details - our AI will analyze your description and identify the threat.</p>
+                        <ul class="examples-list">
+                            <li>"Staff received an email asking for login details"</li>
+                            <li>"Our POS system is showing strange popups and running slow"</li>
+                            <li>"Guest WiFi redirected to a suspicious page"</li>
+                        </ul>
+                    </div>
+
+                    <!-- Report Form -->
+                    <form id="incident-report-form" class="report-form">
+                        <div class="form-group">
+                            <label for="affected-asset">Affected Asset *</label>
+                            <select id="affected-asset" name="assetId" required>
+                                <option value="">Select the affected asset</option>
+                            </select>
+                            <small>Which system or device is having the problem?</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="incident-description">Describe What Happened *</label>
+                            <textarea 
+                                id="incident-description" 
+                                name="description" 
+                                placeholder="Example: Our POS computer is showing popup ads and processing transactions very slowly. Started this morning without any changes made by staff..."
+                                rows="8"
+                                required
+                            ></textarea>
+                            <small>
+                                <span id="char-count">0</span>/1000 characters | 
+                                Be as detailed as possible
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="when-happened">When did this happen? *</label>
+                            <input 
+                                type="datetime-local" 
+                                id="when-happened" 
+                                name="incidentTime" 
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="guest-affected" 
+                                name="guestAffected"
+                            >
+                            <label for="guest-affected">
+                                Does this affect guests or guest services?
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="data-involved" 
+                                name="sensitiveDataInvolved"
+                            >
+                            <label for="data-involved">
+                                Does this involve customer or payment data?
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">
+                                Clear
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Submit Report
+                            </button>
+                        </div>
+
+                        <small id="form-error" class="error-message"></small>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Analysis Progress Modal -->
+    <div id="analysis-modal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-content-small">
+            <div class="modal-header">
+                <h2>Analyzing Your Report...</h2>
+            </div>
+            <div class="analysis-progress">
+                <div class="spinner"></div>
+                <p id="analysis-status">AI is analyzing your incident description...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-content-small">
+            <div class="modal-header">
+                <h2>✅ Issue Reported Successfully</h2>
+            </div>
+            <div class="success-content">
+                <p>Your incident has been analyzed and logged.</p>
+                <div class="success-details">
+                    <p><strong>Incident ID:</strong> <span id="success-incident-id"></span></p>
+                    <p><strong>Threat Detected:</strong> <span id="success-threat-type"></span></p>
+                    <p><strong>Risk Level:</strong> <span id="success-risk-level"></span></p>
+                </div>
+                <p><strong>Next Steps:</strong> Review the detailed analysis and recommendations.</p>
+                <div class="form-actions">
+                    <button class="btn btn-secondary" id="back-to-form">
+                        Report Another Issue
+                    </button>
+                    <button class="btn btn-primary" id="view-details">
+                        View Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/incident-report.js"></script>
+</body>
+</html>
