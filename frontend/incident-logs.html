@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Logs - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/forms.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="incident-logs-page">
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#27ae60" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#27ae60" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#27ae60"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="assets.html" class="nav-item">
+                    <span class="icon">🖥️</span>
+                    <span>Assets</span>
+                </a>
+                <a href="report-incident.html" class="nav-item">
+                    <span class="icon">⚠️</span>
+                    <span>Report Issue</span>
+                </a>
+                <a href="incident-logs.html" class="nav-item active">
+                    <span class="icon">📋</span>
+                    <span>Incidents</span>
+                </a>
+                <a href="risk-analysis.html" class="nav-item">
+                    <span class="icon">📈</span>
+                    <span>Risk Analysis</span>
+                </a>
+                <a href="settings.html" class="nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Incident Logs</h1>
+                    <p class="header-subtitle">All reported security incidents</p>
+                </div>
+                <div class="header-right">
+                    <button id="export-btn" class="btn btn-secondary">
+                        📥 Export Report
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="dashboard-content">
+                <!-- Filters -->
+                <section class="filter-section">
+                    <div class="filter-group">
+                        <input 
+                            type="text" 
+                            id="search-incidents" 
+                            placeholder="Search incidents..." 
+                            class="search-input"
+                        >
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-threat-type" class="filter-select">
+                            <option value="">All Threat Types</option>
+                            <option value="Phishing">Phishing</option>
+                            <option value="Malware">Malware</option>
+                            <option value="Ransomware">Ransomware</option>
+                            <option value="DDoS">DDoS Attack</option>
+                            <option value="Unauthorized Access">Unauthorized Access</option>
+                            <option value="Data Breach">Data Breach</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-status" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="Open">Open</option>
+                            <option value="InProgress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <select id="filter-risk-level" class="filter-select">
+                            <option value="">All Risk Levels</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                </section>
+
+                <!-- Incidents Table -->
+                <section class="incidents-section">
+                    <div class="table-responsive">
+                        <table class="incidents-table">
+                            <thead>
+                                <tr>
+                                    <th>Incident ID</th>
+                                    <th>Asset</th>
+                                    <th>Threat Type</th>
+                                    <th>Risk Level</th>
+                                    <th>Status</th>
+                                    <th>Date Reported</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidents-tbody">
+                                <tr>
+                                    <td colspan="7" class="text-center">Loading incidents...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Incident Detail Modal -->
+    <div id="detail-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="detail-overlay"></div>
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2 id="detail-modal-title">Incident Details</h2>
+                <button class="modal-close" id="detail-close">&times;</button>
+            </div>
+
+            <div class="detail-content">
+                <!-- Basic Info -->
+                <div class="detail-section">
+                    <h3>Basic Information</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Incident ID</label>
+                            <p id="detail-incident-id"></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Status</label>
+                            <p id="detail-status"></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Reported By</label>
+                            <p id="detail-reporter"></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Date Reported</label>
+                            <p id="detail-date"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Incident Description -->
+                <div class="detail-section">
+                    <h3>Incident Description</h3>
+                    <div class="description-box">
+                        <p id="detail-description"></p>
+                    </div>
+                </div>
+
+                <!-- Threat Analysis -->
+                <div class="detail-section">
+                    <h3>Threat Analysis</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Threat Type</label>
+                            <p id="detail-threat-type"></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Threat Category</label>
+                            <p id="detail-threat-category"></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Affected Asset</label>
+                            <p id="detail-affected-asset"></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Confidence</label>
+                            <p id="detail-confidence"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Assessment -->
+                <div class="detail-section">
+                    <h3>Risk Assessment</h3>
+                    <div class="risk-summary">
+                        <div class="risk-item">
+                            <label>Likelihood</label>
+                            <div class="risk-bar">
+                                <div class="risk-fill" id="detail-likelihood-fill"></div>
+                            </div>
+                            <p id="detail-likelihood">3/4</p>
+                        </div>
+                        <div class="risk-item">
+                            <label>Impact</label>
+                            <div class="risk-bar">
+                                <div class="risk-fill" id="detail-impact-fill"></div>
+                            </div>
+                            <p id="detail-impact">3/4</p>
+                        </div>
+                        <div class="risk-item">
+                            <label>Risk Score</label>
+                            <p id="detail-risk-score" class="risk-score-large"></p>
+                        </div>
+                        <div class="risk-item">
+                            <label>Risk Level</label>
+                            <p id="detail-risk-level"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NIST CSF Mapping -->
+                <div class="detail-section">
+                    <h3>NIST Cybersecurity Framework Mapping</h3>
+                    <div class="nist-mapping">
+                        <div class="nist-item">
+                            <label>Functions</label>
+                            <div id="detail-nist-functions"></div>
+                        </div>
+                        <div class="nist-item">
+                            <label>Controls</label>
+                            <div id="detail-nist-controls"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="detail-section">
+                    <h3>Mitigation Recommendations</h3>
+                    <div id="detail-recommendations" class="recommendations-list"></div>
+                </div>
+
+                <!-- Status Update -->
+                <div class="detail-section">
+                    <h3>Status Update</h3>
+                    <div class="status-update-form">
+                        <div class="form-group">
+                            <label for="update-status">Update Status</label>
+                            <select id="update-status" class="form-select">
+                                <option value="Open">Open</option>
+                                <option value="InProgress">In Progress</option>
+                                <option value="Resolved">Resolved</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="update-notes">Add Notes</label>
+                            <textarea 
+                                id="update-notes" 
+                                placeholder="Add any notes about this incident..."
+                                rows="3"
+                            ></textarea>
+                        </div>
+                        <button id="save-update" class="btn btn-primary">
+                            Save Update
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/incident-logs.js"></script>
+</body>
+</html>
