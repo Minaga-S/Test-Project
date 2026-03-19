@@ -56,11 +56,15 @@ async function loadDashboardData() {
 
     try {
         // Load metrics
-        const metrics = await apiClient.getDashboardMetrics();
+        const metricsResponse = await apiClient.getDashboardMetrics();
+        const metrics = metricsResponse?.metrics || metricsResponse || {};
         displayMetrics(metrics);
 
         // Load recent incidents
-        const incidents = await apiClient.getRecentIncidents();
+        const incidentsResponse = await apiClient.getRecentIncidents();
+        const incidents = Array.isArray(incidentsResponse)
+            ? incidentsResponse
+            : (Array.isArray(incidentsResponse?.incidents) ? incidentsResponse.incidents : []);
         displayRecentIncidents(incidents);
 
         // Load charts
@@ -92,21 +96,24 @@ function displayMetrics(metrics) {
 
 function displayRecentIncidents(incidents) {
     const tbody = document.getElementById('recent-incidents-tbody');
+    const incidentList = Array.isArray(incidents) ? incidents : [];
     
-    if (!incidents || incidents.length === 0) {
+    if (incidentList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center">No recent incidents</td></tr>';
         return;
     }
 
     tbody.innerHTML = '';
-    incidents.slice(0, 5).forEach(incident => {
+    incidentList.slice(0, 5).forEach(incident => {
+        const riskLevel = incident.riskLevel || 'Low';
+        const status = incident.status || 'Open';
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${incident.incidentId}</td>
             <td>${incident.asset?.assetName || 'Unknown'}</td>
-            <td>${incident.threatType}</td>
-            <td><span class="risk-${incident.riskLevel.toLowerCase()}">${incident.riskLevel}</span></td>
-            <td><span class="status-badge status-${incident.status}">${incident.status}</span></td>
+            <td>${incident.threatType || 'Unknown'}</td>
+            <td><span class="risk-${riskLevel.toLowerCase()}">${riskLevel}</span></td>
+            <td><span class="status-badge status-${status}">${status}</span></td>
             <td>${formatDate(incident.createdAt)}</td>
             <td>
                 <a href="incident-logs.html?id=${incident._id}" class="link">View</a>
@@ -119,8 +126,9 @@ function displayRecentIncidents(incidents) {
 async function loadCharts() {
     try {
         // Risk Distribution Chart
-        const riskData = await apiClient.getRiskDistributionChart();
-        if (riskData) {
+        const riskResponse = await apiClient.getRiskDistributionChart();
+        const riskData = riskResponse?.chart || riskResponse;
+        if (riskData?.labels && riskData?.data) {
             destroyChart('risk-distribution-chart');
             dashboardCharts.riskDistribution = createPieChart(
                 'risk-distribution-chart',
@@ -131,8 +139,9 @@ async function loadCharts() {
         }
 
         // Threat Categories Chart
-        const threatData = await apiClient.getThreatCategoriesChart();
-        if (threatData) {
+        const threatResponse = await apiClient.getThreatCategoriesChart();
+        const threatData = threatResponse?.chart || threatResponse;
+        if (threatData?.labels && threatData?.data) {
             destroyChart('threat-categories-chart');
             dashboardCharts.threatCategories = createPieChart(
                 'threat-categories-chart',
@@ -143,8 +152,9 @@ async function loadCharts() {
         }
 
         // Vulnerable Assets Chart
-        const assetsData = await apiClient.getVulnerableAssetsChart();
-        if (assetsData) {
+        const assetsResponse = await apiClient.getVulnerableAssetsChart();
+        const assetsData = assetsResponse?.chart || assetsResponse;
+        if (assetsData?.labels && assetsData?.data) {
             destroyChart('vulnerable-assets-chart');
             dashboardCharts.vulnerableAssets = createBarChart(
                 'vulnerable-assets-chart',
