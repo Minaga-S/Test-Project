@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/forms.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="settings-page">
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#27ae60" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#27ae60" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#27ae60"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="assets.html" class="nav-item">
+                    <span class="icon">🖥️</span>
+                    <span>Assets</span>
+                </a>
+                <a href="report-incident.html" class="nav-item">
+                    <span class="icon">⚠️</span>
+                    <span>Report Issue</span>
+                </a>
+                <a href="incident-logs.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    <span>Incidents</span>
+                </a>
+                <a href="risk-analysis.html" class="nav-item">
+                    <span class="icon">📈</span>
+                    <span>Risk Analysis</span>
+                </a>
+                <a href="settings.html" class="nav-item active">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Settings</h1>
+                    <p class="header-subtitle">Manage your account and preferences</p>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="dashboard-content">
+                <!-- Settings Tabs -->
+                <div class="settings-tabs">
+                    <button class="tab-btn tab-btn-active" data-tab="profile">
+                        👤 Profile
+                    </button>
+                    <button class="tab-btn" data-tab="password">
+                        🔑 Password
+                    </button>
+                    <button class="tab-btn" data-tab="notifications">
+                        🔔 Notifications
+                    </button>
+                    <button class="tab-btn" data-tab="system">
+                        ⚙️ System
+                    </button>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="profile-tab" class="settings-tab-content tab-active">
+                    <h2>User Profile</h2>
+                    <form id="profile-form" class="settings-form">
+                        <div class="form-group">
+                            <label for="profile-name">Full Name</label>
+                            <input 
+                                type="text" 
+                                id="profile-name" 
+                                name="fullName" 
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profile-email">Email Address</label>
+                            <input 
+                                type="email" 
+                                id="profile-email" 
+                                name="email" 
+                                required
+                                readonly
+                            >
+                            <small>Email cannot be changed</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profile-role">Role</label>
+                            <input 
+                                type="text" 
+                                id="profile-role" 
+                                name="role" 
+                                readonly
+                            >
+                            <small>Your account role</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="profile-department">Department</label>
+                            <input 
+                                type="text" 
+                                id="profile-department" 
+                                name="department"
+                            >
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            Save Changes
+                        </button>
+                        <small id="profile-success" class="success-message"></small>
+                    </form>
+                </div>
+
+                <!-- Password Tab -->
+                <div id="password-tab" class="settings-tab-content">
+                    <h2>Change Password</h2>
+                    <form id="password-form" class="settings-form">
+                        <div class="form-group">
+                            <label for="current-password">Current Password</label>
+                            <input 
+                                type="password" 
+                                id="current-password" 
+                                name="currentPassword" 
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="new-password">New Password</label>
+                            <input 
+                                type="password" 
+                                id="new-password" 
+                                name="newPassword" 
+                                required
+                            >
+                            <small>At least 8 characters, mix of letters and numbers</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirm-password">Confirm New Password</label>
+                            <input 
+                                type="password" 
+                                id="confirm-password" 
+                                name="confirmPassword" 
+                                required
+                            >
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            Update Password
+                        </button>
+                        <small id="password-success" class="success-message"></small>
+                        <small id="password-error" class="error-message"></small>
+                    </form>
+                </div>
+
+                <!-- Notifications Tab -->
+                <div id="notifications-tab" class="settings-tab-content">
+                    <h2>Notification Preferences</h2>
+                    <form id="notifications-form" class="settings-form">
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="notify-critical" 
+                                name="notifyCritical" 
+                                checked
+                            >
+                            <label for="notify-critical">
+                                Critical Risk Alerts
+                                <small>Receive alerts for critical-level risks</small>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="notify-high" 
+                                name="notifyHigh" 
+                                checked
+                            >
+                            <label for="notify-high">
+                                High Risk Alerts
+                                <small>Receive alerts for high-level risks</small>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="notify-new-incident" 
+                                name="notifyNewIncident" 
+                                checked
+                            >
+                            <label for="notify-new-incident">
+                                New Incident Reports
+                                <small>Receive notifications when new incidents are reported</small>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="notify-resolved" 
+                                name="notifyResolved"
+                            >
+                            <label for="notify-resolved">
+                                Incident Resolution
+                                <small>Receive notifications when incidents are resolved</small>
+                            </label>
+                        </div>
+
+                        <div class="form-group checkbox">
+                            <input 
+                                type="checkbox" 
+                                id="notify-daily-summary" 
+                                name="notifyDailySummary" 
+                                checked
+                            >
+                            <label for="notify-daily-summary">
+                                Daily Summary
+                                <small>Receive a daily summary of your security status</small>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            Save Preferences
+                        </button>
+                        <small id="notifications-success" class="success-message"></small>
+                    </form>
+                </div>
+
+                <!-- System Tab -->
+                <div id="system-tab" class="settings-tab-content">
+                    <h2>System Settings</h2>
+                    <p><strong>Note:</strong> System settings are for administrators only.</p>
+                    
+                    <form id="system-form" class="settings-form">
+                        <div class="form-group">
+                            <label for="ai-api-key">AI API Configuration</label>
+                            <input 
+                                type="text" 
+                                id="ai-api-key" 
+                                name="aiApiKey" 
+                                placeholder="API Key (hidden)"
+                                disabled
+                            >
+                            <small>Contact administrator to update API configuration</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="nist-version">NIST Framework Version</label>
+                            <select id="nist-version" name="nistVersion" disabled>
+                                <option value="2.0">NIST CSF 2.0</option>
+                                <option value="1.1">NIST CSF 1.1</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="risk-calculation">Risk Calculation Method</label>
+                            <select id="risk-calculation" name="riskCalculation" disabled>
+                                <option value="likelihood-impact">Likelihood × Impact</option>
+                                <option value="weighted">Weighted Score</option>
+                            </select>
+                        </div>
+
+                        <p class="info-box">
+                            <strong>System Information:</strong><br>
+                            Version: 1.0.0<br>
+                            Database: MongoDB<br>
+                            Backend: Node.js + Express<br>
+                            Last Updated: 2026-03-19
+                        </p>
+                    </form>
+                </div>
+
+                <!-- Help & Documentation -->
+                <section class="help-section">
+                    <h2>Help & Documentation</h2>
+                    <div class="help-links">
+                        <a href="#" class="help-link">
+                            <span class="icon">📖</span>
+                            <span>User Guide</span>
+                        </a>
+                        <a href="#" class="help-link">
+                            <span class="icon">❓</span>
+                            <span>FAQ</span>
+                        </a>
+                        <a href="#" class="help-link">
+                            <span class="icon">🎓</span>
+                            <span>Video Tutorials</span>
+                        </a>
+                        <a href="#" class="help-link">
+                            <span class="icon">📞</span>
+                            <span>Contact Support</span>
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>

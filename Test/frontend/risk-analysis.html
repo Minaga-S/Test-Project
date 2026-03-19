@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Analysis - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body class="risk-analysis-page">
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#27ae60" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#27ae60" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#27ae60"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="assets.html" class="nav-item">
+                    <span class="icon">🖥️</span>
+                    <span>Assets</span>
+                </a>
+                <a href="report-incident.html" class="nav-item">
+                    <span class="icon">⚠️</span>
+                    <span>Report Issue</span>
+                </a>
+                <a href="incident-logs.html" class="nav-item">
+                    <span class="icon">📋</span>
+                    <span>Incidents</span>
+                </a>
+                <a href="risk-analysis.html" class="nav-item active">
+                    <span class="icon">📈</span>
+                    <span>Risk Analysis</span>
+                </a>
+                <a href="settings.html" class="nav-item">
+                    <span class="icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Risk Analysis</h1>
+                    <p class="header-subtitle">Understand your cybersecurity risk profile</p>
+                </div>
+                <div class="header-right">
+                    <button id="export-risk-btn" class="btn btn-secondary">
+                        📥 Export Report
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="dashboard-content">
+                <!-- Risk Matrix -->
+                <section class="risk-matrix-section">
+                    <h2>Risk Matrix</h2>
+                    <p class="section-subtitle">Likelihood vs Impact Assessment</p>
+                    <div class="risk-matrix-container">
+                        <canvas id="risk-matrix-chart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Risk Heatmap -->
+                <section class="charts-section">
+                    <div class="chart-container chart-container-half">
+                        <div class="chart-header">
+                            <h2>Risk Distribution</h2>
+                        </div>
+                        <canvas id="risk-distribution-chart"></canvas>
+                    </div>
+
+                    <div class="chart-container chart-container-half">
+                        <div class="chart-header">
+                            <h2>Risk Trends</h2>
+                        </div>
+                        <canvas id="risk-trends-chart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Asset Risk Profiles -->
+                <section class="asset-risk-section">
+                    <h2>Asset Risk Profiles</h2>
+                    <div class="asset-risk-grid">
+                        <div class="asset-risk-card asset-risk-critical">
+                            <h3>Critical Risk Assets</h3>
+                            <div id="critical-assets-list" class="asset-list">
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                        <div class="asset-risk-card asset-risk-high">
+                            <h3>High Risk Assets</h3>
+                            <div id="high-assets-list" class="asset-list">
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                        <div class="asset-risk-card asset-risk-medium">
+                            <h3>Medium Risk Assets</h3>
+                            <div id="medium-assets-list" class="asset-list">
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                        <div class="asset-risk-card asset-risk-low">
+                            <h3>Low Risk Assets</h3>
+                            <div id="low-assets-list" class="asset-list">
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recommendations Priority List -->
+                <section class="recommendations-priority-section">
+                    <h2>Priority Mitigation Recommendations</h2>
+                    <div id="recommendations-priority-list" class="recommendations-priority-list">
+                        <p>Loading recommendations...</p>
+                    </div>
+                </section>
+
+                <!-- Risk Breakdown Table -->
+                <section class="risk-breakdown-section">
+                    <h2>Detailed Risk Breakdown</h2>
+                    <div class="table-responsive">
+                        <table class="risk-breakdown-table">
+                            <thead>
+                                <tr>
+                                    <th>Incident ID</th>
+                                    <th>Asset</th>
+                                    <th>Threat Type</th>
+                                    <th>Likelihood</th>
+                                    <th>Impact</th>
+                                    <th>Risk Score</th>
+                                    <th>Risk Level</th>
+                                    <th>Priority</th>
+                                </tr>
+                            </thead>
+                            <tbody id="risk-breakdown-tbody">
+                                <tr>
+                                    <td colspan="8" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/risk-analysis.js"></script>
+</body>
+</html>
