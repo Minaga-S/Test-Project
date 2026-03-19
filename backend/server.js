@@ -20,9 +20,15 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
+const normalizeOrigin = (value = '') => value
+    .trim()
+    .replace(/^['\"]|['\"]$/g, '')
+    .replace(/\/$/, '')
+    .toLowerCase();
+
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => normalizeOrigin(origin))
     .filter(Boolean);
 
 app.use(cors({
@@ -31,7 +37,9 @@ app.use(cors({
             return callback(null, true);
         }
 
-        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        const requestOrigin = normalizeOrigin(origin);
+
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(requestOrigin)) {
             return callback(null, true);
         }
 
