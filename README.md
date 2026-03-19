@@ -8,27 +8,12 @@ AI-Assisted Cybersecurity Threat Assessment and Governance System for Small Hote
 - Backend: Node.js, Express, MongoDB
 - Auth/Security: JWT, bcryptjs, helmet, cors
 
-## Run Locally
+## Hosted Setup
 
-### 1) Backend
+This project is configured for hosted deployment only:
 
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-Backend runs on `http://localhost:5000`.
-
-### 2) Frontend
-
-From project root:
-
-```bash
-npx http-server frontend -p 3000
-```
-
-Open `http://localhost:3000`.
+- Frontend: GitHub Pages
+- Backend: Render
 
 ## Test Login Accounts
 
@@ -74,7 +59,7 @@ Then commit and push again so GitHub Pages uses the correct API endpoint.
 In backend `.env`, include your GitHub Pages origin in `CORS_ORIGIN`, for example:
 
 ```env
-CORS_ORIGIN=http://localhost:3000,https://<your-username>.github.io
+CORS_ORIGIN=https://<your-username>.github.io
 ```
 
 (If needed, include the repo path variant used by your deployment policy.)
