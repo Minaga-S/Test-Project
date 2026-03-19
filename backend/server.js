@@ -31,22 +31,38 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean);
 
-app.use(cors({
+const defaultAllowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://minaga-s.github.io',
+];
+
+const effectiveAllowedOrigins = allowedOrigins.length > 0
+    ? allowedOrigins
+    : defaultAllowedOrigins;
+
+const corsOptions = {
     origin: (origin, callback) => {
         if (!origin) {
             return callback(null, true);
         }
 
         const requestOrigin = normalizeOrigin(origin);
+        const isGithubPagesOrigin = /^https:\/\/[a-z0-9-]+\.github\.io$/i.test(requestOrigin);
+        const isAllowed = effectiveAllowedOrigins.includes(requestOrigin) || isGithubPagesOrigin;
 
-        if (allowedOrigins.length === 0 || allowedOrigins.includes(requestOrigin)) {
+        if (isAllowed) {
             return callback(null, true);
         }
 
-        return callback(new Error('Not allowed by CORS'));
+        return callback(new Error(`Not allowed by CORS: ${requestOrigin}`));
     },
     credentials: true,
-}));
+    optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
