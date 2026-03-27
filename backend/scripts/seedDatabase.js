@@ -6,6 +6,8 @@
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 const User = require('../models/User');
+const ThreatKnowledgeBase = require('../models/ThreatKnowledgeBase');
+const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
 
 const testUsers = [
     {
@@ -24,21 +26,32 @@ const testUsers = [
 
 async function seedDatabase() {
     try {
-        // Check if users already exist
+        // Seed users if database is empty.
         const existingUsers = await User.countDocuments();
-        
-        if (existingUsers > 0) {
-            console.log('✓ Database already seeded, skipping');
-            return;
+        if (existingUsers === 0) {
+            for (const userData of testUsers) {
+                const user = new User(userData);
+                await user.save();
+                console.log(`✓ Created test user: ${userData.email}`);
+            }
+            console.log('✓ User seed completed');
+        } else {
+            console.log('✓ Users already seeded, skipping user seed');
         }
 
-        // Create test users
-        for (const userData of testUsers) {
-            const user = new User(userData);
-            await user.save();
-            console.log(`✓ Created test user: ${userData.email}`);
+        // Upsert threat knowledge base entries.
+        for (const entry of THREAT_KNOWLEDGE_BASE) {
+            await ThreatKnowledgeBase.findOneAndUpdate(
+                { threatType: entry.threatType },
+                {
+                    ...entry,
+                    updatedAt: new Date(),
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
         }
 
+        console.log('✓ Threat knowledge base seed completed');
         console.log('✓ Database seeded successfully');
     } catch (error) {
         console.error('✗ Seed error:', error.message);

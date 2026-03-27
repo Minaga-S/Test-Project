@@ -200,7 +200,7 @@ class APIClient {
     }
 
     async getAssetTypes() {
-        return this.get('/asset-types');
+        return this.get('/assets/asset-types');
     }
 
     // ============== INCIDENT ENDPOINTS ==============

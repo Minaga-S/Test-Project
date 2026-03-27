@@ -3,6 +3,7 @@
  */
 
 const Incident = require('../models/Incident');
+const RiskAssessment = require('../models/RiskAssessment');
 const riskService = require('../services/riskCalculationService');
 const logger = require('../utils/logger');
 
@@ -22,6 +23,16 @@ class RiskController {
             }
 
             const riskAssessment = riskService.calculateRisk(likelihood, impact);
+
+            await RiskAssessment.create({
+                likelihood,
+                impact,
+                riskScore: riskAssessment.score,
+                riskLevel: riskAssessment.level,
+                recommendation: riskAssessment.recommendation || '',
+                userId: req.user.userId,
+                updatedAt: new Date(),
+            });
 
             res.json({
                 success: true,
@@ -60,6 +71,24 @@ class RiskController {
                 threatType: incident.threatType,
                 asset: incident.asset,
             };
+
+            await RiskAssessment.findOneAndUpdate(
+                {
+                    incidentId: incident._id,
+                    userId: req.user.userId,
+                },
+                {
+                    incidentId: incident._id,
+                    likelihood: incident.likelihood,
+                    impact: incident.impact,
+                    riskScore: incident.riskScore,
+                    riskLevel: incident.riskLevel,
+                    recommendation: riskService.getRiskRecommendation(incident.riskLevel),
+                    userId: req.user.userId,
+                    updatedAt: new Date(),
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
 
             res.json({
                 success: true,
