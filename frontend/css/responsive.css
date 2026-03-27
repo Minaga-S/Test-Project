@@ -9,11 +9,11 @@
     }
 
     .sidebar {
-        width: 220px;
+        width: 236px;
     }
 
     .main-content {
-        margin-left: 220px;
+        margin-left: 236px;
         padding: 1.5rem;
     }
 
@@ -63,11 +63,28 @@
     }
 
     .sidebar {
-        width: 100%;
-        height: auto;
-        position: static;
+        width: min(84vw, 300px);
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
         padding: 1rem 0;
-        border-bottom: 1px solid var(--light-color);
+        border-bottom: none;
+        transform: translateX(-104%);
+        transition: transform 0.22s ease;
+        z-index: 1001;
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
+
+    body.sidebar-open::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 1000;
     }
 
     .sidebar-header {
@@ -115,6 +132,15 @@
     .main-content {
         margin-left: 0;
         padding: 1rem;
+    }
+
+    .quick-actions-inline {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .collapsible-content {
+        max-height: 58vh;
+        overflow-y: auto;
     }
 
     h1 {
@@ -262,6 +288,11 @@
     .login-content {
         padding: 1.5rem;
     }
+
+    .sidebar-toggle-btn {
+        width: 36px;
+        height: 36px;
+    }
 }
 
 /* ============================================
@@ -310,6 +341,10 @@
 
     .btn-lg {
         padding: 0.8rem 1.5rem;
+    }
+
+    .quick-actions-inline {
+        grid-template-columns: 1fr;
     }
 
     .modal-header {

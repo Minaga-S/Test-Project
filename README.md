@@ -95,6 +95,38 @@ This project is configured for hosted usage:
 
 This separation supports simple static delivery for UI and scalable API hosting for application logic.
 
+## Localhost Testing (Frontend + Backend)
+
+Use this setup to test both layers locally.
+
+### 1) Start the backend API
+
+From `backend`:
+
+```bash
+npm install
+npm run dev
+```
+
+Backend will run on `http://localhost:5000` and health check is `http://localhost:5000/health`.
+
+### 2) Serve the frontend files locally
+
+From `frontend`, run any static server. Example with Node:
+
+```bash
+npx serve .
+```
+
+Open the shown local URL (commonly `http://localhost:3000` or similar).
+
+### 3) API routing behavior
+
+- If frontend is opened from `localhost` or `127.0.0.1`, it uses `http://localhost:5000/api`.
+- If frontend is opened from hosted domains, it uses the production API URL.
+
+You can also force a custom API base URL by setting `localStorage.apiBaseUrlOverride` in the browser console.
+
 ## Setup and Deployment (Reference)
 
 ### Frontend Deployment

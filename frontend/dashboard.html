@@ -116,81 +116,91 @@
                     </div>
                 </section>
 
-                <!-- Charts Section -->
-                <section class="charts-section">
-                    <div class="chart-container chart-container-half">
-                        <div class="chart-header">
-                            <h2>Risk Distribution</h2>
+                <section class="collapsible-panel collapsed" id="dashboard-risk-distribution-panel">
+                    <button class="collapsible-toggle" type="button" data-target="dashboard-risk-distribution-content" aria-expanded="false">
+                        <span>Risk Distribution</span>
+                        <span class="panel-meta" id="dashboard-risk-distribution-summary"></span>
+                        <span class="toggle-icon">▾</span>
+                    </button>
+                    <div id="dashboard-risk-distribution-content" class="collapsible-content">
+                        <div class="chart-container chart-container-full">
+                            <canvas id="risk-distribution-chart"></canvas>
                         </div>
-                        <canvas id="risk-distribution-chart"></canvas>
-                    </div>
-
-                    <div class="chart-container chart-container-half">
-                        <div class="chart-header">
-                            <h2>Threat Categories</h2>
-                        </div>
-                        <canvas id="threat-categories-chart"></canvas>
                     </div>
                 </section>
 
-                <section class="charts-section">
-                    <div class="chart-container chart-container-full">
-                        <div class="chart-header">
-                            <h2>Most Vulnerable Assets</h2>
+                <section class="collapsible-panel collapsed" id="dashboard-threat-categories-panel">
+                    <button class="collapsible-toggle" type="button" data-target="dashboard-threat-categories-content" aria-expanded="false">
+                        <span>Threat Categories</span>
+                        <span class="panel-meta" id="dashboard-threat-categories-summary"></span>
+                        <span class="toggle-icon">▾</span>
+                    </button>
+                    <div id="dashboard-threat-categories-content" class="collapsible-content">
+                        <div class="chart-container chart-container-full">
+                            <canvas id="threat-categories-chart"></canvas>
                         </div>
-                        <canvas id="vulnerable-assets-chart"></canvas>
+                    </div>
+                </section>
+
+                <section class="collapsible-panel collapsed" id="dashboard-vulnerable-assets-panel">
+                    <button class="collapsible-toggle" type="button" data-target="dashboard-vulnerable-assets-content" aria-expanded="false">
+                        <span>Most Vulnerable Assets</span>
+                        <span class="panel-meta" id="dashboard-vulnerable-assets-summary"></span>
+                        <span class="toggle-icon">▾</span>
+                    </button>
+                    <div id="dashboard-vulnerable-assets-content" class="collapsible-content">
+                        <div class="chart-container chart-container-full">
+                            <canvas id="vulnerable-assets-chart"></canvas>
+                        </div>
                     </div>
                 </section>
 
                 <!-- Recent Incidents Table -->
-                <section class="incidents-section">
-                    <div class="section-header">
-                        <h2>Recent Incidents</h2>
-                        <a href="incident-logs.html" class="link">View All</a>
-                    </div>
+                <section class="collapsible-panel collapsed" id="dashboard-recent-incidents-panel">
+                    <button class="collapsible-toggle" type="button" data-target="dashboard-recent-incidents-content" aria-expanded="false">
+                        <span>Recent Incidents</span>
+                        <span class="panel-meta" id="dashboard-recent-incidents-summary"></span>
+                        <span class="toggle-icon">▾</span>
+                    </button>
+                    <div id="dashboard-recent-incidents-content" class="collapsible-content">
+                        <section class="incidents-section">
+                            <div class="section-header">
+                                <h2>Recent Incidents</h2>
+                                <a href="incident-logs.html" class="link">View All</a>
+                            </div>
 
-                    <div class="table-responsive">
-                        <table class="incidents-table">
-                            <thead>
-                                <tr>
-                                    <th>Incident ID</th>
-                                    <th>Asset</th>
-                                    <th>Threat Type</th>
-                                    <th>Risk Level</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="recent-incidents-tbody">
-                                <tr>
-                                    <td colspan="7" class="text-center">Loading incidents...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                            <div class="table-responsive">
+                                <table class="incidents-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Incident ID</th>
+                                            <th>Asset</th>
+                                            <th>Threat Type</th>
+                                            <th>Risk Level</th>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-incidents-tbody">
+                                        <tr>
+                                            <td colspan="7" class="text-center">Loading incidents...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
                     </div>
                 </section>
 
                 <!-- Quick Actions -->
-                <section class="quick-actions-section">
+                <section class="quick-actions-strip">
                     <h2>Quick Actions</h2>
-                    <div class="actions-grid">
-                        <a href="report-incident.html" class="action-btn action-btn-primary">
-                            <span class="action-icon">➕</span>
-                            <span>Report New Issue</span>
-                        </a>
-                        <a href="assets.html" class="action-btn action-btn-secondary">
-                            <span class="action-icon">➕</span>
-                            <span>Add Asset</span>
-                        </a>
-                        <a href="risk-analysis.html" class="action-btn action-btn-tertiary">
-                            <span class="action-icon">📊</span>
-                            <span>View Risk Matrix</span>
-                        </a>
-                        <a href="settings.html" class="action-btn action-btn-quaternary">
-                            <span class="action-icon">⚙️</span>
-                            <span>Settings</span>
-                        </a>
+                    <div class="quick-actions-inline">
+                        <a href="report-incident.html" class="btn btn-primary btn-sm">Report Issue</a>
+                        <a href="assets.html" class="btn btn-secondary btn-sm">Add Asset</a>
+                        <a href="risk-analysis.html" class="btn btn-primary btn-sm">Risk Matrix</a>
+                        <a href="settings.html" class="btn btn-secondary btn-sm">Settings</a>
                     </div>
                 </section>
             </div>

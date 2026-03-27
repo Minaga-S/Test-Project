@@ -174,14 +174,15 @@ function showSuccessModal(incident, analysis) {
 
 function setupUserInfo() {
     const user = getLocalStorage('user');
-    if (user) {
-        document.getElementById('user-name').textContent = user.fullName || user.email;
+    const userNameEl = document.getElementById('user-name');
+    if (user && userNameEl) {
+        userNameEl.textContent = user.fullName || user.email;
     }
 }
 
 function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
+        logoutBtn.type = 'button';
     }
 }

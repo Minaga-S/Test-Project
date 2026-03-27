@@ -160,6 +160,84 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+function logout() {
+    const shouldLogout = window.confirm('Are you sure you want to log out?');
+    if (!shouldLogout) {
+        return;
+    }
+
+    apiClient.logout();
+    window.location.href = 'index.html';
+}
+
+function setupSidebarToggle() {
+    const sidebar = document.querySelector('.sidebar');
+    const topHeader = document.querySelector('.top-header');
+    const headerLeft = document.querySelector('.header-left') || topHeader;
+
+    if (!sidebar || !topHeader || !headerLeft) {
+        return;
+    }
+
+    let toggleBtn = document.getElementById('sidebar-toggle-btn');
+    if (!toggleBtn) {
+        toggleBtn = document.createElement('button');
+        toggleBtn.id = 'sidebar-toggle-btn';
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'sidebar-toggle-btn';
+        toggleBtn.setAttribute('aria-label', 'Toggle sidebar');
+        toggleBtn.innerHTML = '<span aria-hidden="true">☰</span>';
+        headerLeft.prepend(toggleBtn);
+    }
+
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    if (savedState === 'true' && window.innerWidth > 768) {
+        document.body.classList.add('sidebar-collapsed');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+            document.body.classList.toggle('sidebar-open');
+            return;
+        }
+
+        const collapsed = document.body.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', String(collapsed));
+    });
+
+    document.addEventListener('click', (event) => {
+        if (window.innerWidth > 768) {
+            return;
+        }
+
+        const inSidebar = event.target.closest('.sidebar');
+        const isToggle = event.target.closest('#sidebar-toggle-btn');
+        if (!inSidebar && !isToggle) {
+            document.body.classList.remove('sidebar-open');
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            document.body.classList.remove('sidebar-open');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupSidebarToggle();
+});
+
+document.addEventListener('click', (event) => {
+    const logoutButton = event.target.closest('#logout-btn');
+    if (!logoutButton) {
+        return;
+    }
+
+    event.preventDefault();
+    logout();
+});
+
 // ============== RISK LEVEL HELPERS ==============
 
 function getRiskColor(riskLevel) {
