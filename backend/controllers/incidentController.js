@@ -158,6 +158,53 @@ class IncidentController {
     }
 
     /**
+     * Update incident
+     */
+    async updateIncident(req, res, next) {
+        try {
+            const incident = await Incident.findOne({
+                _id: req.params.id,
+                userId: req.user.userId,
+            });
+
+            if (!incident) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Incident not found',
+                });
+            }
+
+            const allowedFields = [
+                'description',
+                'guestAffected',
+                'sensitiveDataInvolved',
+                'status',
+                'likelihood',
+                'impact',
+            ];
+
+            allowedFields.forEach((field) => {
+                if (req.body[field] !== undefined) {
+                    incident[field] = req.body[field];
+                }
+            });
+
+            incident.updatedAt = new Date();
+            await incident.save();
+
+            res.json({
+                success: true,
+                message: 'Incident updated successfully',
+                incident,
+            });
+
+        } catch (error) {
+            logger.error('Update incident error:', error.message);
+            next(error);
+        }
+    }
+
+    /**
      * Update incident status
      */
     async updateIncidentStatus(req, res, next) {

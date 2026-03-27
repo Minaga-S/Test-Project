@@ -4,6 +4,8 @@
 
 const threatService = require('../services/threatClassificationService');
 const { THREAT_KNOWLEDGE_BASE, THREAT_TYPES } = require('../utils/constants');
+const Threat = require('../models/Threat');
+const ThreatKnowledgeBase = require('../models/ThreatKnowledgeBase');
 const logger = require('../utils/logger');
 
 class ThreatController {
@@ -23,6 +25,13 @@ class ThreatController {
 
             const analysis = await threatService.classifyThreat(description);
 
+            // Persist analysis history for audit and reporting.
+            await Threat.create({
+                ...analysis,
+                sourceDescription: description,
+                userId: req.user.userId,
+            });
+
             logger.info(`Threat analyzed by user ${req.user.userId}`);
 
             res.json({
@@ -37,14 +46,24 @@ class ThreatController {
     }
 
     /**
+     * Classify threat (alias for analyze endpoint)
+     */
+    async classifyThreat(req, res, next) {
+        return this.analyzeThreat(req, res, next);
+    }
+
+    /**
      * Get threat knowledge base
      */
     async getKnowledgeBase(req, res, next) {
         try {
+            const storedKnowledge = await ThreatKnowledgeBase.find().sort({ threatType: 1 });
+            const knowledgeBase = storedKnowledge.length > 0 ? storedKnowledge : THREAT_KNOWLEDGE_BASE;
+
             res.json({
                 success: true,
-                knowledgeBase: THREAT_KNOWLEDGE_BASE,
-                count: THREAT_KNOWLEDGE_BASE.length,
+                knowledgeBase,
+                count: knowledgeBase.length,
             });
 
         } catch (error) {
@@ -58,7 +77,9 @@ class ThreatController {
      */
     async getThreatCategories(req, res, next) {
         try {
-            const categories = [...new Set(THREAT_KNOWLEDGE_BASE.map(t => t.threatCategory))];
+            const storedKnowledge = await ThreatKnowledgeBase.find({}, { threatCategory: 1, _id: 0 });
+            const source = storedKnowledge.length > 0 ? storedKnowledge : THREAT_KNOWLEDGE_BASE;
+            const categories = [...new Set(source.map((t) => t.threatCategory))];
 
             res.json({
                 success: true,
@@ -96,7 +117,8 @@ class ThreatController {
         try {
             const { threatType } = req.params;
 
-            const threatDetails = THREAT_KNOWLEDGE_BASE.find(t => t.threatType === threatType);
+            const threatDetails = await ThreatKnowledgeBase.findOne({ threatType })
+                || THREAT_KNOWLEDGE_BASE.find((t) => t.threatType === threatType);
 
             if (!threatDetails) {
                 return res.status(404).json({
