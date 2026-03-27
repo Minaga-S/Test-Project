@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#27ae60" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#27ae60" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#27ae60"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item"><span class="icon">📊</span><span>Dashboard</span></a>
+                <a href="assets.html" class="nav-item"><span class="icon">🖥️</span><span>Assets</span></a>
+                <a href="report-incident.html" class="nav-item"><span class="icon">⚠️</span><span>Report Issue</span></a>
+                <a href="incident-logs.html" class="nav-item"><span class="icon">📋</span><span>Incidents</span></a>
+                <a href="risk-analysis.html" class="nav-item"><span class="icon">📈</span><span>Risk Analysis</span></a>
+                <a href="settings.html" class="nav-item active"><span class="icon">⚙️</span><span>Settings</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>FAQ</h1>
+                    <p class="header-subtitle">Common questions and quick answers</p>
+                </div>
+            </header>
+
+            <section class="detail-section">
+                <h3>How do I report an incident?</h3>
+                <p>Go to Report Issue, fill in the form, and submit. Minimum description length is required for analysis.</p>
+            </section>
+
+            <section class="detail-section">
+                <h3>Why is my risk level high?</h3>
+                <p>Risk is calculated from likelihood and impact. High-impact assets and severe threat types increase the score.</p>
+            </section>
+
+            <section class="detail-section">
+                <h3>Can I export data?</h3>
+                <p>Yes. Use export buttons in Incident Logs and Risk Analysis pages for CSV reports.</p>
+            </section>
+
+            <section class="detail-section">
+                <h3>How do I reset my password?</h3>
+                <p>Open Settings, then Password tab, enter current password and your new password.</p>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        if (!apiClient.isAuthenticated()) {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

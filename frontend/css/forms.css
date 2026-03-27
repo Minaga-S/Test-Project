@@ -18,12 +18,12 @@
 .form-group input,
 .form-group textarea,
 .form-group select {
-    padding: 0.75rem;
-    border: 1px solid var(--light-color);
+    padding: 0.8rem 0.9rem;
+    border: 1px solid #cbd5e1;
     border-radius: var(--border-radius);
     font-size: var(--font-size-base);
     font-family: var(--font-family);
-    background-color: white;
+    background-color: #f8fafc;
     transition: var(--transition);
 }
 
@@ -32,7 +32,8 @@
 .form-group select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.14);
 }
 
 .form-group textarea {
@@ -87,22 +88,84 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    background: white;
+    background: rgba(255, 255, 255, 0.9);
     padding: 2rem;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     margin-bottom: 2rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
 }
 
 .report-form {
-    background: white;
+    background: rgba(255, 255, 255, 0.9);
     padding: 2rem;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
+    border: 1px solid rgba(148, 163, 184, 0.28);
 }
 
 .report-form .form-group {
     margin-bottom: 1.5rem;
+}
+
+.report-section .info-box {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-left: 4px solid var(--info-color);
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.report-section .info-box p {
+    margin: 0 0 0.75rem 0;
+}
+
+.examples-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style-position: outside;
+}
+
+.examples-list li {
+    margin: 0.45rem 0;
+    padding-left: 0.1rem;
+    line-height: 1.45;
+}
+
+.analysis-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    text-align: center;
+}
+
+.analysis-progress .progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.analysis-progress .progress-fill {
+    width: 12%;
+    height: 100%;
+    background: linear-gradient(90deg, #0f766e, #0369a1);
+    transition: width 0.35s ease;
+}
+
+.success-details {
+    text-align: left;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 0.9rem;
+    margin: 0.8rem 0;
+}
+
+.success-details p {
+    margin: 0.35rem 0;
 }
 
 /* ============================================
@@ -152,7 +215,7 @@ select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232c3e50' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 0.75rem center;
+    background-position: right 0.9rem center;
     padding-right: 2.5rem;
 }
 

@@ -2,6 +2,8 @@
  * Settings Page Handler
  */
 
+const USER_TABS = ['profile', 'password', 'notifications'];
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeSettings();
 });
@@ -15,29 +17,11 @@ async function initializeSettings() {
     setupUserInfo();
     setupLogoutButton();
     setupTabHandlers();
+    setupFormHandlers();
     await loadUserSettings();
 }
 
-function setupTabHandlers() {
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            const tabName = button.getAttribute('data-tab');
-            
-            // Remove active class from all buttons and tabs
-            tabButtons.forEach(btn => btn.classList.remove('tab-btn-active'));
-            document.querySelectorAll('.settings-tab-content').forEach(tab => {
-                tab.classList.remove('tab-active');
-            });
-            
-            // Add active class to clicked button and corresponding tab
-            button.classList.add('tab-btn-active');
-            document.getElementById(`${tabName}-tab`).classList.add('tab-active');
-        });
-    });
-
-    // Setup form handlers
+function setupFormHandlers() {
     const profileForm = document.getElementById('profile-form');
     if (profileForm) {
         profileForm.addEventListener('submit', handleProfileUpdate);
@@ -54,11 +38,45 @@ function setupTabHandlers() {
     }
 }
 
+function setupTabHandlers() {
+    const tabButtons = document.querySelectorAll('.tab-btn');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.getAttribute('data-tab');
+            activateTab(tabName);
+        });
+    });
+}
+
+function activateTab(tabName) {
+    if (!USER_TABS.includes(tabName)) {
+        return;
+    }
+
+    document.querySelectorAll('.settings-tab-content').forEach((tab) => {
+        tab.classList.remove('tab-active');
+    });
+
+    document.querySelectorAll('.tab-btn').forEach((button) => {
+        const buttonTab = button.getAttribute('data-tab');
+        button.classList.toggle('tab-btn-active', buttonTab === tabName);
+    });
+
+    const targetTab = document.getElementById(`${tabName}-tab`);
+    if (targetTab) {
+        targetTab.classList.add('tab-active');
+    }
+}
+
 async function loadUserSettings() {
     showLoading(true);
 
     try {
-        const user = await apiClient.getProfile();
+        const profileResponse = await apiClient.getProfile();
+        const user = profileResponse?.user || profileResponse || {};
+        setLocalStorage('user', user);
+        setupUserInfo();
         
         // Fill profile tab
         document.getElementById('profile-name').value = user.fullName || '';
@@ -73,6 +91,8 @@ async function loadUserSettings() {
         document.getElementById('notify-new-incident').checked = preferences.notifyNewIncident !== false;
         document.getElementById('notify-resolved').checked = preferences.notifyResolved !== false;
         document.getElementById('notify-daily-summary').checked = preferences.notifyDailySummary !== false;
+
+        activateTab('profile');
 
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -169,91 +189,15 @@ async function handleNotificationsUpdate(e) {
 
 function setupUserInfo() {
     const user = getLocalStorage('user');
-    if (user) {
-        document.getElementById('user-name').textContent = user.fullName || user.email;
+    const userNameEl = document.getElementById('user-name');
+    if (user && userNameEl) {
+        userNameEl.textContent = user.fullName || user.email;
     }
 }
 
 function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
+        logoutBtn.type = 'button';
     }
 }
-
-// Add CSS for tab active state
-const style = document.createElement('style');
-style.textContent = `
-    .tab-btn-active {
-        background-color: #27ae60 !important;
-        color: white !important;
-    }
-    
-    .settings-tab-content {
-        display: none;
-    }
-    
-    .tab-active {
-        display: block !important;
-    }
-    
-    .tab-btn {
-        padding: 0.75rem 1.5rem;
-        border: none;
-        background-color: #ecf0f1;
-        color: var(--secondary-color);
-        cursor: pointer;
-        border-radius: 4px 4px 0 0;
-        margin-right: 0.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .tab-btn:hover {
-        background-color: #ddd;
-    }
-    
-    .settings-tabs {
-        display: flex;
-        border-bottom: 2px solid #ecf0f1;
-        margin-bottom: 1.5rem;
-    }
-    
-    .help-section {
-        background: white;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    .help-links {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-    }
-    
-    .help-link {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 1rem;
-        border: 2px solid #ecf0f1;
-        border-radius: 8px;
-        text-align: center;
-        color: var(--secondary-color);
-        transition: all 0.3s ease;
-        text-decoration: none;
-    }
-    
-    .help-link:hover {
-        border-color: #27ae60;
-        color: #27ae60;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    .help-link .icon {
-        font-size: 2rem;
-    }
-`;
-document.head.appendChild(style);

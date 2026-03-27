@@ -69,26 +69,41 @@
 
             <!-- Content Area -->
             <div class="dashboard-content">
-                <!-- Settings Tabs -->
+                <!-- Help & Documentation -->
+                <section class="help-section">
+                    <h2>Help & Documentation</h2>
+                    <div class="help-links">
+                        <a href="user-guide.html" class="help-link">
+                            <span class="icon">📖</span>
+                            <span>User Guide</span>
+                        </a>
+                        <a href="faq.html" class="help-link">
+                            <span class="icon">❓</span>
+                            <span>FAQ</span>
+                        </a>
+                        <a href="contact-support.html" class="help-link">
+                            <span class="icon">📞</span>
+                            <span>Contact Support</span>
+                        </a>
+                    </div>
+                </section>
+
                 <div class="settings-tabs">
-                    <button class="tab-btn tab-btn-active" data-tab="profile">
+                    <button class="tab-btn tab-btn-active" data-tab="profile" type="button">
                         👤 Profile
                     </button>
-                    <button class="tab-btn" data-tab="password">
+                    <button class="tab-btn" data-tab="password" type="button">
                         🔑 Password
                     </button>
-                    <button class="tab-btn" data-tab="notifications">
+                    <button class="tab-btn" data-tab="notifications" type="button">
                         🔔 Notifications
-                    </button>
-                    <button class="tab-btn" data-tab="system">
-                        ⚙️ System
                     </button>
                 </div>
 
                 <!-- Profile Tab -->
                 <div id="profile-tab" class="settings-tab-content tab-active">
-                    <h2>User Profile</h2>
-                    <form id="profile-form" class="settings-form">
+                        <h2>User Profile</h2>
+                        <form id="profile-form" class="settings-form">
                         <div class="form-group">
                             <label for="profile-name">Full Name</label>
                             <input 
@@ -131,17 +146,17 @@
                             >
                         </div>
 
-                        <button type="submit" class="btn btn-primary">
-                            Save Changes
-                        </button>
-                        <small id="profile-success" class="success-message"></small>
-                    </form>
+                            <button type="submit" class="btn btn-primary">
+                                Save Changes
+                            </button>
+                            <small id="profile-success" class="success-message"></small>
+                        </form>
                 </div>
 
                 <!-- Password Tab -->
                 <div id="password-tab" class="settings-tab-content">
-                    <h2>Change Password</h2>
-                    <form id="password-form" class="settings-form">
+                        <h2>Change Password</h2>
+                        <form id="password-form" class="settings-form">
                         <div class="form-group">
                             <label for="current-password">Current Password</label>
                             <input 
@@ -173,18 +188,18 @@
                             >
                         </div>
 
-                        <button type="submit" class="btn btn-primary">
-                            Update Password
-                        </button>
-                        <small id="password-success" class="success-message"></small>
-                        <small id="password-error" class="error-message"></small>
-                    </form>
+                            <button type="submit" class="btn btn-primary">
+                                Update Password
+                            </button>
+                            <small id="password-success" class="success-message"></small>
+                            <small id="password-error" class="error-message"></small>
+                        </form>
                 </div>
 
                 <!-- Notifications Tab -->
                 <div id="notifications-tab" class="settings-tab-content">
-                    <h2>Notification Preferences</h2>
-                    <form id="notifications-form" class="settings-form">
+                        <h2>Notification Preferences</h2>
+                        <form id="notifications-form" class="settings-form">
                         <div class="form-group checkbox">
                             <input 
                                 type="checkbox" 
@@ -249,79 +264,12 @@
                             </label>
                         </div>
 
-                        <button type="submit" class="btn btn-primary">
-                            Save Preferences
-                        </button>
-                        <small id="notifications-success" class="success-message"></small>
-                    </form>
+                            <button type="submit" class="btn btn-primary">
+                                Save Preferences
+                            </button>
+                            <small id="notifications-success" class="success-message"></small>
+                        </form>
                 </div>
-
-                <!-- System Tab -->
-                <div id="system-tab" class="settings-tab-content">
-                    <h2>System Settings</h2>
-                    <p><strong>Note:</strong> System settings are for administrators only.</p>
-                    
-                    <form id="system-form" class="settings-form">
-                        <div class="form-group">
-                            <label for="ai-api-key">AI API Configuration</label>
-                            <input 
-                                type="text" 
-                                id="ai-api-key" 
-                                name="aiApiKey" 
-                                placeholder="API Key (hidden)"
-                                disabled
-                            >
-                            <small>Contact administrator to update API configuration</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="nist-version">NIST Framework Version</label>
-                            <select id="nist-version" name="nistVersion" disabled>
-                                <option value="2.0">NIST CSF 2.0</option>
-                                <option value="1.1">NIST CSF 1.1</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="risk-calculation">Risk Calculation Method</label>
-                            <select id="risk-calculation" name="riskCalculation" disabled>
-                                <option value="likelihood-impact">Likelihood × Impact</option>
-                                <option value="weighted">Weighted Score</option>
-                            </select>
-                        </div>
-
-                        <p class="info-box">
-                            <strong>System Information:</strong><br>
-                            Version: 1.0.0<br>
-                            Database: MongoDB<br>
-                            Backend: Node.js + Express<br>
-                            Last Updated: 2026-03-19
-                        </p>
-                    </form>
-                </div>
-
-                <!-- Help & Documentation -->
-                <section class="help-section">
-                    <h2>Help & Documentation</h2>
-                    <div class="help-links">
-                        <a href="#" class="help-link">
-                            <span class="icon">📖</span>
-                            <span>User Guide</span>
-                        </a>
-                        <a href="#" class="help-link">
-                            <span class="icon">❓</span>
-                            <span>FAQ</span>
-                        </a>
-                        <a href="#" class="help-link">
-                            <span class="icon">🎓</span>
-                            <span>Video Tutorials</span>
-                        </a>
-                        <a href="#" class="help-link">
-                            <span class="icon">📞</span>
-                            <span>Contact Support</span>
-                        </a>
-                    </div>
-                </section>
             </div>
         </main>
     </div>

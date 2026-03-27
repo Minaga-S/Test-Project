@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Guide - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#27ae60" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#27ae60" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#27ae60"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item"><span class="icon">📊</span><span>Dashboard</span></a>
+                <a href="assets.html" class="nav-item"><span class="icon">🖥️</span><span>Assets</span></a>
+                <a href="report-incident.html" class="nav-item"><span class="icon">⚠️</span><span>Report Issue</span></a>
+                <a href="incident-logs.html" class="nav-item"><span class="icon">📋</span><span>Incidents</span></a>
+                <a href="risk-analysis.html" class="nav-item"><span class="icon">📈</span><span>Risk Analysis</span></a>
+                <a href="settings.html" class="nav-item active"><span class="icon">⚙️</span><span>Settings</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>User Guide</h1>
+                    <p class="header-subtitle">Step-by-step guide for normal users</p>
+                </div>
+            </header>
+
+            <section class="detail-section">
+                <h3>1. Sign In And Overview</h3>
+                <p>Log in with your assigned account. Start from Dashboard to review total assets, active incidents, and risk highlights.</p>
+            </section>
+
+            <section class="detail-section">
+                <h3>2. Report A Security Issue</h3>
+                <p>Go to Report Issue, choose affected asset, provide description, and submit. The AI analysis and risk score are generated automatically.</p>
+            </section>
+
+            <section class="detail-section">
+                <h3>3. Track Incident Progress</h3>
+                <p>Use Incidents to review status updates, notes, and recommendations. Filter by risk level to prioritize your work quickly.</p>
+            </section>
+
+            <section class="detail-section">
+                <h3>4. Review Risk Analysis</h3>
+                <p>Open Risk Analysis for matrix, trends, and asset-level risk summaries. Export a report when preparing daily or weekly briefings.</p>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        if (!apiClient.isAuthenticated()) {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
