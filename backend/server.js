@@ -33,11 +33,17 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
 
 const defaultAllowedOrigins = [
     'https://minaga-s.github.io',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5500',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5500',
 ];
 
-const effectiveAllowedOrigins = allowedOrigins.length > 0
-    ? allowedOrigins
-    : defaultAllowedOrigins;
+const effectiveAllowedOrigins = [
+    ...new Set([...defaultAllowedOrigins, ...allowedOrigins]),
+];
 
 const corsOptions = {
     origin: (origin, callback) => {

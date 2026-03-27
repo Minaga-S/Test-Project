@@ -3,7 +3,21 @@
  */
 
 const PROD_API_BASE_URL = 'https://test-project-x7d2.onrender.com/api';
-const API_BASE_URL = PROD_API_BASE_URL;
+const LOCAL_API_BASE_URL = 'http://localhost:5000/api';
+
+function resolveApiBaseUrl() {
+    const overrideUrl = localStorage.getItem('apiBaseUrlOverride');
+    if (overrideUrl) {
+        return overrideUrl;
+    }
+
+    const host = window.location.hostname;
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+
+    return isLocalHost ? LOCAL_API_BASE_URL : PROD_API_BASE_URL;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 class APIClient {
     constructor() {
