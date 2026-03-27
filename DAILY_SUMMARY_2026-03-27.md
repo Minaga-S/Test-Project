@@ -34,6 +34,41 @@ Today's work focused on local testing support, frontend usability improvements, 
 ## Documentation Updates
 - Added localhost testing instructions in README, including backend and frontend run flow.
 
+## Architecture Alignment Updates
+- Refactored runtime routing from inline route logic to controller-based handlers across API modules.
+- Activated controller/service layer usage for auth, assets, incidents, threats, risk, dashboard, and NIST flows.
+- Added and wired a new NIST controller:
+  - `backend/controllers/nistController.js`
+- Fixed controller invocation binding in route wrappers to preserve method context in class-based controllers.
+
+## API Contract and Endpoint Coverage Fixes
+- Added missing backend endpoints expected by the frontend API client:
+  - `POST /api/threats/classify`
+  - `GET /api/risk/assessment/:incidentId`
+  - `GET /api/assets/asset-types`
+  - `GET /api/incidents/search`
+  - `PUT /api/incidents/:id`
+  - `DELETE /api/incidents/:id`
+- Added additional controller-backed endpoints for completeness:
+  - `GET /api/dashboard/overview`
+  - `GET /api/risk/summary`
+  - `GET /api/threats/types`
+  - `GET /api/threats/details/:threatType`
+- Updated frontend API client asset-types path to match mounted backend route.
+
+## Data Model and Persistence Updates
+- Replaced placeholder model files with active Mongoose schemas:
+  - `backend/models/Threat.js`
+  - `backend/models/RiskAssessment.js`
+  - `backend/models/ThreatKnowledgeBase.js`
+- Integrated threat analysis persistence into threat controller flow.
+- Integrated risk assessment persistence into risk controller flow.
+- Extended seeding to upsert threat knowledge base entries into MongoDB.
+
+## Validation Notes (Architecture Work)
+- Ran syntax checks for modified backend files using `node --check`.
+- Verified editor diagnostics for changed route/controller/model/client files showed no errors.
+
 ## Files Added
 - `DAILY_SUMMARY_2026-03-27.md`
 - `frontend/user-guide.html`
@@ -47,3 +82,4 @@ Today's work focused on local testing support, frontend usability improvements, 
 ## Next Suggested Follow-Up
 - Do a final visual QA pass on desktop and mobile breakpoints for sidebar interactions.
 - Confirm tab states and help links in Settings after hard refresh to avoid stale cache effects.
+- Run a lightweight API smoke test pass for newly added endpoints and response shapes.
