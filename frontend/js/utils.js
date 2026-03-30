@@ -170,6 +170,84 @@ function logout() {
     window.location.href = 'index.html';
 }
 
+function normalizeIconography() {
+    const navIconByRoute = {
+        'dashboard.html': 'dashboard',
+        'assets.html': 'inventory_2',
+        'report-incident.html': 'report_problem',
+        'incident-logs.html': 'assignment',
+        'risk-analysis.html': 'monitoring',
+        'settings.html': 'settings',
+    };
+
+    document.querySelectorAll('.sidebar .nav-item').forEach((navItem) => {
+        const label = navItem.querySelector('span:not(.icon)')?.textContent?.trim() || 'Navigation';
+        navItem.dataset.tooltip = label;
+        navItem.setAttribute('title', label);
+
+        const href = navItem.getAttribute('href') || '';
+        const route = href.split('?')[0];
+        const iconName = navIconByRoute[route] || 'chevron_right';
+
+        const iconEl = navItem.querySelector('.icon');
+        if (iconEl) {
+            iconEl.classList.add('material-symbols-rounded');
+            iconEl.setAttribute('aria-hidden', 'true');
+            iconEl.textContent = iconName;
+        }
+    });
+
+    document.querySelectorAll('.metric-icon').forEach((iconEl, index) => {
+        const metricIcons = ['inventory_2', 'warning', 'priority_high', 'task_alt'];
+        iconEl.classList.add('material-symbols-rounded');
+        iconEl.setAttribute('aria-hidden', 'true');
+        iconEl.textContent = metricIcons[index] || 'insights';
+    });
+
+    const emojiHeadingMap = {
+        '🛡️': 'shield',
+        '⚠️': 'warning',
+        '📊': 'monitoring',
+        '✅': 'task_alt',
+        '📖': 'menu_book',
+        '❓': 'help',
+        '📞': 'support_agent',
+    };
+
+    document.querySelectorAll('h2, h3, .icon').forEach((element) => {
+        const text = (element.textContent || '').trim();
+        const firstToken = text.split(' ')[0];
+        const mappedIcon = emojiHeadingMap[firstToken];
+
+        if (!mappedIcon) {
+            return;
+        }
+
+        const label = text.replace(firstToken, '').trim();
+        element.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">${mappedIcon}</span> ${label}`;
+    });
+}
+
+function injectHeaderBreadcrumbs() {
+    const headerLeft = document.querySelector('.top-header .header-left');
+    const activeNavText = document.querySelector('.sidebar .nav-item.active span:not(.icon)')?.textContent?.trim();
+
+    if (!headerLeft || !activeNavText || headerLeft.querySelector('.header-breadcrumb')) {
+        return;
+    }
+
+    const breadcrumb = document.createElement('nav');
+    breadcrumb.className = 'header-breadcrumb';
+    breadcrumb.setAttribute('aria-label', 'Breadcrumb');
+    breadcrumb.innerHTML = `
+        <a href="dashboard.html">Dashboard</a>
+        <span class="separator">/</span>
+        <span aria-current="page">${activeNavText}</span>
+    `;
+
+    headerLeft.appendChild(breadcrumb);
+}
+
 function setupSidebarToggle() {
     const sidebar = document.querySelector('.sidebar');
     const topHeader = document.querySelector('.top-header');
@@ -186,23 +264,45 @@ function setupSidebarToggle() {
         toggleBtn.type = 'button';
         toggleBtn.className = 'sidebar-toggle-btn';
         toggleBtn.setAttribute('aria-label', 'Toggle sidebar');
-        toggleBtn.innerHTML = '<span aria-hidden="true">☰</span>';
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        toggleBtn.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">menu</span>';
         headerLeft.prepend(toggleBtn);
     }
 
-    const savedState = localStorage.getItem('sidebarCollapsed');
-    if (savedState === 'true' && window.innerWidth > 768) {
-        document.body.classList.add('sidebar-collapsed');
+    const sidebarHeader = sidebar.querySelector('.sidebar-header');
+    const headerLogo = sidebarHeader?.querySelector('.logo-mini');
+    const headerTitle = sidebarHeader?.querySelector('h2');
+
+    if (sidebarHeader && headerLogo && headerTitle && !sidebarHeader.querySelector('.sidebar-header-main')) {
+        const headerMain = document.createElement('div');
+        headerMain.className = 'sidebar-header-main';
+        headerMain.appendChild(headerLogo);
+        headerMain.appendChild(headerTitle);
+        sidebarHeader.prepend(headerMain);
     }
 
-    toggleBtn.addEventListener('click', () => {
+    const updateSidebarState = (isCollapsed) => {
         if (window.innerWidth <= 768) {
-            document.body.classList.toggle('sidebar-open');
+            document.body.classList.remove('sidebar-collapsed');
             return;
         }
 
-        const collapsed = document.body.classList.toggle('sidebar-collapsed');
-        localStorage.setItem('sidebarCollapsed', String(collapsed));
+        document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+    };
+
+    const savedCollapsedState = localStorage.getItem('sidebarCollapsed') === 'true';
+    updateSidebarState(savedCollapsedState);
+
+    toggleBtn.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+            const isOpen = document.body.classList.toggle('sidebar-open');
+            toggleBtn.setAttribute('aria-expanded', String(isOpen));
+            return;
+        }
+
+        const nextCollapsed = !document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', String(nextCollapsed));
+        updateSidebarState(nextCollapsed);
     });
 
     document.addEventListener('click', (event) => {
@@ -214,17 +314,34 @@ function setupSidebarToggle() {
         const isToggle = event.target.closest('#sidebar-toggle-btn');
         if (!inSidebar && !isToggle) {
             document.body.classList.remove('sidebar-open');
+            toggleBtn.setAttribute('aria-expanded', 'false');
         }
+    });
+
+    sidebar.querySelectorAll('.nav-item').forEach((item) => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth > 768) {
+                return;
+            }
+
+            document.body.classList.remove('sidebar-open');
+            toggleBtn.setAttribute('aria-expanded', 'false');
+        });
     });
 
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768) {
             document.body.classList.remove('sidebar-open');
+            toggleBtn.setAttribute('aria-expanded', 'false');
+            const isCollapsedOnResize = localStorage.getItem('sidebarCollapsed') === 'true';
+            updateSidebarState(isCollapsedOnResize);
         }
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    normalizeIconography();
+    injectHeaderBreadcrumbs();
     setupSidebarToggle();
 });
 
@@ -252,21 +369,21 @@ function getRiskColor(riskLevel) {
 
 function getRiskBadge(riskLevel) {
     const badges = {
-        'Critical': '🔴',
-        'High': '🟠',
-        'Medium': '🟡',
-        'Low': '🟢',
+        'Critical': 'CRITICAL',
+        'High': 'HIGH',
+        'Medium': 'MEDIUM',
+        'Low': 'LOW',
     };
-    return badges[riskLevel] || '⚪';
+    return badges[riskLevel] || 'N/A';
 }
 
 function getStatusBadge(status) {
     const badges = {
-        'Open': '🔴',
-        'InProgress': '🟡',
-        'Resolved': '🟢',
+        'Open': 'OPEN',
+        'InProgress': 'IN PROGRESS',
+        'Resolved': 'RESOLVED',
     };
-    return badges[status] || '⚪';
+    return badges[status] || 'N/A';
 }
 
 // ============== CHART HELPERS ==============

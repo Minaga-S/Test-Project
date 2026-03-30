@@ -39,6 +39,31 @@ function initializeAuth() {
             toggleForms();
         });
     }
+
+    setupPasswordToggles();
+}
+
+function setupPasswordToggles() {
+    const toggleButtons = document.querySelectorAll('.password-toggle');
+
+    toggleButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const targetId = button.getAttribute('data-password-target');
+            const input = document.getElementById(targetId);
+            if (!input) {
+                return;
+            }
+
+            const isMasked = input.type === 'password';
+            input.type = isMasked ? 'text' : 'password';
+            button.setAttribute('aria-label', isMasked ? 'Hide password' : 'Show password');
+
+            const icon = button.querySelector('.material-symbols-rounded');
+            if (icon) {
+                icon.textContent = isMasked ? 'visibility_off' : 'visibility';
+            }
+        });
+    });
 }
 
 function toggleForms() {
@@ -87,7 +112,16 @@ async function handleLogin(e) {
         }
     } catch (error) {
         showLoading(false);
-        const errorMsg = error.message || 'Login failed. Please check your credentials.';
+        const rawMessage = String(error.message || '');
+        const isCredentialError = /invalid|incorrect|unauthorized|credential/i.test(rawMessage);
+        const errorMsg = isCredentialError
+            ? 'Incorrect password or email. Please try again.'
+            : 'Login failed. Please try again.';
+
+        if (isCredentialError) {
+            displayFormError('password', 'Incorrect password');
+        }
+
         document.getElementById('form-error').textContent = errorMsg;
         showNotification(errorMsg, 'error');
     }
