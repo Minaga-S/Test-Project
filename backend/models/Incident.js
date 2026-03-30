@@ -10,6 +10,8 @@ const IncidentSchema = new mongoose.Schema({
     description: {
         type: String,
         required: true,
+        minlength: 20,
+        trim: true,
     },
     assetId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -42,6 +44,18 @@ const IncidentSchema = new mongoose.Schema({
         enum: INCIDENT_STATUS,
         default: 'Open',
     },
+    aiModel: {
+        type: String,
+        default: '',
+    },
+    aiVersion: {
+        type: String,
+        default: '',
+    },
+    aiAnalyzedAt: {
+        type: Date,
+        default: null,
+    },
     nistFunctions: [String],
     nistControls: [String],
     recommendations: [String],
@@ -53,6 +67,14 @@ const IncidentSchema = new mongoose.Schema({
     },
     guestAffected: Boolean,
     sensitiveDataInvolved: Boolean,
+    isDeleted: {
+        type: Boolean,
+        default: false,
+    },
+    deletedAt: {
+        type: Date,
+        default: null,
+    },
     createdAt: {
         type: Date,
         default: Date.now,
@@ -63,6 +85,27 @@ const IncidentSchema = new mongoose.Schema({
     },
     resolvedAt: Date,
     resolvedBy: mongoose.Schema.Types.ObjectId,
+});
+
+IncidentSchema.index({ incidentId: 1 }, { unique: true });
+IncidentSchema.index({ userId: 1 });
+IncidentSchema.index({ assetId: 1 });
+IncidentSchema.index({ createdAt: -1 });
+IncidentSchema.index({ riskLevel: 1 });
+IncidentSchema.index({ userId: 1, status: 1, createdAt: -1 });
+
+IncidentSchema.pre(/^find/, function(next) {
+    if (!Object.prototype.hasOwnProperty.call(this.getFilter(), 'isDeleted')) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
+
+IncidentSchema.pre('countDocuments', function(next) {
+    if (!Object.prototype.hasOwnProperty.call(this.getFilter(), 'isDeleted')) {
+        this.where({ isDeleted: false });
+    }
+    next();
 });
 
 module.exports = mongoose.model('Incident', IncidentSchema);
