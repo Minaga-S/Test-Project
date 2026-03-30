@@ -2,7 +2,15 @@
    GLOBAL STYLES & VARIABLES
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+@font-face {
+    font-family: 'Material Symbols Rounded';
+    font-style: normal;
+    font-weight: 100 700;
+    font-display: swap;
+    src: url('../assets/fonts/MaterialSymbolsRounded.woff2') format('woff2');
+}
 
 :root {
     --color-primary: #0f766e;
@@ -297,6 +305,7 @@ small {
     position: fixed;
     height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
     box-shadow: var(--box-shadow);
     border-right: 1px solid rgba(148, 163, 184, 0.25);
     transition: width var(--duration-normal) var(--ease-standard), background var(--duration-normal) var(--ease-standard);
@@ -364,6 +373,20 @@ small {
 }
 
 .material-symbols-rounded {
+    font-family: 'Material Symbols Rounded';
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'liga';
     font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
@@ -392,6 +415,13 @@ small {
 body.sidebar-collapsed .sidebar {
     width: 84px;
     background: linear-gradient(170deg, #111827 0%, #1f2937 54%, #0f172a 100%);
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+body.sidebar-collapsed .sidebar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
 }
 
 body.sidebar-collapsed .main-content {
@@ -436,7 +466,7 @@ body.sidebar-collapsed #logout-btn {
 }
 
 body.sidebar-collapsed #logout-btn::before {
-    content: '\e9ba';
+    content: 'logout';
     font-family: 'Material Symbols Rounded';
     font-size: 1rem;
 }
@@ -622,6 +652,35 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 
 .modal-content-small {
     max-width: 400px;
+}
+
+.confirm-modal {
+    max-width: 430px;
+    padding: 1.15rem 1.15rem 1rem;
+}
+
+.confirm-modal .modal-header {
+    padding: 0 0 0.8rem;
+    margin-bottom: 0.6rem;
+}
+
+.confirm-modal .modal-header h2 {
+    width: 100%;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.confirm-modal p {
+    text-align: center;
+    margin: 0 0 0.9rem;
+    color: #334155;
+}
+
+.confirm-modal .form-actions {
+    margin-top: 0.25rem;
 }
 
 .modal-content-large {
@@ -954,3 +1013,4 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
         scroll-behavior: auto !important;
     }
 }
+
