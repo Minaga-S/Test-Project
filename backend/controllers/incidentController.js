@@ -19,7 +19,7 @@ class IncidentController {
      */
     async createIncident(req, res, next) {
         try {
-            const { assetId, description, guestAffected, sensitiveDataInvolved } = req.body;
+            const { assetId, description, incidentTime, guestAffected, sensitiveDataInvolved } = req.body;
 
             // Validate input
             const validation = validateIncident({ assetId, description });
@@ -56,14 +56,22 @@ class IncidentController {
             // Get NIST mappings
             const nistMapping = nistService.getNISTMapping(threatAnalysis.threatType);
 
+            const parsedIncidentTime = incidentTime ? new Date(incidentTime) : null;
+            if (incidentTime && Number.isNaN(parsedIncidentTime.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid incident time',
+                });
+            }
+
             // Generate recommendations
             const recommendations = await recommendationService.generateRecommendations(
                 threatAnalysis.threatType,
                 threatAnalysis
             );
 
-            const aiModel = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
-            const aiVersion = process.env.OPENAI_MODEL_VERSION || 'v1';
+            const aiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+            const aiVersion = process.env.GEMINI_MODEL_VERSION || 'v1beta';
 
             // Create incident
             const incident = new Incident({
@@ -83,6 +91,7 @@ class IncidentController {
                 impact: threatAnalysis.impact,
                 riskScore: riskAssessment.score,
                 riskLevel: riskAssessment.level,
+                incidentTime: parsedIncidentTime,
                 aiModel,
                 aiVersion,
                 aiAnalyzedAt: new Date(),
@@ -432,3 +441,8 @@ class IncidentController {
 }
 
 module.exports = new IncidentController();
+
+
+
+
+

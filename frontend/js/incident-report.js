@@ -3,6 +3,7 @@
  */
 
 let assets = [];
+let progressTimer = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentReport();
@@ -10,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeIncidentReport() {
     if (!apiClient.isAuthenticated()) {
-           window.location.href = 'index.html';
+        window.location.href = 'index.html';
         return;
     }
 
@@ -31,7 +32,6 @@ function setupEventListeners() {
         descriptionArea.addEventListener('input', updateCharCount);
     }
 
-    // Set current time
     const timeInput = document.getElementById('when-happened');
     if (timeInput) {
         const now = new Date();
@@ -40,8 +40,7 @@ function setupEventListeners() {
         timeInput.value = localTime;
     }
 
-    // Modal close buttons
-    document.querySelectorAll('[id$="-overlay"]').forEach(overlay => {
+    document.querySelectorAll('[id$="-overlay"]').forEach((overlay) => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 e.target.parentElement.style.display = 'none';
@@ -63,7 +62,7 @@ function populateAssetDropdown() {
     const select = document.getElementById('affected-asset');
     select.innerHTML = '<option value="">Select the affected asset</option>';
 
-    assets.forEach(asset => {
+    assets.forEach((asset) => {
         const option = document.createElement('option');
         option.value = asset._id;
         option.textContent = `${asset.assetName} (${asset.assetType})`;
@@ -77,16 +76,46 @@ function updateCharCount() {
     document.getElementById('char-count').textContent = charCount;
 }
 
+function setSubmitButtonState(isSubmitting) {
+    const submitButton = document.querySelector('#incident-report-form button[type="submit"]');
+    if (!submitButton) {
+        return;
+    }
+
+    submitButton.disabled = isSubmitting;
+    submitButton.textContent = isSubmitting ? 'Analyzing...' : 'Submit Report';
+}
+
+function beginAnalysisProgress() {
+    stopAnalysisProgress();
+
+    const progressFill = document.getElementById('progress-fill');
+    let currentProgress = 12;
+
+    updateAnalysisStatus('Submitting your report...', currentProgress);
+
+    progressTimer = window.setInterval(() => {
+        currentProgress = Math.min(currentProgress + Math.random() * 7, 92);
+        updateAnalysisStatus('AI is analyzing your incident description...', currentProgress);
+    }, 450);
+}
+
+function stopAnalysisProgress() {
+    if (progressTimer) {
+        window.clearInterval(progressTimer);
+        progressTimer = null;
+    }
+}
+
 async function handleIncidentSubmit(e) {
     e.preventDefault();
 
-    const assetId = document.getElementById('affected-asset').value;
+    const assetId = String(document.getElementById('affected-asset').value || '').trim();
     const description = document.getElementById('incident-description').value;
     const incidentTime = document.getElementById('when-happened').value;
     const guestAffected = document.getElementById('guest-affected').checked;
     const sensitiveDataInvolved = document.getElementById('data-involved').checked;
 
-    // Validate
     if (!assetId) {
         showNotification('Please select an affected asset', 'warning');
         return;
@@ -97,12 +126,11 @@ async function handleIncidentSubmit(e) {
         return;
     }
 
-    // Show analysis modal
+    setSubmitButtonState(true);
     showModal('analysis-modal');
-    updateAnalysisStatus('Submitting your report...');
+    beginAnalysisProgress();
 
     try {
-        // Create incident
         const incidentData = {
             assetId,
             description,
@@ -113,47 +141,48 @@ async function handleIncidentSubmit(e) {
 
         const incident = await apiClient.createIncident(incidentData);
 
-        updateAnalysisStatus('AI is analyzing your incident description...');
+        updateAnalysisStatus('Applying NIST framework mapping and recommendations...', 96);
+        stopAnalysisProgress();
+        updateAnalysisStatus('Analysis complete', 100);
 
-        // Analyze threat
-        const analysis = await apiClient.analyzeThreat(description);
-
-        updateAnalysisStatus('Calculating risk assessment...');
-
-        // Get full incident details
-        const fullIncident = await apiClient.getIncident(incident._id);
-
-        // Show success modal
-        hideModal('analysis-modal');
-        showSuccessModal(fullIncident, analysis);
-
+        setTimeout(() => {
+            hideModal('analysis-modal');
+            showSuccessModal(incident);
+        }, 220);
     } catch (error) {
         console.error('Error submitting incident:', error);
+        stopAnalysisProgress();
         hideModal('analysis-modal');
-        showNotification('Error submitting incident: ' + error.message, 'error');
+        showNotification(`Error submitting incident: ${error.message}`, 'error');
+    } finally {
+        setSubmitButtonState(false);
     }
 }
 
-function updateAnalysisStatus(message) {
+function updateAnalysisStatus(message, progressValue = null) {
     const statusEl = document.getElementById('analysis-status');
     if (statusEl) {
         statusEl.textContent = message;
     }
-    
+
     const progressFill = document.getElementById('progress-fill');
     if (progressFill) {
-        progressFill.style.width = (Math.random() * 80 + 20) + '%';
+        if (progressValue !== null) {
+            const boundedProgress = Math.max(5, Math.min(100, progressValue));
+            progressFill.style.width = `${boundedProgress}%`;
+        } else {
+            progressFill.style.width = '35%';
+        }
     }
 }
 
-function showSuccessModal(incident, analysis) {
-    document.getElementById('success-incident-id').textContent = incident.incidentId;
-    document.getElementById('success-threat-type').textContent = analysis.threatType;
-    document.getElementById('success-risk-level').textContent = incident.riskLevel;
+function showSuccessModal(incident) {
+    document.getElementById('success-incident-id').textContent = incident.incidentId || 'N/A';
+    document.getElementById('success-threat-type').textContent = incident.threatType || 'Unknown';
+    document.getElementById('success-risk-level').textContent = incident.riskLevel || 'Low';
 
     showModal('success-modal');
 
-    // Setup buttons
     const backBtn = document.getElementById('back-to-form');
     const viewBtn = document.getElementById('view-details');
 
