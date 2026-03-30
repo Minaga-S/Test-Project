@@ -6,6 +6,7 @@ const Asset = require('../models/Asset');
 const { ASSET_TYPES } = require('../utils/constants');
 const { validateAsset } = require('../utils/validators');
 const logger = require('../utils/logger');
+const auditLogService = require('../services/auditLogService');
 
 class AssetController {
     /**
@@ -36,6 +37,15 @@ class AssetController {
 
             await asset.save();
 
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'ASSET_CREATE',
+                entityType: 'Asset',
+                entityId: String(asset._id),
+                after: { assetName: asset.assetName, assetType: asset.assetType, criticality: asset.criticality },
+                ipAddress: req.ip || '',
+            });
+
             logger.info(`Asset created: ${asset._id} by user ${req.user.userId}`);
 
             res.status(201).json({
@@ -45,7 +55,7 @@ class AssetController {
             });
 
         } catch (error) {
-            logger.error('Create asset error:', error.message);
+            logger.error(`Create asset error: ${error.message}`);
             next(error);
         }
     }
@@ -65,7 +75,7 @@ class AssetController {
             });
 
         } catch (error) {
-            logger.error('Get assets error:', error.message);
+            logger.error(`Get assets error: ${error.message}`);
             next(error);
         }
     }
@@ -93,7 +103,7 @@ class AssetController {
             });
 
         } catch (error) {
-            logger.error('Get asset error:', error.message);
+            logger.error(`Get asset error: ${error.message}`);
             next(error);
         }
     }
@@ -115,6 +125,13 @@ class AssetController {
                 });
             }
 
+            const before = {
+                assetName: asset.assetName,
+                assetType: asset.assetType,
+                status: asset.status,
+                criticality: asset.criticality,
+            };
+
             // Update fields
             if (req.body.assetName) asset.assetName = req.body.assetName;
             if (req.body.assetType) asset.assetType = req.body.assetType;
@@ -123,9 +140,24 @@ class AssetController {
             if (req.body.status) asset.status = req.body.status;
             if (req.body.criticality) asset.criticality = req.body.criticality;
             if (req.body.owner !== undefined) asset.owner = req.body.owner;
-            
+
             asset.updatedAt = new Date();
             await asset.save();
+
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'ASSET_UPDATE',
+                entityType: 'Asset',
+                entityId: String(asset._id),
+                before,
+                after: {
+                    assetName: asset.assetName,
+                    assetType: asset.assetType,
+                    status: asset.status,
+                    criticality: asset.criticality,
+                },
+                ipAddress: req.ip || '',
+            });
 
             logger.info(`Asset updated: ${asset._id}`);
 
@@ -136,7 +168,7 @@ class AssetController {
             });
 
         } catch (error) {
-            logger.error('Update asset error:', error.message);
+            logger.error(`Update asset error: ${error.message}`);
             next(error);
         }
     }
@@ -146,10 +178,18 @@ class AssetController {
      */
     async deleteAsset(req, res, next) {
         try {
-            const asset = await Asset.findOneAndDelete({
-                _id: req.params.id,
-                userId: req.user.userId,
-            });
+            const asset = await Asset.findOneAndUpdate(
+                {
+                    _id: req.params.id,
+                    userId: req.user.userId,
+                },
+                {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    updatedAt: new Date(),
+                },
+                { new: true }
+            );
 
             if (!asset) {
                 return res.status(404).json({
@@ -158,7 +198,16 @@ class AssetController {
                 });
             }
 
-            logger.info(`Asset deleted: ${asset._id}`);
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'ASSET_DELETE',
+                entityType: 'Asset',
+                entityId: String(asset._id),
+                before: { assetName: asset.assetName, assetType: asset.assetType },
+                ipAddress: req.ip || '',
+            });
+
+            logger.info(`Asset soft-deleted: ${asset._id}`);
 
             res.json({
                 success: true,
@@ -166,7 +215,7 @@ class AssetController {
             });
 
         } catch (error) {
-            logger.error('Delete asset error:', error.message);
+            logger.error(`Delete asset error: ${error.message}`);
             next(error);
         }
     }
@@ -194,7 +243,7 @@ class AssetController {
             });
 
         } catch (error) {
-            logger.error('Search assets error:', error.message);
+            logger.error(`Search assets error: ${error.message}`);
             next(error);
         }
     }
@@ -209,7 +258,7 @@ class AssetController {
                 assetTypes: ASSET_TYPES,
             });
         } catch (error) {
-            logger.error('Get asset types error:', error.message);
+            logger.error(`Get asset types error: ${error.message}`);
             next(error);
         }
     }

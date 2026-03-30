@@ -6,19 +6,30 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const morgan = require('morgan');
 require('dotenv').config();
 
 const { connectDatabase, closeDatabase } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const { authMiddleware } = require('./middleware/auth');
+const { apiLimiter } = require('./middleware/rateLimiter');
 const { seedDatabase } = require('./scripts/seedDatabase');
+const logger = require('./utils/logger');
 
 const app = express();
 
 // ============== MIDDLEWARE ==============
 
 // Security middleware
+app.set('trust proxy', 1);
 app.use(helmet());
+app.use(apiLimiter);
+
+app.use(morgan('combined', {
+    stream: {
+        write: (message) => logger.info(message.trim()),
+    },
+}));
 
 const normalizeOrigin = (value = '') => value
     .trim()
@@ -121,38 +132,38 @@ async function startServer() {
     try {
         // Connect to database
         await connectDatabase();
-        console.log('✓ Database connected');
+        console.log('? Database connected');
 
         // Seed database with test users
         await seedDatabase();
 
         // Start server
         const server = app.listen(PORT, () => {
-            console.log(`✓ Server running on port ${PORT}`);
-            console.log(`✓ Environment: ${process.env.NODE_ENV}`);
+            console.log(`? Server running on port ${PORT}`);
+            console.log(`? Environment: ${process.env.NODE_ENV}`);
         });
 
         // Graceful shutdown
         process.on('SIGINT', async () => {
-            console.log('\n✗ SIGINT received, shutting down gracefully...');
+            console.log('\n? SIGINT received, shutting down gracefully...');
             server.close(async () => {
                 await closeDatabase();
-                console.log('✓ Server closed');
+                console.log('? Server closed');
                 process.exit(0);
             });
         });
 
         process.on('SIGTERM', async () => {
-            console.log('\n✗ SIGTERM received, shutting down gracefully...');
+            console.log('\n? SIGTERM received, shutting down gracefully...');
             server.close(async () => {
                 await closeDatabase();
-                console.log('✓ Server closed');
+                console.log('? Server closed');
                 process.exit(0);
             });
         });
 
     } catch (error) {
-        console.error('✗ Failed to start server:', error.message);
+        console.error('? Failed to start server:', error.message);
         process.exit(1);
     }
 }
