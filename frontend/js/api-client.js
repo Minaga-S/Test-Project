@@ -176,15 +176,18 @@ class APIClient {
     // ============== ASSET ENDPOINTS ==============
 
     async createAsset(assetData) {
-        return this.post('/assets', assetData);
+        const response = await this.post('/assets', assetData);
+        return response?.asset || response;
     }
 
     async getAssets() {
-        return this.get('/assets');
+        const response = await this.get('/assets');
+        return response?.assets || [];
     }
 
     async getAsset(id) {
-        return this.get(`/assets/${id}`);
+        const response = await this.get(`/assets/${id}`);
+        return response?.asset || response;
     }
 
     async updateAsset(id, assetData) {
@@ -206,15 +209,18 @@ class APIClient {
     // ============== INCIDENT ENDPOINTS ==============
 
     async createIncident(incidentData) {
-        return this.post('/incidents', incidentData);
+        const response = await this.post('/incidents', incidentData);
+        return response?.incident || response;
     }
 
     async getIncidents() {
-        return this.get('/incidents');
+        const response = await this.get('/incidents');
+        return response?.incidents || [];
     }
 
     async getIncident(id) {
-        return this.get(`/incidents/${id}`);
+        const response = await this.get(`/incidents/${id}`);
+        return response?.incident || response;
     }
 
     async updateIncident(id, incidentData) {
@@ -327,3 +333,5 @@ class APIClient {
 
 // Create singleton instance
 const apiClient = new APIClient();
+
+
