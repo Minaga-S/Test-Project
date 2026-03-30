@@ -2,7 +2,10 @@
  * Risk Analysis Handler
  */
 
+const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
+
 let charts = {};
+let chartJsLoadPromise = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeRiskAnalysis();
@@ -52,16 +55,42 @@ function setupCollapsiblePanels() {
     });
 }
 
+async function ensureChartJsLoaded() {
+    if (window.Chart) {
+        return;
+    }
+
+    if (!chartJsLoadPromise) {
+        chartJsLoadPromise = new Promise((resolve, reject) => {
+            const existingScript = document.querySelector(`script[src="${CHART_JS_URL}"]`);
+            if (existingScript) {
+                existingScript.addEventListener('load', () => resolve(), { once: true });
+                existingScript.addEventListener('error', () => reject(new Error('Failed to load Chart.js')), { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = CHART_JS_URL;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load Chart.js'));
+            document.head.appendChild(script);
+        });
+    }
+
+    await chartJsLoadPromise;
+}
+
 async function loadRiskData() {
     showLoading(true);
 
     try {
         const [
-            riskMatrix,
-            riskDistribution,
-            riskTrends,
-            assetRisks,
-            incidents,
+            riskMatrixResponse,
+            riskDistributionResponse,
+            riskTrendsResponse,
+            assetRisksResponse,
+            incidentsResponse,
         ] = await Promise.all([
             apiClient.getRiskMatrix(),
             apiClient.getRiskDistributionChart(),
@@ -69,6 +98,16 @@ async function loadRiskData() {
             apiClient.getRiskByAsset(),
             apiClient.getIncidents(),
         ]);
+
+        const riskMatrix = riskMatrixResponse?.matrix || [];
+        const riskDistribution = riskDistributionResponse?.chart || riskDistributionResponse || {};
+        const riskTrends = riskTrendsResponse || {};
+        const assetRisks = assetRisksResponse?.assetRisks || [];
+        const incidents = Array.isArray(incidentsResponse)
+            ? incidentsResponse
+            : (Array.isArray(incidentsResponse?.incidents) ? incidentsResponse.incidents : []);
+
+        await ensureChartJsLoaded();
 
         displayRiskMatrix(riskMatrix);
         displayRiskDistribution(riskDistribution);
@@ -84,11 +123,31 @@ async function loadRiskData() {
     }
 }
 
-function displayRiskMatrix(data) {
-    if (!data) return;
+function getRiskColor(level) {
+    const levelMap = {
+        Critical: '#b91c1c',
+        High: '#dc2626',
+        Medium: '#d97706',
+        Low: '#15803d',
+    };
 
+    return levelMap[level] || '#64748b';
+}
+
+function displayRiskMatrix(matrixData) {
     const canvas = document.getElementById('risk-matrix-chart');
     if (!canvas) return;
+
+    const points = Array.isArray(matrixData)
+        ? matrixData.map((item) => ({
+            x: Number(item.x) || 1,
+            y: Number(item.y) || 1,
+            r: Number(item.r) || 10,
+            label: item.label || 'Incident',
+            riskLevel: item.riskLevel || 'Low',
+            threatType: item.threatType || 'Unknown',
+        }))
+        : [];
 
     const ctx = canvas.getContext('2d');
     if (charts.riskMatrix) charts.riskMatrix.destroy();
@@ -98,8 +157,8 @@ function displayRiskMatrix(data) {
         data: {
             datasets: [{
                 label: 'Risk Matrix',
-                data: data.points || [],
-                backgroundColor: data.colors || '#0f766e',
+                data: points,
+                backgroundColor: points.map((point) => getRiskColor(point.riskLevel)),
                 borderColor: '#0f172a',
                 borderWidth: 1,
             }],
@@ -112,7 +171,10 @@ function displayRiskMatrix(data) {
                 },
                 tooltip: {
                     callbacks: {
-                        label: (context) => context.raw.label || '',
+                        label: (context) => {
+                            const riskPoint = context.raw || {};
+                            return `${riskPoint.label || 'Incident'} | ${riskPoint.threatType || 'Unknown'} | ${riskPoint.riskLevel || 'Low'}`;
+                        },
                     },
                 },
             },
@@ -141,10 +203,11 @@ function displayRiskMatrix(data) {
 }
 
 function displayRiskDistribution(data) {
-    if (!data) return;
-
     const canvas = document.getElementById('risk-distribution-chart');
     if (!canvas) return;
+
+    const labels = Array.isArray(data?.labels) ? data.labels : [];
+    const values = Array.isArray(data?.data) ? data.data : [];
 
     const ctx = canvas.getContext('2d');
     if (charts.riskDistribution) charts.riskDistribution.destroy();
@@ -152,9 +215,9 @@ function displayRiskDistribution(data) {
     charts.riskDistribution = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: data.labels || [],
+            labels,
             datasets: [{
-                data: data.data || [],
+                data: values,
                 backgroundColor: ['#b91c1c', '#dc2626', '#d97706', '#15803d'],
                 borderColor: '#fff',
                 borderWidth: 2,
@@ -172,10 +235,11 @@ function displayRiskDistribution(data) {
 }
 
 function displayRiskTrends(data) {
-    if (!data) return;
-
     const canvas = document.getElementById('risk-trends-chart');
     if (!canvas) return;
+
+    const labels = Array.isArray(data?.labels) ? data.labels : [];
+    const values = Array.isArray(data?.data) ? data.data : [];
 
     const ctx = canvas.getContext('2d');
     if (charts.riskTrends) charts.riskTrends.destroy();
@@ -183,10 +247,10 @@ function displayRiskTrends(data) {
     charts.riskTrends = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: data.labels || [],
+            labels,
             datasets: [{
                 label: 'Risk Score Trend',
-                data: data.data || [],
+                data: values,
                 borderColor: '#dc2626',
                 backgroundColor: 'rgba(220, 38, 38, 0.12)',
                 tension: 0.4,
@@ -328,3 +392,11 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
+
+window.addEventListener('resize', () => {
+    Object.values(charts).forEach((chart) => {
+        if (chart && chart.resize) {
+            chart.resize();
+        }
+    });
+});
