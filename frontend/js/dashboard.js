@@ -2,6 +2,8 @@
  * Dashboard Page Handler
  */
 
+const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
+let chartJsLoadPromise = null;
 let dashboardCharts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,22 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeDashboard() {
-    // Check authentication
     if (!apiClient.isAuthenticated()) {
         window.location.href = 'index.html';
         return;
     }
 
-    // Setup user info
     await displayUserInfo();
-
-    // Setup logout button
     setupLogoutButton();
-
-    // Setup collapsible sections
     setupCollapsiblePanels();
-
-    // Load dashboard data
     await loadDashboardData();
 }
 
@@ -32,7 +26,7 @@ async function displayUserInfo() {
     try {
         const profileResponse = getLocalStorage('user') || await apiClient.getProfile();
         const user = profileResponse?.user || profileResponse;
-        
+
         if (user) {
             document.getElementById('user-name').textContent = user.fullName || user.email;
             const initial = (user.fullName || user.email)[0].toUpperCase();
@@ -57,7 +51,9 @@ function setupCollapsiblePanels() {
     toggles.forEach((toggle) => {
         toggle.addEventListener('click', () => {
             const panel = toggle.closest('.collapsible-panel');
-            if (!panel) return;
+            if (!panel) {
+                return;
+            }
 
             const isCollapsed = panel.classList.toggle('collapsed');
             toggle.setAttribute('aria-expanded', String(!isCollapsed));
@@ -79,21 +75,24 @@ async function loadDashboardData() {
     showLoading(true);
 
     try {
-        // Load metrics
-        const metricsResponse = await apiClient.getDashboardMetrics();
+        const metricsPromise = apiClient.getDashboardMetrics();
+        const incidentsPromise = apiClient.getRecentIncidents();
+        const chartsPromise = loadCharts();
+
+        const [metricsResponse, incidentsResponse] = await Promise.all([
+            metricsPromise,
+            incidentsPromise,
+        ]);
+
         const metrics = metricsResponse?.metrics || metricsResponse || {};
         displayMetrics(metrics);
 
-        // Load recent incidents
-        const incidentsResponse = await apiClient.getRecentIncidents();
         const incidents = Array.isArray(incidentsResponse)
             ? incidentsResponse
             : (Array.isArray(incidentsResponse?.incidents) ? incidentsResponse.incidents : []);
         displayRecentIncidents(incidents);
 
-        // Load charts
-        await loadCharts();
-
+        await chartsPromise;
     } catch (error) {
         console.error('Error loading dashboard:', error);
         showNotification('Error loading dashboard data', 'error');
@@ -131,14 +130,14 @@ function displayRecentIncidents(incidents) {
             summary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${incidentList.length} incidents</span>`;
         }
     }
-    
+
     if (incidentList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center">No recent incidents</td></tr>';
         return;
     }
 
     tbody.innerHTML = '';
-    incidentList.slice(0, 5).forEach(incident => {
+    incidentList.slice(0, 5).forEach((incident) => {
         const riskLevel = incident.riskLevel || 'Low';
         const status = incident.status || 'Open';
         const row = document.createElement('tr');
@@ -157,75 +156,116 @@ function displayRecentIncidents(incidents) {
     });
 }
 
+async function ensureChartJsLoaded() {
+    if (window.Chart) {
+        return;
+    }
+
+    if (!chartJsLoadPromise) {
+        chartJsLoadPromise = new Promise((resolve, reject) => {
+            const existingScript = document.querySelector(`script[src="${CHART_JS_URL}"]`);
+            if (existingScript) {
+                existingScript.addEventListener('load', () => resolve(), { once: true });
+                existingScript.addEventListener('error', () => reject(new Error('Failed to load Chart.js')), { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = CHART_JS_URL;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load Chart.js'));
+            document.head.appendChild(script);
+        });
+    }
+
+    await chartJsLoadPromise;
+}
+
 async function loadCharts() {
     try {
-        // Risk Distribution Chart
-        const riskResponse = await apiClient.getRiskDistributionChart();
+        const [riskResponse, threatResponse, assetsResponse] = await Promise.all([
+            apiClient.getRiskDistributionChart(),
+            apiClient.getThreatCategoriesChart(),
+            apiClient.getVulnerableAssetsChart(),
+        ]);
+
+        await ensureChartJsLoaded();
+
         const riskData = riskResponse?.chart || riskResponse;
-        const riskSummary = document.getElementById('dashboard-risk-distribution-summary');
-        if (riskData?.labels && riskData?.data) {
-            destroyChart('risk-distribution-chart');
-            dashboardCharts.riskDistribution = createPieChart(
-                'risk-distribution-chart',
-                riskData.labels,
-                riskData.data,
-                'Risk Distribution'
-            );
-
-            if (riskSummary) {
-                const total = riskData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-                const severity = findDominantSeverity(riskData.labels, riskData.data);
-                riskSummary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${total} total</span>`;
-            }
-        } else if (riskSummary) {
-            riskSummary.innerHTML = '<span class="summary-badge severity-low">0 total</span>';
-        }
-
-        // Threat Categories Chart
-        const threatResponse = await apiClient.getThreatCategoriesChart();
         const threatData = threatResponse?.chart || threatResponse;
-        const threatSummary = document.getElementById('dashboard-threat-categories-summary');
-        if (threatData?.labels && threatData?.data) {
-            destroyChart('threat-categories-chart');
-            dashboardCharts.threatCategories = createPieChart(
-                'threat-categories-chart',
-                threatData.labels,
-                threatData.data,
-                'Threat Categories'
-            );
-
-            if (threatSummary) {
-                const total = threatData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-                threatSummary.innerHTML = `<span class="summary-badge severity-medium">${total} threats</span>`;
-            }
-        } else if (threatSummary) {
-            threatSummary.innerHTML = '<span class="summary-badge severity-low">0 threats</span>';
-        }
-
-        // Vulnerable Assets Chart
-        const assetsResponse = await apiClient.getVulnerableAssetsChart();
         const assetsData = assetsResponse?.chart || assetsResponse;
-        const assetsSummary = document.getElementById('dashboard-vulnerable-assets-summary');
-        if (assetsData?.labels && assetsData?.data) {
-            destroyChart('vulnerable-assets-chart');
-            dashboardCharts.vulnerableAssets = createBarChart(
-                'vulnerable-assets-chart',
-                assetsData.labels,
-                assetsData.data,
-                'Vulnerability Count'
-            );
 
-            if (assetsSummary) {
-                const total = assetsData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-                const severity = findDominantSeverity(assetsData.labels, assetsData.data);
-                assetsSummary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${total} incidents</span>`;
-            }
-        } else if (assetsSummary) {
-            assetsSummary.innerHTML = '<span class="summary-badge severity-low">0 incidents</span>';
-        }
-
+        renderRiskDistributionChart(riskData);
+        renderThreatCategoriesChart(threatData);
+        renderVulnerableAssetsChart(assetsData);
     } catch (error) {
         console.error('Error loading charts:', error);
+    }
+}
+
+function renderRiskDistributionChart(riskData) {
+    const riskSummary = document.getElementById('dashboard-risk-distribution-summary');
+
+    if (riskData?.labels && riskData?.data) {
+        destroyChart('risk-distribution-chart');
+        dashboardCharts.riskDistribution = createPieChart(
+            'risk-distribution-chart',
+            riskData.labels,
+            riskData.data,
+            'Risk Distribution'
+        );
+
+        if (riskSummary) {
+            const total = riskData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
+            const severity = findDominantSeverity(riskData.labels, riskData.data);
+            riskSummary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${total} total</span>`;
+        }
+    } else if (riskSummary) {
+        riskSummary.innerHTML = '<span class="summary-badge severity-low">0 total</span>';
+    }
+}
+
+function renderThreatCategoriesChart(threatData) {
+    const threatSummary = document.getElementById('dashboard-threat-categories-summary');
+
+    if (threatData?.labels && threatData?.data) {
+        destroyChart('threat-categories-chart');
+        dashboardCharts.threatCategories = createPieChart(
+            'threat-categories-chart',
+            threatData.labels,
+            threatData.data,
+            'Threat Categories'
+        );
+
+        if (threatSummary) {
+            const total = threatData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
+            threatSummary.innerHTML = `<span class="summary-badge severity-medium">${total} threats</span>`;
+        }
+    } else if (threatSummary) {
+        threatSummary.innerHTML = '<span class="summary-badge severity-low">0 threats</span>';
+    }
+}
+
+function renderVulnerableAssetsChart(assetsData) {
+    const assetsSummary = document.getElementById('dashboard-vulnerable-assets-summary');
+
+    if (assetsData?.labels && assetsData?.data) {
+        destroyChart('vulnerable-assets-chart');
+        dashboardCharts.vulnerableAssets = createBarChart(
+            'vulnerable-assets-chart',
+            assetsData.labels,
+            assetsData.data,
+            'Vulnerability Count'
+        );
+
+        if (assetsSummary) {
+            const total = assetsData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
+            const severity = findDominantSeverity(assetsData.labels, assetsData.data);
+            assetsSummary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${total} incidents</span>`;
+        }
+    } else if (assetsSummary) {
+        assetsSummary.innerHTML = '<span class="summary-badge severity-low">0 incidents</span>';
     }
 }
 
@@ -262,9 +302,8 @@ function findDominantSeverity(labels = [], data = []) {
     return 'Low';
 }
 
-// Handle window resize for responsive charts
 window.addEventListener('resize', () => {
-    Object.values(dashboardCharts).forEach(chart => {
+    Object.values(dashboardCharts).forEach((chart) => {
         if (chart && chart.resize) {
             chart.resize();
         }

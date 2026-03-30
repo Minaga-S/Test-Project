@@ -160,14 +160,52 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-function logout() {
-    const shouldLogout = window.confirm('Are you sure you want to log out?');
-    if (!shouldLogout) {
-        return;
+const LOGOUT_MODAL_ID = 'logout-confirm-modal';
+
+function ensureLogoutModal() {
+    let modal = document.getElementById(LOGOUT_MODAL_ID);
+    if (modal) {
+        return modal;
     }
 
-    apiClient.logout();
-    window.location.href = 'index.html';
+    modal = document.createElement('div');
+    modal.id = LOGOUT_MODAL_ID;
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="modal-overlay" data-logout-dismiss="true"></div>
+        <div class="modal-content modal-content-small confirm-modal">
+            <div class="modal-header">
+                <h2><span class="material-symbols-rounded" aria-hidden="true">logout</span> Confirm Logout</h2>
+            </div>
+            <p>Are you sure you want to log out of your account?</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="logout-cancel-btn">Stay Logged In</button>
+                <button type="button" class="btn btn-danger" id="logout-confirm-btn">Log Out</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (event) => {
+        const shouldDismiss = event.target.matches('[data-logout-dismiss="true"]') || event.target.id === 'logout-cancel-btn';
+        if (shouldDismiss) {
+            hideModal(LOGOUT_MODAL_ID);
+        }
+
+        if (event.target.id === 'logout-confirm-btn') {
+            apiClient.logout();
+            window.location.href = 'index.html';
+        }
+    });
+
+    return modal;
+}
+
+function logout() {
+    ensureLogoutModal();
+    showModal(LOGOUT_MODAL_ID);
 }
 
 function normalizeIconography() {
@@ -605,3 +643,4 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
