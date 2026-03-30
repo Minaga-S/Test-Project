@@ -24,6 +24,10 @@ const IncidentSchema = new mongoose.Schema({
     threatType: String,
     threatCategory: String,
     confidence: Number,
+    incidentTime: {
+        type: Date,
+        default: null,
+    },
     likelihood: {
         type: Number,
         min: 1,
@@ -109,3 +113,4 @@ IncidentSchema.pre('countDocuments', function(next) {
 });
 
 module.exports = mongoose.model('Incident', IncidentSchema);
+

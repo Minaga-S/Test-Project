@@ -321,3 +321,19 @@ select:disabled {
         width: 100%;
     }
 }
+.success-modal-content {
+    max-width: 460px;
+}
+
+.success-modal-content .success-content {
+    padding: 0 0.2rem 0.15rem;
+}
+
+.success-modal-content .success-content > p {
+    margin: 0 0 0.75rem;
+    text-align: center;
+}
+
+.success-modal-content .success-details {
+    margin: 0.65rem 0 0.9rem;
+}

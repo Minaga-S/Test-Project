@@ -3,7 +3,7 @@
  */
 
 const { analyzeThreatWithAI } = require('../config/ai-config');
-const { THREAT_KNOWLEDGE_BASE, RISK_LEVELS } = require('../utils/constants');
+const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
 const logger = require('../utils/logger');
 
 class ThreatClassificationService {
@@ -12,19 +12,14 @@ class ThreatClassificationService {
      */
     async classifyThreat(description) {
         try {
-            // Call AI service for analysis
             const aiAnalysis = await analyzeThreatWithAI(description);
-
-            // Validate and enrich analysis
             const classification = this.enrichThreatData(aiAnalysis);
 
             logger.info(`Threat classified: ${classification.threatType}`);
 
             return classification;
-
         } catch (error) {
             logger.error('Threat classification error:', error.message);
-            // Fallback to knowledge base matching
             return this.fallbackClassification(description);
         }
     }
@@ -34,7 +29,7 @@ class ThreatClassificationService {
      */
     enrichThreatData(aiAnalysis) {
         const knowledgeEntry = THREAT_KNOWLEDGE_BASE.find(
-            t => t.threatType === aiAnalysis.threatType
+            (entry) => entry.threatType === aiAnalysis.threatType
         );
 
         return {
@@ -57,9 +52,8 @@ class ThreatClassificationService {
     fallbackClassification(description) {
         logger.warn('Using fallback threat classification');
 
-        const lowerDesc = description.toLowerCase();
+        const lowerDesc = String(description || '').toLowerCase();
 
-        // Simple keyword matching
         if (lowerDesc.includes('email') || lowerDesc.includes('link') || lowerDesc.includes('clicked')) {
             return {
                 threatType: 'Phishing',
@@ -81,11 +75,26 @@ class ThreatClassificationService {
         }
 
         if (lowerDesc.includes('ransomware') || lowerDesc.includes('encrypted') || lowerDesc.includes('locked')) {
+            const severeIndicators = [
+                'backup',
+                'payment',
+                'reservation',
+                'admin account',
+                'disabled protection',
+                'cannot process',
+            ];
+
+            const severeCount = severeIndicators
+                .filter((indicator) => lowerDesc.includes(indicator))
+                .length;
+
+            const isCriticalRansomware = severeCount >= 2;
+
             return {
                 threatType: 'Ransomware',
                 threatCategory: 'Malicious Software',
-                confidence: 75,
-                likelihood: 2,
+                confidence: isCriticalRansomware ? 85 : 75,
+                likelihood: isCriticalRansomware ? 4 : 3,
                 impact: 4,
             };
         }
@@ -100,7 +109,6 @@ class ThreatClassificationService {
             };
         }
 
-        // Default
         return {
             threatType: 'Unauthorized Access',
             threatCategory: 'Access Control',
@@ -124,7 +132,7 @@ class ThreatClassificationService {
      * Validate threat type
      */
     isValidThreatType(threatType) {
-        return THREAT_KNOWLEDGE_BASE.some(t => t.threatType === threatType);
+        return THREAT_KNOWLEDGE_BASE.some((entry) => entry.threatType === threatType);
     }
 }
 
