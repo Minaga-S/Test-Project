@@ -222,6 +222,13 @@ small {
     border: 1px solid transparent;
 }
 
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
 .btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 18px rgba(15, 23, 42, 0.14);
@@ -681,6 +688,13 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 
 .confirm-modal .form-actions {
     margin-top: 0.25rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.confirm-modal .form-actions .btn {
+    flex: 0 0 auto;
+    min-width: 145px;
 }
 
 .modal-content-large {
