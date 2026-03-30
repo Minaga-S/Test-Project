@@ -97,8 +97,35 @@ class APIClient {
             }
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || `HTTP ${response.status}`);
+                let errorPayload = {};
+
+                try {
+                    errorPayload = await response.json();
+                } catch (parseError) {
+                    errorPayload = {};
+                }
+
+                const fieldErrors = Array.isArray(errorPayload?.errors)
+                    ? errorPayload.errors
+                        .map((item) => {
+                            if (item?.field && item?.message) {
+                                return `${item.field}: ${item.message}`;
+                            }
+
+                            if (typeof item === 'string') {
+                                return item;
+                            }
+
+                            return null;
+                        })
+                        .filter(Boolean)
+                    : [];
+
+                const detailedMessage = fieldErrors.length > 0
+                    ? `${errorPayload.message || 'Request failed'} - ${fieldErrors.join(', ')}`
+                    : (errorPayload.message || `HTTP ${response.status}`);
+
+                throw new Error(detailedMessage);
             }
 
             return await response.json();
@@ -338,6 +365,7 @@ class APIClient {
 
 // Create singleton instance
 const apiClient = new APIClient();
+
 
 
 
