@@ -8,6 +8,7 @@ const threatService = require('../services/threatClassificationService');
 const riskService = require('../services/riskCalculationService');
 const recommendationService = require('../services/recommendationService');
 const nistService = require('../services/nistMappingService');
+const auditLogService = require('../services/auditLogService');
 const { validateIncident } = require('../utils/validators');
 const { generateIncidentId } = require('../utils/constants');
 const logger = require('../utils/logger');
@@ -18,7 +19,7 @@ class IncidentController {
      */
     async createIncident(req, res, next) {
         try {
-            const { assetId, description, incidentTime, guestAffected, sensitiveDataInvolved } = req.body;
+            const { assetId, description, guestAffected, sensitiveDataInvolved } = req.body;
 
             // Validate input
             const validation = validateIncident({ assetId, description });
@@ -61,6 +62,9 @@ class IncidentController {
                 threatAnalysis
             );
 
+            const aiModel = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+            const aiVersion = process.env.OPENAI_MODEL_VERSION || 'v1';
+
             // Create incident
             const incident = new Incident({
                 incidentId: generateIncidentId(),
@@ -79,6 +83,9 @@ class IncidentController {
                 impact: threatAnalysis.impact,
                 riskScore: riskAssessment.score,
                 riskLevel: riskAssessment.level,
+                aiModel,
+                aiVersion,
+                aiAnalyzedAt: new Date(),
                 nistFunctions: nistMapping.functions,
                 nistControls: nistMapping.controls,
                 recommendations,
@@ -88,6 +95,19 @@ class IncidentController {
             });
 
             await incident.save();
+
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'INCIDENT_CREATE',
+                entityType: 'Incident',
+                entityId: String(incident._id),
+                after: {
+                    incidentId: incident.incidentId,
+                    riskLevel: incident.riskLevel,
+                    threatType: incident.threatType,
+                },
+                ipAddress: req.ip || '',
+            });
 
             logger.info(`Incident created: ${incident.incidentId} for user ${req.user.userId}`);
 
@@ -104,7 +124,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Create incident error:', error.message);
+            logger.error(`Create incident error: ${error.message}`);
             next(error);
         }
     }
@@ -124,7 +144,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Get incidents error:', error.message);
+            logger.error(`Get incidents error: ${error.message}`);
             next(error);
         }
     }
@@ -152,7 +172,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Get incident error:', error.message);
+            logger.error(`Get incident error: ${error.message}`);
             next(error);
         }
     }
@@ -174,6 +194,13 @@ class IncidentController {
                 });
             }
 
+            const before = {
+                description: incident.description,
+                status: incident.status,
+                likelihood: incident.likelihood,
+                impact: incident.impact,
+            };
+
             const allowedFields = [
                 'description',
                 'guestAffected',
@@ -192,6 +219,21 @@ class IncidentController {
             incident.updatedAt = new Date();
             await incident.save();
 
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'INCIDENT_UPDATE',
+                entityType: 'Incident',
+                entityId: String(incident._id),
+                before,
+                after: {
+                    description: incident.description,
+                    status: incident.status,
+                    likelihood: incident.likelihood,
+                    impact: incident.impact,
+                },
+                ipAddress: req.ip || '',
+            });
+
             res.json({
                 success: true,
                 message: 'Incident updated successfully',
@@ -199,7 +241,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Update incident error:', error.message);
+            logger.error(`Update incident error: ${error.message}`);
             next(error);
         }
     }
@@ -219,28 +261,32 @@ class IncidentController {
                 });
             }
 
-            const updateData = {
-                status,
-                updatedAt: new Date(),
-            };
-
-            if (status === 'Resolved') {
-                updateData.resolvedAt = new Date();
-                updateData.resolvedBy = req.user.userId;
-            }
-
-            const incident = await Incident.findOneAndUpdate(
-                { _id: req.params.id, userId: req.user.userId },
-                updateData,
-                { new: true }
-            );
-
+            const incident = await Incident.findOne({ _id: req.params.id, userId: req.user.userId });
             if (!incident) {
                 return res.status(404).json({
                     success: false,
                     message: 'Incident not found',
                 });
             }
+
+            const beforeStatus = incident.status;
+            incident.status = status;
+            incident.updatedAt = new Date();
+            if (status === 'Resolved') {
+                incident.resolvedAt = new Date();
+                incident.resolvedBy = req.user.userId;
+            }
+            await incident.save();
+
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'INCIDENT_STATUS_UPDATE',
+                entityType: 'Incident',
+                entityId: String(incident._id),
+                before: { status: beforeStatus },
+                after: { status },
+                ipAddress: req.ip || '',
+            });
 
             logger.info(`Incident status updated: ${incident.incidentId} -> ${status}`);
 
@@ -251,7 +297,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Update incident status error:', error.message);
+            logger.error(`Update incident status error: ${error.message}`);
             next(error);
         }
     }
@@ -286,6 +332,15 @@ class IncidentController {
             incident.updatedAt = new Date();
             await incident.save();
 
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'INCIDENT_NOTE_ADD',
+                entityType: 'Incident',
+                entityId: String(incident._id),
+                meta: { noteLength: note.length },
+                ipAddress: req.ip || '',
+            });
+
             logger.info(`Note added to incident: ${incident.incidentId}`);
 
             res.json({
@@ -295,7 +350,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Add note error:', error.message);
+            logger.error(`Add note error: ${error.message}`);
             next(error);
         }
     }
@@ -323,7 +378,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Search incidents error:', error.message);
+            logger.error(`Search incidents error: ${error.message}`);
             next(error);
         }
     }
@@ -333,10 +388,18 @@ class IncidentController {
      */
     async deleteIncident(req, res, next) {
         try {
-            const incident = await Incident.findOneAndDelete({
-                _id: req.params.id,
-                userId: req.user.userId,
-            });
+            const incident = await Incident.findOneAndUpdate(
+                {
+                    _id: req.params.id,
+                    userId: req.user.userId,
+                },
+                {
+                    isDeleted: true,
+                    deletedAt: new Date(),
+                    updatedAt: new Date(),
+                },
+                { new: true }
+            );
 
             if (!incident) {
                 return res.status(404).json({
@@ -345,7 +408,16 @@ class IncidentController {
                 });
             }
 
-            logger.info(`Incident deleted: ${incident.incidentId}`);
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'INCIDENT_DELETE',
+                entityType: 'Incident',
+                entityId: String(incident._id),
+                before: { incidentId: incident.incidentId, status: incident.status },
+                ipAddress: req.ip || '',
+            });
+
+            logger.info(`Incident soft-deleted: ${incident.incidentId}`);
 
             res.json({
                 success: true,
@@ -353,7 +425,7 @@ class IncidentController {
             });
 
         } catch (error) {
-            logger.error('Delete incident error:', error.message);
+            logger.error(`Delete incident error: ${error.message}`);
             next(error);
         }
     }
