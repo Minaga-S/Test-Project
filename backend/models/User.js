@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 
+const ROLE_PERMISSIONS = {
+    Admin: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'user:manage', 'dashboard:read'],
+    Staff: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'dashboard:read'],
+};
+
 const UserSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -12,19 +17,30 @@ const UserSchema = new mongoose.Schema({
     password: {
         type: String,
         required: true,
+        minlength: 8,
     },
     fullName: {
         type: String,
         required: true,
+        trim: true,
     },
     role: {
         type: String,
         enum: ['Admin', 'Staff'],
         default: 'Staff',
     },
+    roles: {
+        type: [String],
+        default: ['Staff'],
+    },
+    permissions: {
+        type: [String],
+        default: ROLE_PERMISSIONS.Staff,
+    },
     department: {
         type: String,
         default: '',
+        trim: true,
     },
     isActive: {
         type: Boolean,
@@ -38,6 +54,15 @@ const UserSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+});
+
+UserSchema.index({ email: 1 }, { unique: true });
+
+UserSchema.pre('validate', function(next) {
+    const normalizedRole = this.role || 'Staff';
+    this.roles = [normalizedRole];
+    this.permissions = ROLE_PERMISSIONS[normalizedRole] || ROLE_PERMISSIONS.Staff;
+    next();
 });
 
 // Hash password before saving
