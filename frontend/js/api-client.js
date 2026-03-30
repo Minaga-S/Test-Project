@@ -61,36 +61,41 @@ class APIClient {
      */
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+        const method = options.method || 'GET';
+        const hasBody = options.body !== undefined && options.body !== null;
+        const isJsonBody = hasBody && !(options.body instanceof FormData);
+
         const headers = {
-            'Content-Type': 'application/json',
             ...options.headers,
         };
+
+        if (isJsonBody && !headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
 
         if (this.token) {
             headers.Authorization = `Bearer ${this.token}`;
         }
 
         const config = {
-            method: options.method || 'GET',
+            method,
             headers,
             ...options,
         };
 
-        if (options.body) {
-            config.body = JSON.stringify(options.body);
+        if (hasBody) {
+            config.body = isJsonBody ? JSON.stringify(options.body) : options.body;
         }
 
         try {
             const response = await fetch(url, config);
 
-            // Handle 401 - Unauthorized
             if (response.status === 401) {
                 this.clearAuth();
                 window.location.href = 'index.html';
                 return null;
             }
 
-            // Handle network errors
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.message || `HTTP ${response.status}`);
@@ -333,5 +338,10 @@ class APIClient {
 
 // Create singleton instance
 const apiClient = new APIClient();
+
+
+
+
+
 
 

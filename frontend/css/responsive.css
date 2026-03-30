@@ -71,7 +71,7 @@
         left: 0;
         right: 0;
         padding: 0.85rem 0;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+        border-bottom: none;
         border-radius: 0 0 16px 16px;
         overflow-y: auto;
         transform: translateY(-115%);
@@ -97,7 +97,7 @@
 
     .sidebar-header {
         padding: 0 1rem 1rem;
-        border-bottom: 1px solid var(--light-color);
+        border-bottom: none;
         margin-bottom: 1rem;
     }
 
@@ -106,7 +106,7 @@
         flex-direction: column;
         gap: 0.35rem;
         margin-bottom: 0;
-        border-top: 1px solid var(--light-color);
+        border-top: none;
         padding: 0.25rem 0;
     }
 
@@ -136,7 +136,7 @@
         padding: 1rem;
         width: 100%;
         margin-top: 0.6rem;
-        border-top: 1px solid var(--light-color);
+        border-top: none;
     }
 
     .main-content {
