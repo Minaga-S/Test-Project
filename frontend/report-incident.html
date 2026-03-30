@@ -94,33 +94,33 @@
 
                         <div class="form-group">
                             <label for="incident-description">Describe What Happened *</label>
-                            <textarea 
-                                id="incident-description" 
-                                name="description" 
+                            <textarea
+                                id="incident-description"
+                                name="description"
                                 placeholder="Example: Our POS computer is showing popup ads and processing transactions very slowly. Started this morning without any changes made by staff..."
                                 rows="8"
                                 required
                             ></textarea>
                             <small>
-                                <span id="char-count">0</span>/1000 characters | 
+                                <span id="char-count">0</span>/1000 characters |
                                 Be as detailed as possible
                             </small>
                         </div>
 
                         <div class="form-group">
                             <label for="when-happened">When did this happen? *</label>
-                            <input 
-                                type="datetime-local" 
-                                id="when-happened" 
-                                name="incidentTime" 
+                            <input
+                                type="datetime-local"
+                                id="when-happened"
+                                name="incidentTime"
                                 required
                             >
                         </div>
 
                         <div class="form-group checkbox">
-                            <input 
-                                type="checkbox" 
-                                id="guest-affected" 
+                            <input
+                                type="checkbox"
+                                id="guest-affected"
                                 name="guestAffected"
                             >
                             <label for="guest-affected">
@@ -129,9 +129,9 @@
                         </div>
 
                         <div class="form-group checkbox">
-                            <input 
-                                type="checkbox" 
-                                id="data-involved" 
+                            <input
+                                type="checkbox"
+                                id="data-involved"
                                 name="sensitiveDataInvolved"
                             >
                             <label for="data-involved">
@@ -175,9 +175,9 @@
     <!-- Success Modal -->
     <div id="success-modal" class="modal" style="display: none;">
         <div class="modal-overlay"></div>
-        <div class="modal-content modal-content-small">
+        <div class="modal-content modal-content-small confirm-modal success-modal-content">
             <div class="modal-header">
-                <h2>✅ Issue Reported Successfully</h2>
+                <h2><span class="material-symbols-rounded" aria-hidden="true">check_circle</span> Issue Reported Successfully</h2>
             </div>
             <div class="success-content">
                 <p>Your incident has been analyzed and logged.</p>
@@ -209,5 +209,3 @@
     <script src="js/incident-report.js"></script>
 </body>
 </html>
-
-
