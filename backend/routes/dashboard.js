@@ -8,6 +8,7 @@ const router = express.Router();
 const withController = (controller, methodName) => (req, res, next) => controller[methodName](req, res, next);
 
 router.get('/metrics', withController(dashboardController, 'getMetrics'));
+router.get('/metrics/trends', withController(dashboardController, 'getMetricsTrends'));
 router.get('/charts/risk-distribution', withController(dashboardController, 'getRiskDistributionChart'));
 router.get('/charts/threat-categories', withController(dashboardController, 'getThreatCategoriesChart'));
 router.get('/charts/vulnerable-assets', withController(dashboardController, 'getVulnerableAssetsChart'));

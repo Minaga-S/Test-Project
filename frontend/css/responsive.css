@@ -221,6 +221,13 @@
         opacity: 0.3;
     }
 
+    .metric-sparkline {
+        order: 2;
+        margin: 0.5rem 0;
+        width: 100%;
+        max-width: 120px;
+    }
+
     .filter-section {
         flex-direction: column;
     }

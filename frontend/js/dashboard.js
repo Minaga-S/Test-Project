@@ -88,15 +88,23 @@ async function loadDashboardData() {
     try {
         const metricsPromise = apiClient.getDashboardMetrics();
         const incidentsPromise = apiClient.getRecentIncidents();
+        const trendsPromise = apiClient.getMetricsTrends();
         const chartsPromise = loadCharts();
 
-        const [metricsResponse, incidentsResponse] = await Promise.all([
+        const [metricsResponse, incidentsResponse, trendsResponse] = await Promise.all([
             metricsPromise,
             incidentsPromise,
+            trendsPromise,
         ]);
 
         const metrics = metricsResponse?.metrics || metricsResponse || {};
         displayMetrics(metrics);
+
+        const trends = trendsResponse?.trends || {};
+        if (trendsResponse) {
+            await ensureChartJsLoaded();
+            renderSparklines(trends);
+        }
 
         const incidents = Array.isArray(incidentsResponse)
             ? incidentsResponse
@@ -125,6 +133,88 @@ function displayMetrics(metrics) {
         if (el) {
             el.textContent = value;
         }
+    });
+}
+
+function renderSparklines(trends) {
+    const sparklineConfigs = [
+        {
+            canvasId: 'sparkline-total-assets',
+            data: trends.totalAssets || [],
+            borderColor: '#0f766e',
+            backgroundColor: 'rgba(15, 118, 110, 0.1)',
+        },
+        {
+            canvasId: 'sparkline-open-incidents',
+            data: trends.openIncidents || [],
+            borderColor: '#d97706',
+            backgroundColor: 'rgba(217, 119, 6, 0.1)',
+        },
+        {
+            canvasId: 'sparkline-critical-risks',
+            data: trends.criticalRisks || [],
+            borderColor: '#dc2626',
+            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+        },
+        {
+            canvasId: 'sparkline-resolved-issues',
+            data: trends.resolvedIssues || [],
+            borderColor: '#15803d',
+            backgroundColor: 'rgba(21, 128, 61, 0.1)',
+        },
+    ];
+
+    sparklineConfigs.forEach((config) => {
+        const canvas = document.getElementById(config.canvasId);
+        if (!canvas || !config.data.length) return;
+
+        if (!window.Chart) {
+            console.warn('Chart.js not loaded');
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        new window.Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: config.data.length }, (_, i) => i),
+                datasets: [
+                    {
+                        label: 'Trend',
+                        data: config.data,
+                        borderColor: config.borderColor,
+                        backgroundColor: config.backgroundColor,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        enabled: false,
+                    },
+                },
+                scales: {
+                    x: {
+                        display: false,
+                    },
+                    y: {
+                        display: false,
+                        beginAtZero: true,
+                    },
+                },
+            },
+        });
     });
 }
 
