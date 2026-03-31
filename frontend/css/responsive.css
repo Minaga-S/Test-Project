@@ -220,6 +220,31 @@
         width: 100%;
     }
 
+    .dashboard-page .header-right {
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 0.6rem;
+    }
+
+    .dashboard-page .live-badge {
+        order: 0;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .dashboard-page .user-profile {
+        margin-left: auto;
+        flex: 0 0 auto;
+    }
+
+    .dashboard-page #user-name {
+        max-width: 38vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .metrics-section {
         display: flex;
         grid-template-columns: none;
@@ -279,6 +304,18 @@
 
     .toggle-icon {
         flex: 0 0 auto;
+    }
+
+    .mobile-only-toggle {
+        flex-wrap: nowrap;
+    }
+
+    .mobile-only-toggle > span:first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .metric-icon {

@@ -467,15 +467,6 @@ function displayRecentIncidents(incidents) {
             </td>
         `;
         tbody.appendChild(row);
-
-        // Show toast notification for critical/high incidents
-        if ((riskLevel === 'Critical' || riskLevel === 'High') && status === 'Open') {
-            const notifType = riskLevel === 'Critical' ? 'error' : 'warning';
-            showNotification(
-                `${riskLevel} Incident: ${incident.threatType} on ${incident.asset?.assetName || 'Unknown'}`,
-                notifType
-            );
-        }
     });
 }
 
