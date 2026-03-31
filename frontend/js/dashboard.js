@@ -134,6 +134,53 @@ function displayMetrics(metrics) {
             el.textContent = value;
         }
     });
+
+    // Display deltas (vs last week)
+    if (metrics.deltas) {
+        displayDeltas(metrics.deltas);
+    }
+
+    // Add pulse indicator if critical risks are high
+    const criticalRisksCard = document.querySelector('.metric-card-danger');
+    if (criticalRisksCard && metrics.criticalRisks > 0) {
+        criticalRisksCard.classList.add('pulse-indicator');
+    } else if (criticalRisksCard) {
+        criticalRisksCard.classList.remove('pulse-indicator');
+    }
+}
+
+function displayDeltas(deltas) {
+    const deltaElements = {
+        'delta-total-assets': deltas.totalAssets,
+        'delta-open-incidents': deltas.openIncidents,
+        'delta-critical-risks': deltas.criticalRisks,
+        'delta-resolved-issues': deltas.resolvedIssues,
+    };
+
+    Object.entries(deltaElements).forEach(([elementId, delta]) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        const isPositive = delta > 0;
+        const isNeutral = delta === 0;
+        const absValue = Math.abs(delta);
+        const arrow = isNeutral ? '–' : (isPositive ? '↑' : '↓');
+        
+        // Determine direction (for some metrics, up is bad; for others, good)
+        const metricType = elementId.split('-').pop();
+        const isBadWhenUp = ['open-incidents', 'critical-risks'].includes(metricType) || 
+                            elementId.includes('open') || 
+                            elementId.includes('critical');
+        
+        const classType = isNeutral ? 'neutral' : (
+            isBadWhenUp 
+                ? (isPositive ? 'negative' : 'positive')
+                : (isPositive ? 'positive' : 'negative')
+        );
+
+        el.innerHTML = `<span class="metric-delta-arrow">${arrow}</span> <span class="metric-delta-${classType}">${absValue}</span>`;
+        el.className = `metric-delta metric-delta-${classType}`;
+    });
 }
 
 function renderSparklines(trends) {
