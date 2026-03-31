@@ -66,7 +66,6 @@ class DashboardController {
                     resolvedIssues: resolvedIssues - resolvedIssuesLastWeek,
                 },
                 lastUpdated: new Date(),
-                systemStatus: this.calculateSystemStatus(criticalRisks, openIncidents),
                 timestamp: new Date(),
             };
 
@@ -79,15 +78,6 @@ class DashboardController {
             logger.error('Get metrics error:', error.message);
             next(error);
         }
-    }
-
-    /**
-     * Calculate system status based on critical risks
-     */
-    calculateSystemStatus(criticalRisks, openIncidents) {
-        if (criticalRisks > 0) return 'alert';
-        if (openIncidents > 5) return 'warning';
-        return 'secure';
     }
 
     /**
