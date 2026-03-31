@@ -13,6 +13,7 @@
 
 
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
+const MOBILE_BREAKPOINT = 768;
 
 let charts = {};
 let chartJsLoadPromise = null;
@@ -46,6 +47,10 @@ function setupCollapsiblePanels() {
 
     toggles.forEach((toggle) => {
         toggle.addEventListener('click', () => {
+            if (toggle.classList.contains('mobile-only-toggle') && window.innerWidth > MOBILE_BREAKPOINT) {
+                return;
+            }
+
             const panel = toggle.closest('.collapsible-panel');
             if (!panel) return;
 
@@ -62,6 +67,29 @@ function setupCollapsiblePanels() {
                 }, 150);
             }
         });
+    });
+
+    syncMobileOnlyPanels();
+    window.addEventListener('resize', syncMobileOnlyPanels);
+}
+
+function syncMobileOnlyPanels() {
+    const mobileOnlyPanels = document.querySelectorAll('.mobile-collapsible-panel');
+    const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+
+    mobileOnlyPanels.forEach((panel) => {
+        const toggle = panel.querySelector('.mobile-only-toggle');
+        if (!toggle) {
+            return;
+        }
+
+        if (isMobile) {
+            panel.classList.add('collapsed');
+            toggle.setAttribute('aria-expanded', 'false');
+        } else {
+            panel.classList.remove('collapsed');
+            toggle.setAttribute('aria-expanded', 'true');
+        }
     });
 }
 
