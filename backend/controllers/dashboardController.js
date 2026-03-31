@@ -14,6 +14,7 @@ class DashboardController {
      */
     async getMetrics(req, res, next) {
         try {
+            // Current metrics
             const totalAssets = await Asset.countDocuments({ userId: req.user.userId });
             const openIncidents = await Incident.countDocuments({ 
                 userId: req.user.userId, 
@@ -28,11 +29,42 @@ class DashboardController {
                 status: 'Resolved' 
             });
 
+            // Last week's metrics for delta calculation
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+
+            const assetsLastWeek = await Asset.countDocuments({ 
+                userId: req.user.userId, 
+                createdAt: { $lte: weekAgo } 
+            });
+            const openIncidentsLastWeek = await Incident.countDocuments({ 
+                userId: req.user.userId, 
+                status: 'Open',
+                createdAt: { $lte: weekAgo },
+            });
+            const criticalRisksLastWeek = await Incident.countDocuments({ 
+                userId: req.user.userId, 
+                riskLevel: 'Critical',
+                createdAt: { $lte: weekAgo },
+            });
+            const resolvedIssuesLastWeek = await Incident.countDocuments({ 
+                userId: req.user.userId, 
+                status: 'Resolved',
+                resolvedAt: { $gte: weekAgo },
+            });
+
+            // Calculate deltas
             const metrics = {
                 totalAssets,
                 openIncidents,
                 criticalRisks,
                 resolvedIssues,
+                deltas: {
+                    totalAssets: totalAssets - assetsLastWeek,
+                    openIncidents: openIncidents - openIncidentsLastWeek,
+                    criticalRisks: criticalRisks - criticalRisksLastWeek,
+                    resolvedIssues: resolvedIssues - resolvedIssuesLastWeek,
+                },
                 timestamp: new Date(),
             };
 
