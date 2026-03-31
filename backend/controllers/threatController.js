@@ -1,6 +1,8 @@
 /**
  * Threat Controller
  */
+// NOTE: Controller: handles incoming API requests, validates access, and returns responses.
+
 
 const threatService = require('../services/threatClassificationService');
 const { THREAT_KNOWLEDGE_BASE, THREAT_TYPES } = require('../utils/constants');

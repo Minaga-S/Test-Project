@@ -1,3 +1,5 @@
+// NOTE: Route map: connects URL endpoints to controller methods and request validation.
+
 const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
@@ -47,3 +49,4 @@ router.put('/profile', authMiddleware, updateProfileValidation, withController(a
 router.post('/change-password', authMiddleware, changePasswordValidation, withController(authController, 'changePassword'));
 
 module.exports = router;
+

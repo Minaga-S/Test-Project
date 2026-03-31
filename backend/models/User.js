@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 
@@ -91,3 +93,4 @@ UserSchema.methods.toJSON = function() {
 };
 
 module.exports = mongoose.model('User', UserSchema);
+

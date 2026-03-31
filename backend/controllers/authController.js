@@ -1,6 +1,8 @@
 /**
  * Authentication Controller
  */
+// NOTE: Controller: handles incoming API requests, validates access, and returns responses.
+
 
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
@@ -308,3 +310,4 @@ class AuthController {
 }
 
 module.exports = new AuthController();
+

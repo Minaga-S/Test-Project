@@ -1,3 +1,5 @@
+// NOTE: Middleware: runs before controllers for cross-cutting concerns like auth and validation.
+
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 

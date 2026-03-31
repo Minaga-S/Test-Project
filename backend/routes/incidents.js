@@ -1,3 +1,5 @@
+// NOTE: Route map: connects URL endpoints to controller methods and request validation.
+
 const express = require('express');
 const { body, param } = require('express-validator');
 const incidentController = require('../controllers/incidentController');
@@ -28,3 +30,4 @@ router.post('/:id/notes', incidentIdValidation, withController(incidentControlle
 router.delete('/:id', incidentIdValidation, withController(incidentController, 'deleteIncident'));
 
 module.exports = router;
+

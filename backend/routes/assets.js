@@ -1,3 +1,5 @@
+// NOTE: Route map: connects URL endpoints to controller methods and request validation.
+
 const express = require('express');
 const { body, param } = require('express-validator');
 const assetController = require('../controllers/assetController');
@@ -27,3 +29,4 @@ router.put('/:id', objectIdValidation, withController(assetController, 'updateAs
 router.delete('/:id', objectIdValidation, withController(assetController, 'deleteAsset'));
 
 module.exports = router;
+

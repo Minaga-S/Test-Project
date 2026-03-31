@@ -1,6 +1,16 @@
 /**
  * Incident Report Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Report Boot: loads assets and binds report form events.
+ * 2) Validation: checks minimum fields before submit.
+ * 3) Submit + Analysis UX: shows progress while backend analyzes text.
+ * 4) Result Handling: displays success modal and next actions.
+ */
+
+
 
 let assets = [];
 let progressTimer = null;
@@ -10,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeIncidentReport() {
+    // Page boot flow: guard auth, load user context, then prepare form data and listeners.
     if (!apiClient.isAuthenticated()) {
         window.location.href = 'index.html';
         return;
@@ -87,6 +98,7 @@ function setSubmitButtonState(isSubmitting) {
 }
 
 function beginAnalysisProgress() {
+    // Simulated progress keeps users informed while backend AI analysis runs.
     stopAnalysisProgress();
 
     const progressFill = document.getElementById('progress-fill');
@@ -108,6 +120,7 @@ function stopAnalysisProgress() {
 }
 
 async function handleIncidentSubmit(e) {
+    // Submit flow: validate input, show analysis modal, send request, then display result modal.
     e.preventDefault();
 
     const assetId = String(document.getElementById('affected-asset').value || '').trim();
@@ -131,6 +144,7 @@ async function handleIncidentSubmit(e) {
     beginAnalysisProgress();
 
     try {
+        // Keep payload shape aligned with backend create-incident API contract.
         const incidentData = {
             assetId,
             description,
@@ -215,3 +229,7 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
+
+
+
+

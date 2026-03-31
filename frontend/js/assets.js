@@ -1,6 +1,16 @@
 /**
  * Asset Management Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Page Initialization: checks auth and loads initial assets.
+ * 2) Event Wiring: hooks buttons/forms to handlers.
+ * 3) Data Loading: fetches assets from API and renders table/cards.
+ * 4) CRUD Actions: create, edit, and delete asset workflows.
+ */
+
+
 
 let assets = [];
 let currentEditingAssetId = null;
@@ -238,3 +248,4 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
+

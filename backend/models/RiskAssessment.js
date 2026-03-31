@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 
 const RiskAssessmentSchema = new mongoose.Schema({
@@ -47,3 +49,4 @@ const RiskAssessmentSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('RiskAssessment', RiskAssessmentSchema);
+

@@ -1,6 +1,8 @@
 /**
  * Asset Controller
  */
+// NOTE: Controller: handles incoming API requests, validates access, and returns responses.
+
 
 const Asset = require('../models/Asset');
 const { ASSET_TYPES } = require('../utils/constants');
@@ -265,3 +267,4 @@ class AssetController {
 }
 
 module.exports = new AssetController();
+

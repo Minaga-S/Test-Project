@@ -1,6 +1,8 @@
 /**
  * AI Service - Wrapper for AI operations
  */
+// NOTE: Service layer: contains core business logic used by controllers.
+
 
 const { analyzeThreatWithAI, generateRecommendations } = require('../config/ai-config');
 const logger = require('../utils/logger');

@@ -1,6 +1,16 @@
 /**
  * Authentication Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Auth Boot: redirects authenticated users and wires forms.
+ * 2) Login Flow: validates input and requests JWT tokens.
+ * 3) Signup Flow: creates user and transitions to dashboard.
+ * 4) Session UX: toggles forms and displays auth errors.
+ */
+
+
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
@@ -186,3 +196,4 @@ function logout() {
     apiClient.logout();
     window.location.href = 'index.html';
 }
+
