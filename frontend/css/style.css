@@ -150,6 +150,12 @@ body {
         #f8fafc;
     line-height: 1.72;
     animation: pageFadeIn var(--duration-slow) var(--ease-standard);
+    transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+body.page-transition-out {
+    opacity: 0;
+    transform: translateY(6px);
 }
 
 @keyframes pageFadeIn {

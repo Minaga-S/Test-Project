@@ -387,10 +387,72 @@ function setupSidebarToggle() {
     });
 }
 
+function setupPageTransitions() {
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('a[href]');
+        if (!link) {
+            return;
+        }
+
+        const href = link.getAttribute('href') || '';
+        if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+            return;
+        }
+
+        if (link.target === '_blank' || link.hasAttribute('download')) {
+            return;
+        }
+
+        const destination = new URL(link.href, window.location.href);
+        const isSameOrigin = destination.origin === window.location.origin;
+        const isSamePage = destination.pathname === window.location.pathname && destination.search === window.location.search;
+        if (!isSameOrigin || isSamePage) {
+            return;
+        }
+
+        event.preventDefault();
+        document.body.classList.add('page-transition-out');
+
+        setTimeout(() => {
+            window.location.href = destination.href;
+        }, 140);
+    });
+
+    window.addEventListener('pageshow', () => {
+        document.body.classList.remove('page-transition-out');
+    });
+}
+
+function setupMobileHaptics() {
+    const supportsVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+    if (!supportsVibrate || !isTouchDevice) {
+        return;
+    }
+
+    let lastHapticAt = 0;
+    document.addEventListener('click', (event) => {
+        const interactive = event.target.closest('button, .btn, .tab-btn, .collapsible-toggle, .nav-item, a');
+        if (!interactive) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastHapticAt < 70) {
+            return;
+        }
+
+        navigator.vibrate(10);
+        lastHapticAt = now;
+    }, { passive: true });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     normalizeIconography();
     injectHeaderBreadcrumbs();
     setupSidebarToggle();
+    setupPageTransitions();
+    setupMobileHaptics();
 });
 
 document.addEventListener('click', (event) => {
