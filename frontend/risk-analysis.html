@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preload" href="assets/fonts/MaterialSymbolsRounded.woff2" as="font" type="font/woff2" crossorigin>
     <title>Risk Analysis - Hotel Cybersecurity Governance</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
@@ -27,27 +28,27 @@
 
             <nav class="sidebar-nav">
                 <a href="dashboard.html" class="nav-item">
-                    <span class="icon">📊</span>
+                    <span class="icon material-symbols-rounded" aria-hidden="true">dashboard</span>
                     <span>Dashboard</span>
                 </a>
                 <a href="assets.html" class="nav-item">
-                    <span class="icon">🖥️</span>
+                    <span class="icon material-symbols-rounded" aria-hidden="true">inventory_2</span>
                     <span>Assets</span>
                 </a>
                 <a href="report-incident.html" class="nav-item">
-                    <span class="icon">⚠️</span>
+                    <span class="icon material-symbols-rounded" aria-hidden="true">report_problem</span>
                     <span>Report Issue</span>
                 </a>
                 <a href="incident-logs.html" class="nav-item">
-                    <span class="icon">📋</span>
+                    <span class="icon material-symbols-rounded" aria-hidden="true">assignment</span>
                     <span>Incidents</span>
                 </a>
                 <a href="risk-analysis.html" class="nav-item active">
-                    <span class="icon">📈</span>
+                    <span class="icon material-symbols-rounded" aria-hidden="true">monitoring</span>
                     <span>Risk Analysis</span>
                 </a>
                 <a href="settings.html" class="nav-item">
-                    <span class="icon">⚙️</span>
+                    <span class="icon material-symbols-rounded" aria-hidden="true">settings</span>
                     <span>Settings</span>
                 </a>
             </nav>
@@ -109,36 +110,46 @@
                 </section>
 
                 <!-- Recommendations Priority List -->
-                <section class="recommendations-priority-section">
-                    <h2>Priority Mitigation Recommendations</h2>
-                    <div id="recommendations-priority-list" class="recommendations-priority-list">
-                        <p>Loading recommendations...</p>
+                <section class="recommendations-priority-section collapsible-panel mobile-collapsible-panel collapsed" id="risk-analysis-recommendations-panel">
+                    <button class="collapsible-toggle mobile-only-toggle" type="button" data-target="risk-analysis-recommendations-content" aria-expanded="false">
+                        <span>Priority Mitigation Recommendations</span>
+                        <span class="toggle-icon">▾</span>
+                    </button>
+                    <div id="risk-analysis-recommendations-content" class="collapsible-content mobile-collapsible-content">
+                        <div id="recommendations-priority-list" class="recommendations-priority-list">
+                            <p>Loading recommendations...</p>
+                        </div>
                     </div>
                 </section>
 
                 <!-- Risk Breakdown Table -->
-                <section class="risk-breakdown-section">
-                    <h2>Detailed Risk Breakdown</h2>
-                    <div class="table-responsive">
-                        <table class="risk-breakdown-table">
-                            <thead>
-                                <tr>
-                                    <th>Incident ID</th>
-                                    <th>Asset</th>
-                                    <th>Threat Type</th>
-                                    <th>Likelihood</th>
-                                    <th>Impact</th>
-                                    <th>Risk Score</th>
-                                    <th>Risk Level</th>
-                                    <th>Priority</th>
-                                </tr>
-                            </thead>
-                            <tbody id="risk-breakdown-tbody">
-                                <tr>
-                                    <td colspan="8" class="text-center">Loading...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <section class="risk-breakdown-section collapsible-panel mobile-collapsible-panel collapsed" id="risk-analysis-breakdown-panel">
+                    <button class="collapsible-toggle mobile-only-toggle" type="button" data-target="risk-analysis-breakdown-content" aria-expanded="false">
+                        <span>Detailed Risk Breakdown</span>
+                        <span class="toggle-icon">▾</span>
+                    </button>
+                    <div id="risk-analysis-breakdown-content" class="collapsible-content mobile-collapsible-content">
+                        <div class="table-responsive">
+                            <table class="risk-breakdown-table">
+                                <thead>
+                                    <tr>
+                                        <th>Incident ID</th>
+                                        <th>Asset</th>
+                                        <th>Threat Type</th>
+                                        <th>Likelihood</th>
+                                        <th>Impact</th>
+                                        <th>Risk Score</th>
+                                        <th>Risk Level</th>
+                                        <th>Priority</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="risk-breakdown-tbody">
+                                    <tr>
+                                        <td colspan="8" class="text-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
