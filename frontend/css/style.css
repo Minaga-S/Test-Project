@@ -10,7 +10,7 @@
     font-family: 'Material Symbols Rounded';
     font-style: normal;
     font-weight: 100 700;
-    font-display: swap;
+    font-display: block;
     src: url('../assets/fonts/MaterialSymbolsRounded.woff2') format('woff2');
 }
 
@@ -689,6 +689,7 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 .confirm-modal {
     max-width: 430px;
     padding: 1.15rem 1.15rem 1rem;
+    font-family: var(--font-family);
 }
 
 .confirm-modal .modal-header {
@@ -697,6 +698,8 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 }
 
 .confirm-modal .modal-header h2 {
+    font-family: var(--font-family);
+    font-weight: 700;
     width: 100%;
     text-align: center;
     display: inline-flex;
@@ -706,6 +709,7 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 }
 
 .confirm-modal p {
+    font-family: var(--font-family);
     text-align: center;
     margin: 0 0 0.9rem;
     color: #334155;
@@ -718,6 +722,7 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 }
 
 .confirm-modal .form-actions .btn {
+    font-family: var(--font-family);
     flex: 0 0 auto;
     min-width: 145px;
 }

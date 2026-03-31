@@ -119,6 +119,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-family: var(--font-family);
     min-width: 90px;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
@@ -687,6 +688,7 @@ tbody tr:last-child td {
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
+    font-family: var(--font-family);
     border: 1px solid #E8EAEF;
     background: #FAFBFF;
     color: var(--secondary-color);
@@ -838,6 +840,27 @@ tbody tr:last-child td {
 .risk-breakdown-section h2,
 .asset-risk-section h2 {
     margin-bottom: 0.9rem;
+}
+
+.mobile-collapsible-panel {
+    padding: 0;
+}
+
+.mobile-collapsible-panel .collapsible-toggle {
+    background: transparent;
+    border-bottom: 1px solid #E8EAEF;
+    padding: 1rem 1.25rem;
+}
+
+.mobile-collapsible-panel .mobile-collapsible-content {
+    background: transparent;
+    max-height: none;
+    overflow: visible;
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.mobile-collapsible-panel.collapsed .mobile-collapsible-content {
+    display: none;
 }
 
 .asset-risk-card {
@@ -1042,6 +1065,7 @@ body.dashboard-page #logout-confirm-modal .form-actions {
 }
 
 body.dashboard-page #logout-confirm-modal .form-actions .btn {
+    font-family: var(--font-family);
     flex: 0 0 auto;
 }
 
