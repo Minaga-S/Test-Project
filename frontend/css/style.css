@@ -470,6 +470,36 @@ body.sidebar-collapsed #logout-btn::before {
     font-size: 1rem;
 }
 
+body.sidebar-collapsed #logout-btn {
+    position: relative;
+}
+
+body.sidebar-collapsed #logout-btn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) scale(0.98);
+    background: rgba(2, 6, 23, 0.92);
+    color: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: var(--radius-sm);
+    font-size: var(--type-xs);
+    line-height: 1;
+    white-space: nowrap;
+    padding: 0.45rem 0.55rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+    z-index: var(--z-tooltip);
+}
+
+body.sidebar-collapsed #logout-btn:hover::after,
+body.sidebar-collapsed #logout-btn:focus-visible::after {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+}
+
 body.sidebar-collapsed .nav-item {
     position: relative;
 }
