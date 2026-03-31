@@ -200,6 +200,27 @@
         width: 100%;
     }
 
+    .header-left {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        width: fit-content;
+    }
+
+    .header-right {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .live-badge {
+        order: -1;
+    }
+    }
+
     .header-right .btn {
         width: 100%;
     }
