@@ -52,6 +52,7 @@ function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.type = 'button';
+        logoutBtn.addEventListener('click', logout);
     }
 }
 
