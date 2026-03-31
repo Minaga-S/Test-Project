@@ -140,11 +140,6 @@ function displayMetrics(metrics) {
         displayDeltas(metrics.deltas);
     }
 
-    // Display system status indicator
-    if (metrics.systemStatus) {
-        displaySystemStatus(metrics.systemStatus);
-    }
-
     // Update live timestamp
     if (metrics.lastUpdated) {
         updateLiveTimestamp(metrics.lastUpdated);
@@ -157,25 +152,6 @@ function displayMetrics(metrics) {
     } else if (criticalRisksCard) {
         criticalRisksCard.classList.remove('pulse-indicator');
     }
-}
-
-function displaySystemStatus(status) {
-    const statusEl = document.getElementById('system-status');
-    const statusTextEl = document.getElementById('system-status-text');
-    const statusDot = statusEl.querySelector('.status-dot');
-
-    if (!statusEl || !statusTextEl || !statusDot) return;
-
-    statusEl.className = `status-indicator ${status}`;
-    statusDot.className = `status-dot ${status}`;
-
-    const statusLabels = {
-        secure: 'All Secure',
-        warning: 'Under Review',
-        alert: 'Action Required',
-    };
-
-    statusTextEl.textContent = statusLabels[status] || 'Unknown';
 }
 
 function updateLiveTimestamp(timestamp) {
