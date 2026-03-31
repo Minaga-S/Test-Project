@@ -84,6 +84,7 @@
                         <div class="metric-content">
                             <h3>Total Assets</h3>
                             <p class="metric-value" id="total-assets">0</p>
+                            <div class="metric-delta" id="delta-total-assets"></div>
                             <small>Registered digital assets</small>
                         </div>
                         <div class="metric-sparkline">
@@ -96,6 +97,7 @@
                         <div class="metric-content">
                             <h3>Open Incidents</h3>
                             <p class="metric-value" id="open-incidents">0</p>
+                            <div class="metric-delta" id="delta-open-incidents"></div>
                             <small>Active security issues</small>
                         </div>
                         <div class="metric-sparkline">
@@ -104,22 +106,24 @@
                         <div class="metric-icon">⚠️</div>
                     </div>
 
-                    <div class="metric-card metric-card-danger">
+                    <div class="metric-card metric-card-danger pulse-indicator">
                         <div class="metric-content">
                             <h3>Critical Risks</h3>
                             <p class="metric-value" id="critical-risks">0</p>
+                            <div class="metric-delta" id="delta-critical-risks"></div>
                             <small>Require immediate action</small>
                         </div>
                         <div class="metric-sparkline">
                             <canvas id="sparkline-critical-risks" class="sparkline-canvas" width="80" height="30"></canvas>
                         </div>
-                        <div class="metric-icon">🔴</div>
+                        <div class="metric-icon pulse-dot">🔴</div>
                     </div>
 
                     <div class="metric-card metric-card-success">
                         <div class="metric-content">
                             <h3>Resolved Issues</h3>
                             <p class="metric-value" id="resolved-issues">0</p>
+                            <div class="metric-delta" id="delta-resolved-issues"></div>
                             <small>Completed this month</small>
                         </div>
                         <div class="metric-sparkline">
