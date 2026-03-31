@@ -441,39 +441,7 @@ function setupSidebarToggle() {
 }
 
 function setupPageTransitions() {
-    document.addEventListener('click', (event) => {
-        const link = event.target.closest('a[href]');
-        if (!link) {
-            return;
-        }
-
-        const href = link.getAttribute('href') || '';
-        if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) {
-            return;
-        }
-
-        if (link.target === '_blank' || link.hasAttribute('download')) {
-            return;
-        }
-
-        const destination = new URL(link.href, window.location.href);
-        const isSameOrigin = destination.origin === window.location.origin;
-        const isSamePage = destination.pathname === window.location.pathname && destination.search === window.location.search;
-        if (!isSameOrigin || isSamePage) {
-            return;
-        }
-
-        event.preventDefault();
-        document.body.classList.add('page-transition-out');
-
-        setTimeout(() => {
-            window.location.href = destination.href;
-        }, 140);
-    });
-
-    window.addEventListener('pageshow', () => {
-        document.body.classList.remove('page-transition-out');
-    });
+    // Keep native browser navigation for instant page transitions.
 }
 
 function setupMobileHaptics() {
