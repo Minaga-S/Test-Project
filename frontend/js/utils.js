@@ -119,6 +119,59 @@ function showLoading(show = true) {
     }
 }
 
+function animateCountUp(element, targetValue, duration = 800) {
+    if (!element) {
+        return;
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const finalValue = Number(targetValue) || 0;
+    const startValue = Number(element.textContent) || 0;
+
+    if (prefersReducedMotion || startValue === finalValue) {
+        element.textContent = finalValue;
+        return;
+    }
+
+    const startTime = performance.now();
+
+    const update = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(startValue + (finalValue - startValue) * eased);
+        element.textContent = current;
+
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    };
+
+    requestAnimationFrame(update);
+}
+
+function renderTableSkeleton(tbodyId, columnCount, rowCount = 3) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) {
+        return;
+    }
+
+    const widthClasses = ['w-sm', 'w-md', 'w-md', 'w-sm', 'w-sm', 'w-sm', 'w-xs', 'w-sm'];
+    const rows = [];
+
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+        const cells = [];
+        for (let colIndex = 0; colIndex < columnCount; colIndex += 1) {
+            const widthClass = widthClasses[colIndex % widthClasses.length];
+            cells.push(`<td><span class="skeleton-block ${widthClass}"></span></td>`);
+        }
+
+        rows.push(`<tr class="incidents-skeleton-row">${cells.join('')}</tr>`);
+    }
+
+    tbody.innerHTML = rows.join('');
+}
+
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {

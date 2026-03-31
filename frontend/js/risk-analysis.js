@@ -94,6 +94,7 @@ async function ensureChartJsLoaded() {
 async function loadRiskData() {
     // Load all risk widgets together so the page stays consistent and finishes faster.
     showLoading(true);
+    renderTableSkeleton('risk-breakdown-tbody', 8, 4);
 
     try {
         const [
@@ -365,11 +366,14 @@ function displayRiskBreakdown(incidents) {
             <td>${incident.threatType || 'Unknown'}</td>
             <td>${incident.likelihood || 0}/4</td>
             <td>${incident.impact || 0}/4</td>
-            <td><strong>${incident.riskScore || 0}</strong></td>
+            <td><strong class="animated-risk-score" data-target-score="${incident.riskScore || 0}">0</strong></td>
             <td><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel || 'Low'}</span></td>
             <td>${incident.riskLevel === 'Critical' ? 'Urgent' : incident.riskLevel === 'High' ? 'High' : incident.riskLevel === 'Medium' ? 'Medium' : 'Low'}</td>
         `;
         tbody.appendChild(row);
+
+        const animatedScoreEl = row.querySelector('.animated-risk-score');
+        animateCountUp(animatedScoreEl, incident.riskScore || 0, 800);
     });
 }
 

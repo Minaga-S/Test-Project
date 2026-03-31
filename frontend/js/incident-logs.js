@@ -74,6 +74,7 @@ function setupEventListeners() {
 
 async function loadIncidents() {
     showLoading(true);
+    renderTableSkeleton('incidents-tbody', 7, 4);
 
     try {
         incidents = await apiClient.getIncidents();
@@ -168,7 +169,7 @@ function displayIncidentDetails(incident) {
     document.getElementById('detail-impact').textContent = incident.impact + '/4';
     
     const riskScoreEl = document.getElementById('detail-risk-score');
-    riskScoreEl.textContent = incident.riskScore || 0;
+    animateCountUp(riskScoreEl, incident.riskScore || 0, 800);
     riskScoreEl.style.color = getRiskColor(incident.riskLevel);
     
     document.getElementById('detail-risk-level').textContent = incident.riskLevel;
