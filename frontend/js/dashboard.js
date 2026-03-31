@@ -14,6 +14,7 @@
 
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
 const MOBILE_BREAKPOINT = 768;
+const METRIC_ANIMATION_DURATION_MS = 800;
 let chartJsLoadPromise = null;
 let dashboardCharts = {};
 
@@ -145,7 +146,7 @@ function setupMetricCarousel() {
 }
 
 async function loadDashboardData() {
-    showLoading(true);
+    showDashboardSkeleton();
 
     try {
         const metricsPromise = apiClient.getDashboardMetrics();
@@ -178,7 +179,7 @@ async function loadDashboardData() {
         console.error('Error loading dashboard:', error);
         showNotification('Error loading dashboard data', 'error');
     } finally {
-        showLoading(false);
+        hideDashboardSkeleton();
     }
 }
 
@@ -193,7 +194,7 @@ function displayMetrics(metrics) {
     Object.entries(elements).forEach(([id, value]) => {
         const el = document.getElementById(id);
         if (el) {
-            el.textContent = value;
+            animateMetricValue(el, value);
         }
     });
 
@@ -214,6 +215,72 @@ function displayMetrics(metrics) {
     } else if (criticalRisksCard) {
         criticalRisksCard.classList.remove('pulse-indicator');
     }
+}
+
+function animateMetricValue(element, targetValue) {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const parsedTarget = Number(targetValue) || 0;
+    const startValue = Number(element.textContent) || 0;
+
+    if (prefersReducedMotion || startValue === parsedTarget) {
+        element.textContent = parsedTarget;
+        return;
+    }
+
+    const startTime = performance.now();
+
+    const tick = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / METRIC_ANIMATION_DURATION_MS, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = Math.round(startValue + (parsedTarget - startValue) * eased);
+
+        element.textContent = value;
+
+        if (progress < 1) {
+            requestAnimationFrame(tick);
+        }
+    };
+
+    requestAnimationFrame(tick);
+}
+
+function showDashboardSkeleton() {
+    const metricIds = ['total-assets', 'open-incidents', 'critical-risks', 'resolved-issues'];
+    metricIds.forEach((id) => {
+        const metricEl = document.getElementById(id);
+        if (metricEl) {
+            metricEl.classList.add('metric-value-skeleton');
+            metricEl.textContent = '';
+        }
+    });
+
+    const tbody = document.getElementById('recent-incidents-tbody');
+    if (tbody) {
+        const skeletonRows = Array.from({ length: 3 }, () => `
+            <tr class="incidents-skeleton-row">
+                <td><span class="skeleton-block w-sm"></span></td>
+                <td><span class="skeleton-block w-md"></span></td>
+                <td><span class="skeleton-block w-md"></span></td>
+                <td><span class="skeleton-block w-sm"></span></td>
+                <td><span class="skeleton-block w-sm"></span></td>
+                <td><span class="skeleton-block w-sm"></span></td>
+                <td><span class="skeleton-block w-xs"></span></td>
+            </tr>
+        `).join('');
+
+        tbody.innerHTML = skeletonRows;
+    }
+}
+
+function hideDashboardSkeleton() {
+    const metricIds = ['total-assets', 'open-incidents', 'critical-risks', 'resolved-issues'];
+    metricIds.forEach((id) => {
+        const metricEl = document.getElementById(id);
+        if (metricEl) {
+            metricEl.classList.remove('metric-value-skeleton');
+        }
+    });
 }
 
 function updateLiveTimestamp(timestamp) {
@@ -363,6 +430,10 @@ function renderSparklines(trends) {
 
 function displayRecentIncidents(incidents) {
     const tbody = document.getElementById('recent-incidents-tbody');
+    if (!tbody) {
+        return;
+    }
+
     const incidentList = Array.isArray(incidents) ? incidents : [];
     const summary = document.getElementById('dashboard-recent-incidents-summary');
 
