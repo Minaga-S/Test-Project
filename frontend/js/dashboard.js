@@ -140,6 +140,16 @@ function displayMetrics(metrics) {
         displayDeltas(metrics.deltas);
     }
 
+    // Display system status indicator
+    if (metrics.systemStatus) {
+        displaySystemStatus(metrics.systemStatus);
+    }
+
+    // Update live timestamp
+    if (metrics.lastUpdated) {
+        updateLiveTimestamp(metrics.lastUpdated);
+    }
+
     // Add pulse indicator if critical risks are high
     const criticalRisksCard = document.querySelector('.metric-card-danger');
     if (criticalRisksCard && metrics.criticalRisks > 0) {
@@ -147,6 +157,54 @@ function displayMetrics(metrics) {
     } else if (criticalRisksCard) {
         criticalRisksCard.classList.remove('pulse-indicator');
     }
+}
+
+function displaySystemStatus(status) {
+    const statusEl = document.getElementById('system-status');
+    const statusTextEl = document.getElementById('system-status-text');
+    const statusDot = statusEl.querySelector('.status-dot');
+
+    if (!statusEl || !statusTextEl || !statusDot) return;
+
+    statusEl.className = `status-indicator ${status}`;
+    statusDot.className = `status-dot ${status}`;
+
+    const statusLabels = {
+        secure: 'All Secure',
+        warning: 'Under Review',
+        alert: 'Action Required',
+    };
+
+    statusTextEl.textContent = statusLabels[status] || 'Unknown';
+}
+
+function updateLiveTimestamp(timestamp) {
+    const lastUpdatedEl = document.getElementById('last-updated-text');
+    if (!lastUpdatedEl) return;
+
+    const now = new Date();
+    const diff = Math.floor((now - new Date(timestamp)) / 1000);
+
+    let timeText = 'Updated now';
+    if (diff < 60) {
+        timeText = 'Updated just now';
+    } else if (diff < 3600) {
+        const minutes = Math.floor(diff / 60);
+        timeText = `Updated ${minutes}m ago`;
+    } else if (diff < 86400) {
+        const hours = Math.floor(diff / 3600);
+        timeText = `Updated ${hours}h ago`;
+    } else {
+        const days = Math.floor(diff / 86400);
+        timeText = `Updated ${days}d ago`;
+    }
+
+    lastUpdatedEl.textContent = timeText;
+
+    // Update incrementally every minute
+    setTimeout(() => {
+        updateLiveTimestamp(timestamp);
+    }, 60000);
 }
 
 function displayDeltas(deltas) {
@@ -301,8 +359,18 @@ function displayRecentIncidents(incidents) {
             </td>
         `;
         tbody.appendChild(row);
+
+        // Show toast notification for critical/high incidents
+        if ((riskLevel === 'Critical' || riskLevel === 'High') && status === 'Open') {
+            const notifType = riskLevel === 'Critical' ? 'error' : 'warning';
+            showNotification(
+                `${riskLevel} Incident: ${incident.threatType} on ${incident.asset?.assetName || 'Unknown'}`,
+                notifType
+            );
+        }
     });
 }
+
 
 async function ensureChartJsLoaded() {
     if (window.Chart) {
