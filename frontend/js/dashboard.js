@@ -457,13 +457,13 @@ function displayRecentIncidents(incidents) {
         const status = incident.status || 'Open';
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${incident.incidentId}</td>
-            <td>${incident.asset?.assetName || 'Unknown'}</td>
-            <td>${incident.threatType || 'Unknown'}</td>
-            <td><span class="risk-${riskLevel.toLowerCase()}">${riskLevel}</span></td>
-            <td><span class="status-badge status-${status}">${status}</span></td>
-            <td>${formatDate(incident.createdAt)}</td>
-            <td>
+            <td data-label="Incident ID">${incident.incidentId}</td>
+            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
+            <td data-label="Threat Type">${incident.threatType || 'Unknown'}</td>
+            <td data-label="Risk Level"><span class="risk-${riskLevel.toLowerCase()}">${riskLevel}</span></td>
+            <td data-label="Status"><span class="status-badge status-${status}">${status}</span></td>
+            <td data-label="Date">${formatDate(incident.createdAt)}</td>
+            <td data-label="Action">
                 <a href="incident-logs.html?id=${incident._id}" class="link">View</a>
             </td>
         `;

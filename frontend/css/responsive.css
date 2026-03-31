@@ -357,8 +357,90 @@
     }
 
     .table-responsive {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible;
+    }
+
+    .incidents-table,
+    .assets-table,
+    .risk-breakdown-table {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .incidents-table thead,
+    .assets-table thead,
+    .risk-breakdown-table thead {
+        display: none;
+    }
+
+    .incidents-table tbody,
+    .assets-table tbody,
+    .risk-breakdown-table tbody,
+    .incidents-table tr,
+    .assets-table tr,
+    .risk-breakdown-table tr,
+    .incidents-table td,
+    .assets-table td,
+    .risk-breakdown-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .incidents-table tr,
+    .assets-table tr,
+    .risk-breakdown-table tr {
+        margin-bottom: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+        padding: 0.2rem 0.35rem;
+    }
+
+    .incidents-table td,
+    .assets-table td,
+    .risk-breakdown-table td {
+        border: 0;
+        padding: 0.5rem 0.4rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        text-align: right;
+    }
+
+    .incidents-table td::before,
+    .assets-table td::before,
+    .risk-breakdown-table td::before {
+        content: attr(data-label);
+        text-align: left;
+        font-weight: 700;
+        color: var(--secondary-color);
+        letter-spacing: 0.02em;
+        flex: 0 0 46%;
+    }
+
+    .incidents-table td[colspan],
+    .assets-table td[colspan],
+    .risk-breakdown-table td[colspan] {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .incidents-table td[colspan]::before,
+    .assets-table td[colspan]::before,
+    .risk-breakdown-table td[colspan]::before {
+        content: none;
+    }
+
+    .incidents-skeleton-row td::before {
+        content: none;
+    }
+
+    .incidents-skeleton-row td {
+        display: block;
+        text-align: left;
     }
 
     .nist-mapping {

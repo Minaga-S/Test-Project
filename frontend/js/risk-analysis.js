@@ -361,14 +361,14 @@ function displayRiskBreakdown(incidents) {
     incidentList.forEach((incident) => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${incident.incidentId || 'N/A'}</td>
-            <td>${incident.asset?.assetName || 'Unknown'}</td>
-            <td>${incident.threatType || 'Unknown'}</td>
-            <td>${incident.likelihood || 0}/4</td>
-            <td>${incident.impact || 0}/4</td>
-            <td><strong class="animated-risk-score" data-target-score="${incident.riskScore || 0}">0</strong></td>
-            <td><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel || 'Low'}</span></td>
-            <td>${incident.riskLevel === 'Critical' ? 'Urgent' : incident.riskLevel === 'High' ? 'High' : incident.riskLevel === 'Medium' ? 'Medium' : 'Low'}</td>
+            <td data-label="Incident ID">${incident.incidentId || 'N/A'}</td>
+            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
+            <td data-label="Threat Type">${incident.threatType || 'Unknown'}</td>
+            <td data-label="Likelihood">${incident.likelihood || 0}/4</td>
+            <td data-label="Impact">${incident.impact || 0}/4</td>
+            <td data-label="Risk Score"><strong class="animated-risk-score" data-target-score="${incident.riskScore || 0}">0</strong></td>
+            <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel || 'Low'}</span></td>
+            <td data-label="Priority">${incident.riskLevel === 'Critical' ? 'Urgent' : incident.riskLevel === 'High' ? 'High' : incident.riskLevel === 'Medium' ? 'Medium' : 'Low'}</td>
         `;
         tbody.appendChild(row);
 
