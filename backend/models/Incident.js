@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 const { INCIDENT_STATUS } = require('../utils/constants');
 
@@ -113,4 +115,5 @@ IncidentSchema.pre('countDocuments', function(next) {
 });
 
 module.exports = mongoose.model('Incident', IncidentSchema);
+
 

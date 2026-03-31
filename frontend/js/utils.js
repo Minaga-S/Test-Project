@@ -1,6 +1,16 @@
 /**
  * Utility Functions
  */
+// NOTE: UI utility layer: shared helpers used by multiple pages for modals, formatting, and navigation.
+/**
+ * SECTION GUIDE:
+ * 1) Formatting Helpers: date/time and display utilities used across pages.
+ * 2) Validation Helpers: shared checks for form-level input quality.
+ * 3) UI Helpers: modals/loading/toasts/logout confirmation handling.
+ * 4) Navigation Helpers: sidebar state, breadcrumbs, and shared interactions.
+ */
+
+
 
 // ============== DATE & TIME ==============
 
@@ -643,4 +653,7 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+
+
 

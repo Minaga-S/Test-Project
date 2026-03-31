@@ -1,6 +1,16 @@
 /**
  * Settings Page Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Settings Boot: validates auth and loads user preferences.
+ * 2) Tab Navigation: switches profile/password/notification sections.
+ * 3) Form Submission: applies profile/password/notification updates.
+ * 4) Feedback: displays success/error notifications for each update.
+ */
+
+
 
 const USER_TABS = ['profile', 'password', 'notifications'];
 
@@ -201,3 +211,4 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
+

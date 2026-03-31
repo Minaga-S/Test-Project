@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 
 const ThreatKnowledgeBaseSchema = new mongoose.Schema({
@@ -25,3 +27,4 @@ const ThreatKnowledgeBaseSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('ThreatKnowledgeBase', ThreatKnowledgeBaseSchema);
+

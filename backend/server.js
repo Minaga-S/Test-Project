@@ -2,6 +2,8 @@
  * Hotel Cybersecurity Governance System
  * Main Server File
  */
+// NOTE: Application entrypoint: wires middleware, routes, and server startup lifecycle.
+
 
 const express = require('express');
 const cors = require('cors');
@@ -171,3 +173,4 @@ async function startServer() {
 startServer();
 
 module.exports = app;
+

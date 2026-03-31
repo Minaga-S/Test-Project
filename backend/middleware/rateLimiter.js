@@ -1,3 +1,5 @@
+// NOTE: Middleware: runs before controllers for cross-cutting concerns like auth and validation.
+
 const rateLimit = require('express-rate-limit');
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -28,3 +30,4 @@ module.exports = {
     apiLimiter,
     authLimiter,
 };
+

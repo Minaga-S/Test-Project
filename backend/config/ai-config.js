@@ -1,6 +1,8 @@
 /**
  * AI Service Configuration (Gemini)
  */
+// NOTE: Configuration: centralizes setup for external systems and runtime options.
+
 
 const axios = require('axios');
 const logger = require('../utils/logger');

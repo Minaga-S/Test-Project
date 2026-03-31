@@ -1,3 +1,5 @@
+// NOTE: Service layer: contains core business logic used by controllers.
+
 const AuditLog = require('../models/AuditLog');
 const logger = require('../utils/logger');
 
@@ -12,3 +14,4 @@ class AuditLogService {
 }
 
 module.exports = new AuditLogService();
+

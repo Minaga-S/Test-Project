@@ -1,6 +1,16 @@
 /**
  * Dashboard Page Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Dashboard Boot: validates auth and loads user context.
+ * 2) Metrics/Data Load: fetches dashboard summaries and incidents.
+ * 3) Chart Rendering: builds visual widgets from API responses.
+ * 4) Panel/UI Controls: handles collapsible sections and resize behavior.
+ */
+
+
 
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
 let chartJsLoadPromise = null;
@@ -309,3 +319,5 @@ window.addEventListener('resize', () => {
         }
     });
 });
+
+

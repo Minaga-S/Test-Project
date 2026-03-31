@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 
 const AuditLogSchema = new mongoose.Schema({
@@ -45,3 +47,4 @@ AuditLogSchema.index({ actorUserId: 1, createdAt: -1 });
 AuditLogSchema.index({ entityType: 1, entityId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('AuditLog', AuditLogSchema);
+

@@ -1,3 +1,5 @@
+/* NOTE: Styles in this file control visual layout only; behavior is in frontend/js page scripts. */
+
 /* ============================================
    DASHBOARD METRICS
    ============================================ */
@@ -850,4 +852,26 @@ tbody tr:last-child td {
 .settings-page .tab-btn .material-symbols-rounded {
     font-size: 1rem;
 }
+
+/* Keep logout confirmation centered on dashboard page */
+body.dashboard-page #logout-confirm-modal {
+    align-items: center;
+    justify-content: center;
+}
+
+body.dashboard-page #logout-confirm-modal .modal-content {
+    margin: 0 auto;
+}
+
+body.dashboard-page #logout-confirm-modal .form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+}
+
+body.dashboard-page #logout-confirm-modal .form-actions .btn {
+    flex: 0 0 auto;
+}
+
 

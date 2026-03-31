@@ -1,6 +1,8 @@
 /**
  * Risk Calculation Service
  */
+// NOTE: Service layer: contains core business logic used by controllers.
+
 
 const { RISK_LEVELS } = require('../utils/constants');
 const logger = require('../utils/logger');
@@ -16,9 +18,11 @@ class RiskCalculationService {
                 throw new Error('Invalid likelihood or impact score');
             }
 
+            // Core formula: risk score = likelihood x impact.
             // Calculate risk score
             const riskScore = likelihood * impact;
 
+            // Map the numeric score into a business-friendly label (Low/Medium/High/Critical).
             // Determine risk level
             const riskLevel = this.determineRiskLevel(riskScore);
 
@@ -46,6 +50,7 @@ class RiskCalculationService {
      * Determine risk level based on score
      */
     determineRiskLevel(score) {
+        // Score bands are intentionally strict so urgent threats are escalated quickly.
         if (score >= 13) {
             return {
                 level: 'Critical',
@@ -154,3 +159,6 @@ class RiskCalculationService {
 }
 
 module.exports = new RiskCalculationService();
+
+
+

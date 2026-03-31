@@ -1,6 +1,16 @@
 /**
  * Incident Logs Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Logs Boot: validates auth and fetches incident history.
+ * 2) Filtering/Search: narrows incident list by status/type/text.
+ * 3) Detail View: opens selected incident context and metadata.
+ * 4) Updates: applies status or note changes and refreshes list.
+ */
+
+
 
 let incidents = [];
 
@@ -246,3 +256,4 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
+

@@ -1,3 +1,5 @@
+// NOTE: Route map: connects URL endpoints to controller methods and request validation.
+
 const express = require('express');
 const threatController = require('../controllers/threatController');
 

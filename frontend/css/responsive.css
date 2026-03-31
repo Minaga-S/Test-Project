@@ -1,3 +1,5 @@
+/* NOTE: Styles in this file control visual layout only; behavior is in frontend/js page scripts. */
+
 /* ============================================
    TABLET DEVICES (768px - 1024px)
    ============================================ */
@@ -513,3 +515,4 @@
         border: 1px solid #ddd;
     }
 }
+

@@ -1,6 +1,16 @@
 /**
  * API Client - Centralized API communication
  */
+// NOTE: API helper: central place for HTTP requests, auth headers, and response normalization.
+/**
+ * SECTION GUIDE:
+ * 1) Base URL Resolution: chooses local or deployed API endpoint.
+ * 2) Request Layer: centralizes GET/POST/PUT/DELETE behavior and headers.
+ * 3) Auth Session: stores tokens/user and injects auth into requests.
+ * 4) Endpoint Methods: exposes app-specific calls used by page scripts.
+ */
+
+
 
 const PROD_API_BASE_URL = 'https://test-project-x7d2.onrender.com/api';
 const LOCAL_API_BASE_URL = 'http://localhost:5000/api';
@@ -365,6 +375,8 @@ class APIClient {
 
 // Create singleton instance
 const apiClient = new APIClient();
+
+
 
 
 
