@@ -124,29 +124,20 @@
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
-    border: 1px solid transparent;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #F0F4FF;
+    color: var(--secondary-color);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .summary-badge.severity-critical,
-.summary-badge.severity-high {
-    background: linear-gradient(135deg, #fca5a5 0%, #f97316 100%);
-    border-color: #fd7e14;
-    color: #7c2d12;
-    box-shadow: 0 2px 8px rgba(214, 88, 0, 0.3);
-}
-
-.summary-badge.severity-medium {
-    background: linear-gradient(135deg, #fef5e7 0%, #fdcb6e 100%);
-    border-color: #fdbf6b;
-    color: #92400e;
-    box-shadow: 0 2px 6px rgba(253, 176, 64, 0.2);
-}
-
+.summary-badge.severity-high,
+.summary-badge.severity-medium,
 .summary-badge.severity-low {
-    background: linear-gradient(135deg, #d5f4e6 0%, #81c784 100%);
-    border-color: #66bb6a;
-    color: #164b35;
-    box-shadow: 0 2px 6px rgba(129, 199, 132, 0.2);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #F0F4FF;
+    color: var(--secondary-color);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .collapsible-content canvas {
