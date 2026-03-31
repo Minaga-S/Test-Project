@@ -249,6 +249,38 @@
         display: flex;
     }
 
+    .collapsible-toggle {
+        flex-wrap: nowrap;
+        gap: 0.45rem;
+        padding: 0.8rem 0.9rem;
+        font-size: 0.9rem;
+    }
+
+    .collapsible-toggle > span:first-child {
+        min-width: 0;
+        flex: 1 1 auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .panel-meta {
+        margin-left: 0;
+        margin-right: 0;
+        flex: 0 0 auto;
+    }
+
+    .panel-meta .summary-badge {
+        min-width: 0;
+        white-space: nowrap;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+    }
+
+    .toggle-icon {
+        flex: 0 0 auto;
+    }
+
     .metric-icon {
         font-size: 2.5rem;
         margin-left: auto;
