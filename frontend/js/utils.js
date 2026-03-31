@@ -382,13 +382,35 @@ function setupSidebarToggle() {
         sidebarHeader.prepend(headerMain);
     }
 
+    const navItems = Array.from(sidebar.querySelectorAll('.nav-item'));
+    navItems.forEach((item) => {
+        const label = item.querySelector('span:not(.icon)')?.textContent?.trim();
+        if (label) {
+            item.setAttribute('data-tooltip', label);
+            item.setAttribute('title', label);
+        }
+    });
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.setAttribute('data-tooltip', 'Logout');
+        logoutBtn.setAttribute('title', 'Logout');
+    }
+
+    const setDesktopToggleState = (isCollapsed) => {
+        toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    };
+
     const updateSidebarState = (isCollapsed) => {
         if (window.innerWidth <= 768) {
             document.body.classList.remove('sidebar-collapsed');
+            toggleBtn.setAttribute('aria-label', 'Toggle sidebar');
             return;
         }
 
         document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+        setDesktopToggleState(isCollapsed);
     };
 
     const savedCollapsedState = localStorage.getItem('sidebarCollapsed') === 'true';
@@ -419,7 +441,7 @@ function setupSidebarToggle() {
         }
     });
 
-    sidebar.querySelectorAll('.nav-item').forEach((item) => {
+    navItems.forEach((item) => {
         item.addEventListener('click', () => {
             if (window.innerWidth > 768) {
                 return;
