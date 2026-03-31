@@ -204,10 +204,10 @@ function showNotification(message, type = 'info') {
         padding: 1rem;
         border-radius: 8px;
         background-color: ${
-            type === 'success' ? '#27ae60' :
-            type === 'error' ? '#e74c3c' :
-            type === 'warning' ? '#f39c12' :
-            '#3498db'
+            type === 'success' ? '#48BB78' :
+            type === 'error' ? '#F56565' :
+            type === 'warning' ? '#ED8936' :
+            '#5B8DEE'
         };
         color: white;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -522,12 +522,12 @@ document.addEventListener('click', (event) => {
 
 function getRiskColor(riskLevel) {
     const colors = {
-        'Critical': '#c0392b',
-        'High': '#e74c3c',
-        'Medium': '#f39c12',
-        'Low': '#27ae60',
+        'Critical': '#E53E3E',
+        'High': '#F56565',
+        'Medium': '#ED8936',
+        'Low': '#48BB78',
     };
-    return colors[riskLevel] || '#95a5a6';
+    return colors[riskLevel] || '#718096';
 }
 
 function getRiskBadge(riskLevel) {
@@ -568,7 +568,7 @@ function createBarChart(canvasId, labels, data, title = '') {
             datasets: [{
                 label: title,
                 data,
-                backgroundColor: '#27ae60',
+                backgroundColor: '#48BB78',
                 borderRadius: 8,
             }],
         },
@@ -594,7 +594,7 @@ function createBarChart(canvasId, labels, data, title = '') {
 
 function createPieChart(canvasId, labels, data, title = '') {
     const ctx = document.getElementById(canvasId).getContext('2d');
-    const colors = ['#27ae60', '#3498db', '#f39c12', '#e74c3c', '#9b59b6'];
+    const colors = ['#48BB78', '#5B8DEE', '#ED8936', '#F56565', '#5B8DEE'];
     
     return new Chart(ctx, {
         type: 'pie',
@@ -629,8 +629,8 @@ function createLineChart(canvasId, labels, data, title = '') {
             datasets: [{
                 label: title,
                 data,
-                borderColor: '#27ae60',
-                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                borderColor: '#48BB78',
+                backgroundColor: 'rgba(72, 187, 120, 0.1)',
                 tension: 0.4,
                 fill: true,
             }],

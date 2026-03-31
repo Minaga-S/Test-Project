@@ -138,13 +138,13 @@ async function loadRiskData() {
 
 function getRiskColor(level) {
     const levelMap = {
-        Critical: '#b91c1c',
-        High: '#dc2626',
-        Medium: '#d97706',
-        Low: '#15803d',
+        Critical: '#E53E3E',
+        High: '#F56565',
+        Medium: '#ED8936',
+        Low: '#48BB78',
     };
 
-    return levelMap[level] || '#64748b';
+    return levelMap[level] || '#718096';
 }
 
 function displayRiskMatrix(matrixData) {
@@ -173,7 +173,7 @@ function displayRiskMatrix(matrixData) {
                 label: 'Risk Matrix',
                 data: points,
                 backgroundColor: points.map((point) => getRiskColor(point.riskLevel)),
-                borderColor: '#0f172a',
+                borderColor: '#2D3748',
                 borderWidth: 1,
             }],
         },
@@ -232,7 +232,7 @@ function displayRiskDistribution(data) {
             labels,
             datasets: [{
                 data: values,
-                backgroundColor: ['#b91c1c', '#dc2626', '#d97706', '#15803d'],
+                backgroundColor: ['#E53E3E', '#F56565', '#ED8936', '#48BB78'],
                 borderColor: '#fff',
                 borderWidth: 2,
             }],
@@ -265,8 +265,8 @@ function displayRiskTrends(data) {
             datasets: [{
                 label: 'Risk Score Trend',
                 data: values,
-                borderColor: '#dc2626',
-                backgroundColor: 'rgba(220, 38, 38, 0.12)',
+                borderColor: '#F56565',
+                backgroundColor: 'rgba(245, 101, 101, 0.12)',
                 tension: 0.4,
                 fill: true,
             }],

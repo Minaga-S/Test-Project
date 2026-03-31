@@ -35,10 +35,10 @@
 }
 
 .quick-actions-strip {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid #E8EAEF;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     padding: 1rem 1.25rem;
     margin-bottom: 1.25rem;
 }
@@ -62,16 +62,10 @@
 }
 
 .collapsible-panel {
-    background:
-        linear-gradient(
-            160deg,
-            rgba(255, 255, 255, 0.95) 0%,
-            rgba(248, 250, 252, 0.92) 58%,
-            rgba(240, 249, 255, 0.88) 100%
-        );
-    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid #E8EAEF;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     margin-bottom: 1.25rem;
     overflow: hidden;
 }
@@ -79,7 +73,7 @@
 .collapsible-toggle {
     width: 100%;
     border: none;
-    background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(238, 242, 247, 0.88));
+    background: #FAFBFF;
     color: var(--secondary-color);
     display: flex;
     align-items: center;
@@ -95,7 +89,7 @@
 }
 
 .collapsible-content {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(248, 250, 252, 0.55));
+    background: rgba(255, 255, 255, 0.95);
     padding: 1rem 1.15rem 1.15rem;
     max-height: 70vh;
     overflow-y: auto;
@@ -162,22 +156,22 @@
 }
 
 .metric-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88));
+    background: rgba(255, 255, 255, 0.98);
     padding: 1.5rem;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border: 1px solid #E8EAEF;
     border-left: 4px solid var(--primary-color);
     transition: var(--transition);
-    border: 1px solid rgba(148, 163, 184, 0.22);
     position: relative;
 }
 
 .metric-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 26px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 .metric-card-primary {
@@ -244,7 +238,7 @@
     width: 92px;
     min-height: 2.1rem;
     border-radius: 10px;
-    background: linear-gradient(110deg, rgba(226, 232, 240, 0.9) 8%, rgba(241, 245, 249, 1) 18%, rgba(226, 232, 240, 0.9) 33%);
+    background: linear-gradient(110deg, rgba(232, 234, 239, 0.8) 8%, rgba(248, 250, 252, 1) 18%, rgba(232, 234, 239, 0.8) 33%);
     background-size: 200% 100%;
     animation: shimmer-loading 1.2s linear infinite;
 }
@@ -258,7 +252,7 @@
     display: inline-block;
     height: 0.9rem;
     border-radius: 8px;
-    background: linear-gradient(110deg, rgba(226, 232, 240, 0.9) 8%, rgba(241, 245, 249, 1) 18%, rgba(226, 232, 240, 0.9) 33%);
+    background: linear-gradient(110deg, rgba(232, 234, 239, 0.8) 8%, rgba(248, 250, 252, 1) 18%, rgba(232, 234, 239, 0.8) 33%);
     background-size: 200% 100%;
     animation: shimmer-loading 1.2s linear infinite;
 }
@@ -370,11 +364,11 @@
 }
 
 .chart-container {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.98);
     padding: 1.5rem;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #E8EAEF;
 }
 
 .chart-container-half {
@@ -405,16 +399,16 @@
 table {
     width: 100%;
     border-collapse: collapse;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.98);
     border-radius: var(--border-radius);
     overflow: hidden;
-    box-shadow: var(--box-shadow);
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #E8EAEF;
 }
 
 thead {
-    background: linear-gradient(180deg, #f8fafc, #eef2f7);
-    border-bottom: 1px solid #cbd5e1;
+    background: #FAFBFF;
+    border-bottom: 1px solid #E8EAEF;
 }
 
 th {
@@ -429,7 +423,7 @@ th {
 
 td {
     padding: 1rem;
-    border-bottom: 1px solid var(--light-color);
+    border-bottom: 1px solid #E8EAEF;
     font-size: var(--font-size-sm);
 }
 
@@ -438,7 +432,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-    background-color: #f8fafc;
+    background-color: #FAFBFF;
 }
 
 tbody tr:last-child td {
@@ -476,18 +470,18 @@ tbody tr:last-child td {
 }
 
 .status-open {
-    background-color: #ffeaa7;
-    color: #d63031;
+    background-color: #FEEBC8;
+    color: #DD6B20;
 }
 
 .status-in-progress {
-    background-color: #a8e6cf;
-    color: #0073b1;
+    background-color: #BEE3F8;
+    color: #2C5282;
 }
 
 .status-resolved {
-    background-color: #c7ecee;
-    color: #27ae60;
+    background-color: #C6F6D5;
+    color: #22543D;
 }
 
 /* ============================================
@@ -495,12 +489,12 @@ tbody tr:last-child td {
    ============================================ */
 
 .incidents-section {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.98);
     padding: 1.5rem;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     margin-bottom: 2rem;
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    border: 1px solid #E8EAEF;
 }
 
 .section-header {
@@ -552,24 +546,24 @@ tbody tr:last-child td {
 }
 
 .action-btn-primary {
-    background: linear-gradient(135deg, #0f766e, #0f766e);
+    background: linear-gradient(135deg, #4070FF, #365FDD);
 }
 
 .action-btn-secondary {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
+    background: linear-gradient(135deg, #718096, #4A5568);
 }
 
 .action-btn-tertiary {
-    background: linear-gradient(135deg, #0369a1, #0f766e);
+    background: linear-gradient(135deg, #4299E1, #5B8DEE);
 }
 
 .action-btn-quaternary {
-    background: linear-gradient(135deg, #d97706, #b45309);
+    background: linear-gradient(135deg, #ED8936, #DD6B20);
 }
 
 .action-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 22px rgba(15, 23, 42, 0.18);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
 }
 
 .action-icon {
@@ -680,8 +674,8 @@ tbody tr:last-child td {
 }
 
 .settings-page .help-link:hover {
-    border-color: #0f766e;
-    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+    border-color: #4070FF;
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.08);
     transform: translateY(-1px);
 }
 
@@ -693,7 +687,7 @@ tbody tr:last-child td {
     display: flex;
     gap: 0.55rem;
     margin-bottom: 1rem;
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #E8EAEF;
     padding-bottom: 0.55rem;
 }
 
@@ -702,8 +696,8 @@ tbody tr:last-child td {
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
+    border: 1px solid #E8EAEF;
+    background: #FAFBFF;
     color: var(--secondary-color);
     border-radius: 10px;
     padding: 0.58rem 0.9rem;
@@ -714,15 +708,15 @@ tbody tr:last-child td {
 }
 
 .settings-page .tab-btn:hover {
-    border-color: #94a3b8;
-    background: #eef2ff;
+    border-color: #CBD5E0;
+    background: #F0F4FF;
 }
 
 .settings-page .tab-btn.tab-btn-active {
-    background: linear-gradient(135deg, #0f766e, #115e59);
-    border-color: #0f766e;
+    background: linear-gradient(135deg, #4070FF, #365FDD);
+    border-color: #4070FF;
     color: white;
-    box-shadow: 0 8px 16px rgba(15, 118, 110, 0.25);
+    box-shadow: 0 8px 16px rgba(64, 112, 255, 0.25);
 }
 
 .settings-page .settings-tab-content {
