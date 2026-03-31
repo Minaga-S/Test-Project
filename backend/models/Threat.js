@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 
 const ThreatSchema = new mongoose.Schema({
@@ -50,3 +52,4 @@ const ThreatSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Threat', ThreatSchema);
+

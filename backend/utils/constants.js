@@ -1,6 +1,8 @@
 /**
  * Application Constants
  */
+// NOTE: Utility helpers: shared reusable functions/constants used across modules.
+
 
 const ASSET_TYPES = [
     'POS',

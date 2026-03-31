@@ -1,3 +1,5 @@
+// NOTE: Data model: defines how records are stored and validated in MongoDB.
+
 const mongoose = require('mongoose');
 const { ASSET_TYPES } = require('../utils/constants');
 
@@ -78,3 +80,4 @@ AssetSchema.pre('countDocuments', function(next) {
 });
 
 module.exports = mongoose.model('Asset', AssetSchema);
+

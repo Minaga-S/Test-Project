@@ -1,6 +1,16 @@
 /**
  * Risk Analysis Handler
  */
+// NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
+/**
+ * SECTION GUIDE:
+ * 1) Analysis Boot: validates auth and initializes widgets.
+ * 2) Data Aggregation: fetches matrix/distribution/trends in parallel.
+ * 3) Visualization: renders risk charts and asset breakdowns.
+ * 4) Reporting: builds export output for risk review workflows.
+ */
+
+
 
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
 
@@ -82,6 +92,7 @@ async function ensureChartJsLoaded() {
 }
 
 async function loadRiskData() {
+    // Load all risk widgets together so the page stays consistent and finishes faster.
     showLoading(true);
 
     try {
@@ -99,6 +110,7 @@ async function loadRiskData() {
             apiClient.getIncidents(),
         ]);
 
+        // Normalize API shapes so UI still works if endpoints return wrapped or direct payloads.
         const riskMatrix = riskMatrixResponse?.matrix || [];
         const riskDistribution = riskDistributionResponse?.chart || riskDistributionResponse || {};
         const riskTrends = riskTrendsResponse || {};
@@ -135,6 +147,7 @@ function getRiskColor(level) {
 }
 
 function displayRiskMatrix(matrixData) {
+    // Bubble chart visualizes where incidents sit on likelihood (x) and impact (y).
     const canvas = document.getElementById('risk-matrix-chart');
     if (!canvas) return;
 
@@ -295,6 +308,7 @@ function displayAssetRisks(assetRisks) {
 }
 
 function displayRecommendationsPriority(incidents) {
+    // Prioritize recommendations by risk level so responders handle the most urgent items first.
     const container = document.getElementById('recommendations-priority-list');
     if (!container) return;
 
@@ -331,6 +345,7 @@ function displayRecommendationsPriority(incidents) {
 }
 
 function displayRiskBreakdown(incidents) {
+    // Tabular breakdown gives auditors and operators exact scoring inputs per incident.
     const tbody = document.getElementById('risk-breakdown-tbody');
     if (!tbody) return;
 
@@ -400,3 +415,7 @@ window.addEventListener('resize', () => {
         }
     });
 });
+
+
+
+

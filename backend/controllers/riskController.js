@@ -1,6 +1,8 @@
 /**
  * Risk Controller
  */
+// NOTE: Controller: handles incoming API requests, validates access, and returns responses.
+
 
 const Incident = require('../models/Incident');
 const RiskAssessment = require('../models/RiskAssessment');

@@ -1,10 +1,25 @@
 /**
  * Threat Classification Service
  */
+// NOTE: Service layer: contains core business logic used by controllers.
+
 
 const { analyzeThreatWithAI } = require('../config/ai-config');
 const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
 const logger = require('../utils/logger');
+
+// These keywords indicate the report may describe ransomware behavior.
+const RANSOMWARE_KEYWORDS = ['ransomware', 'encrypted', 'locked'];
+
+// These phrases indicate ransomware is disrupting core hotel operations.
+const RANSOMWARE_SEVERE_INDICATORS = [
+    'backup',
+    'payment',
+    'reservation',
+    'admin account',
+    'disabled protection',
+    'cannot process',
+];
 
 class ThreatClassificationService {
     /**
@@ -13,7 +28,10 @@ class ThreatClassificationService {
     async classifyThreat(description) {
         try {
             const aiAnalysis = await analyzeThreatWithAI(description);
-            const classification = this.enrichThreatData(aiAnalysis);
+            const baseClassification = this.enrichThreatData(aiAnalysis);
+
+            // Guardrail: keep severe ransomware descriptions from being scored too low.
+            const classification = this.applyRansomwareSeverityGuardrail(description, baseClassification);
 
             logger.info(`Threat classified: ${classification.threatType}`);
 
@@ -46,6 +64,53 @@ class ThreatClassificationService {
         };
     }
 
+    // Detect ransomware signals and how severe they are in the incident text.
+    getRansomwareSignal(description) {
+        const lowerDesc = String(description || '').toLowerCase();
+
+        const hasRansomwareKeywords = RANSOMWARE_KEYWORDS.some((keyword) => lowerDesc.includes(keyword));
+        const severeIndicatorCount = RANSOMWARE_SEVERE_INDICATORS
+            .filter((indicator) => lowerDesc.includes(indicator))
+            .length;
+
+        return {
+            hasRansomwareKeywords,
+            severeIndicatorCount,
+            isCriticalRansomware: severeIndicatorCount >= 2,
+        };
+    }
+
+    // Enforce minimum scores for ransomware so AI underestimation does not hide real risk.
+    applyRansomwareSeverityGuardrail(description, classification) {
+        const signal = this.getRansomwareSignal(description);
+        const normalizedThreatType = String(classification.threatType || '').toLowerCase();
+        const shouldTreatAsRansomware = signal.hasRansomwareKeywords || normalizedThreatType === 'ransomware';
+
+        if (!shouldTreatAsRansomware) {
+            return classification;
+        }
+
+        if (signal.isCriticalRansomware) {
+            return {
+                ...classification,
+                threatType: 'Ransomware',
+                threatCategory: 'Malicious Software',
+                confidence: Math.max(classification.confidence || 0, 85),
+                likelihood: Math.max(classification.likelihood || 1, 4),
+                impact: Math.max(classification.impact || 1, 4),
+            };
+        }
+
+        return {
+            ...classification,
+            threatType: 'Ransomware',
+            threatCategory: 'Malicious Software',
+            confidence: Math.max(classification.confidence || 0, 75),
+            likelihood: Math.max(classification.likelihood || 1, 3),
+            impact: Math.max(classification.impact || 1, 4),
+        };
+    }
+
     /**
      * Fallback classification if AI fails
      */
@@ -74,21 +139,10 @@ class ThreatClassificationService {
             };
         }
 
-        if (lowerDesc.includes('ransomware') || lowerDesc.includes('encrypted') || lowerDesc.includes('locked')) {
-            const severeIndicators = [
-                'backup',
-                'payment',
-                'reservation',
-                'admin account',
-                'disabled protection',
-                'cannot process',
-            ];
+        const ransomwareSignal = this.getRansomwareSignal(description);
 
-            const severeCount = severeIndicators
-                .filter((indicator) => lowerDesc.includes(indicator))
-                .length;
-
-            const isCriticalRansomware = severeCount >= 2;
+        if (ransomwareSignal.hasRansomwareKeywords) {
+            const isCriticalRansomware = ransomwareSignal.isCriticalRansomware;
 
             return {
                 threatType: 'Ransomware',
@@ -109,6 +163,7 @@ class ThreatClassificationService {
             };
         }
 
+        // Safe default when no known attack pattern is detected.
         return {
             threatType: 'Unauthorized Access',
             threatCategory: 'Access Control',
@@ -137,3 +192,4 @@ class ThreatClassificationService {
 }
 
 module.exports = new ThreatClassificationService();
+

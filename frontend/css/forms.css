@@ -1,3 +1,5 @@
+/* NOTE: Styles in this file control visual layout only; behavior is in frontend/js page scripts. */
+
 /* ============================================
    FORM STYLES
    ============================================ */
@@ -337,3 +339,4 @@ select:disabled {
 .success-modal-content .success-details {
     margin: 0.65rem 0 0.9rem;
 }
+

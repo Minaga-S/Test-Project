@@ -1,6 +1,8 @@
 /**
  * Input Validators
  */
+// NOTE: Utility helpers: shared reusable functions/constants used across modules.
+
 
 function validateEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

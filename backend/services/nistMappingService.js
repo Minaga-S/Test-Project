@@ -1,6 +1,8 @@
 /**
  * NIST Cybersecurity Framework Mapping Service
  */
+// NOTE: Service layer: contains core business logic used by controllers.
+
 
 const { THREAT_KNOWLEDGE_BASE, NIST_FUNCTIONS, NIST_CONTROLS } = require('../utils/constants');
 const logger = require('../utils/logger');

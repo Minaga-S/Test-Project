@@ -1,3 +1,5 @@
+/* NOTE: Styles in this file control visual layout only; behavior is in frontend/js page scripts. */
+
 /* ============================================
    GLOBAL STYLES & VARIABLES
    ============================================ */
@@ -1030,4 +1032,5 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
         scroll-behavior: auto !important;
     }
 }
+
 

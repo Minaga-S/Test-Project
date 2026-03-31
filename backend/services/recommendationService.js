@@ -1,6 +1,8 @@
 /**
  * Recommendation Service
  */
+// NOTE: Service layer: contains core business logic used by controllers.
+
 
 const { generateRecommendations } = require('../config/ai-config');
 const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
@@ -141,3 +143,4 @@ class RecommendationService {
 }
 
 module.exports = new RecommendationService();
+

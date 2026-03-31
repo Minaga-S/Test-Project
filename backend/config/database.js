@@ -1,6 +1,8 @@
 /**
  * MongoDB Database Configuration
  */
+// NOTE: Configuration: centralizes setup for external systems and runtime options.
+
 
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');

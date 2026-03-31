@@ -2,6 +2,8 @@
  * Database Seed Script
  * Creates test users on first run
  */
+// NOTE: Script utility: one-off or startup helper tasks for local/dev operations.
+
 
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
@@ -60,3 +62,4 @@ async function seedDatabase() {
 }
 
 module.exports = { seedDatabase };
+

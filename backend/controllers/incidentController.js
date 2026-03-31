@@ -1,6 +1,8 @@
 /**
  * Incident Controller
  */
+// NOTE: Controller: handles incoming API requests, validates access, and returns responses.
+
 
 const Incident = require('../models/Incident');
 const Asset = require('../models/Asset');
@@ -44,15 +46,18 @@ class IncidentController {
                 });
             }
 
+            // Step 1: Classify the text into a likely threat type with likelihood and impact estimates.
             // Analyze threat
             const threatAnalysis = await threatService.classifyThreat(description);
 
+            // Step 2: Convert likelihood and impact into a numeric risk score and level.
             // Calculate risk
             const riskAssessment = riskService.calculateRisk(
                 threatAnalysis.likelihood,
                 threatAnalysis.impact
             );
 
+            // Step 3: Attach relevant NIST controls so remediation guidance is standards-aligned.
             // Get NIST mappings
             const nistMapping = nistService.getNISTMapping(threatAnalysis.threatType);
 
@@ -64,6 +69,7 @@ class IncidentController {
                 });
             }
 
+            // Step 4: Generate concrete response actions for the team to follow.
             // Generate recommendations
             const recommendations = await recommendationService.generateRecommendations(
                 threatAnalysis.threatType,
@@ -73,6 +79,7 @@ class IncidentController {
             const aiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
             const aiVersion = process.env.GEMINI_MODEL_VERSION || 'v1beta';
 
+            // Step 5: Save a full snapshot so audit, reporting, and dashboards can use the same record.
             // Create incident
             const incident = new Incident({
                 incidentId: generateIncidentId(),
@@ -441,6 +448,10 @@ class IncidentController {
 }
 
 module.exports = new IncidentController();
+
+
+
+
 
 
 

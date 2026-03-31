@@ -1,6 +1,8 @@
 /**
  * Logger Utility
  */
+// NOTE: Utility helpers: shared reusable functions/constants used across modules.
+
 
 const winston = require('winston');
 

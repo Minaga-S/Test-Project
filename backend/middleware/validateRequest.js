@@ -1,3 +1,5 @@
+// NOTE: Middleware: runs before controllers for cross-cutting concerns like auth and validation.
+
 const { validationResult } = require('express-validator');
 
 function validateRequest(req, res, next) {
@@ -19,3 +21,4 @@ function validateRequest(req, res, next) {
 module.exports = {
     validateRequest,
 };
+
