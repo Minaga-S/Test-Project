@@ -215,21 +215,38 @@
     .live-badge {
         order: -1;
     }
-    }
 
     .header-right .btn {
         width: 100%;
     }
 
     .metrics-section {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+        display: flex;
+        grid-template-columns: none;
+        gap: 0.9rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        padding: 0 0.2rem 0.2rem;
+        margin-bottom: 0.9rem;
+        scrollbar-width: none;
+    }
+
+    .metrics-section::-webkit-scrollbar {
+        display: none;
     }
 
     .metric-card {
+        flex: 0 0 min(84vw, 340px);
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+    }
+
+    .metric-carousel-dots {
+        display: flex;
     }
 
     .metric-icon {
@@ -394,6 +411,7 @@
     }
 
     .metric-card {
+        flex-basis: 90vw;
         padding: 1rem;
     }
 
@@ -472,7 +490,7 @@
     }
 
     .metrics-section {
-        grid-template-columns: repeat(2, 1fr);
+        display: flex;
         gap: 0.75rem;
         margin-bottom: 1rem;
     }
