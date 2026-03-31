@@ -351,26 +351,26 @@ function renderSparklines(trends) {
         {
             canvasId: 'sparkline-total-assets',
             data: trends.totalAssets || [],
-            borderColor: '#0f766e',
-            backgroundColor: 'rgba(15, 118, 110, 0.1)',
+            borderColor: '#4070FF',
+            backgroundColor: 'rgba(64, 112, 255, 0.1)',
         },
         {
             canvasId: 'sparkline-open-incidents',
             data: trends.openIncidents || [],
-            borderColor: '#d97706',
-            backgroundColor: 'rgba(217, 119, 6, 0.1)',
+            borderColor: '#ED8936',
+            backgroundColor: 'rgba(237, 137, 54, 0.1)',
         },
         {
             canvasId: 'sparkline-critical-risks',
             data: trends.criticalRisks || [],
-            borderColor: '#dc2626',
-            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+            borderColor: '#F56565',
+            backgroundColor: 'rgba(245, 101, 101, 0.1)',
         },
         {
             canvasId: 'sparkline-resolved-issues',
             data: trends.resolvedIssues || [],
-            borderColor: '#15803d',
-            backgroundColor: 'rgba(21, 128, 61, 0.1)',
+            borderColor: '#48BB78',
+            backgroundColor: 'rgba(72, 187, 120, 0.1)',
         },
     ];
 
