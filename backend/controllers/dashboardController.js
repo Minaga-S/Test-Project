@@ -204,6 +204,77 @@ class DashboardController {
     }
 
     /**
+     * Get 7-day trends for metrics (sparkline data)
+     */
+    async getMetricsTrends(req, res, next) {
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const days = [];
+            const trends = {
+                totalAssets: [],
+                openIncidents: [],
+                criticalRisks: [],
+                resolvedIssues: [],
+            };
+
+            for (let i = 6; i >= 0; i--) {
+                const dayStart = new Date(today);
+                dayStart.setDate(dayStart.getDate() - i);
+                
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + 1);
+                dayEnd.setMilliseconds(-1);
+
+                days.push(dayStart.toISOString().split('T')[0]);
+
+                // Count assets created by this day
+                const assetsCount = await Asset.countDocuments({
+                    userId: req.user.userId,
+                    createdAt: { $lte: dayEnd },
+                });
+
+                // Count open incidents on this day
+                const openCount = await Incident.countDocuments({
+                    userId: req.user.userId,
+                    status: 'Open',
+                    createdAt: { $lte: dayEnd },
+                });
+
+                // Count critical risks on this day
+                const criticalCount = await Incident.countDocuments({
+                    userId: req.user.userId,
+                    riskLevel: 'Critical',
+                    createdAt: { $lte: dayEnd },
+                });
+
+                // Count resolved issues created on this day
+                const resolvedCount = await Incident.countDocuments({
+                    userId: req.user.userId,
+                    status: 'Resolved',
+                    resolvedAt: { $gte: dayStart, $lte: dayEnd },
+                });
+
+                trends.totalAssets.push(assetsCount);
+                trends.openIncidents.push(openCount);
+                trends.criticalRisks.push(criticalCount);
+                trends.resolvedIssues.push(resolvedCount);
+            }
+
+            res.json({
+                success: true,
+                days,
+                trends,
+            });
+
+        } catch (error) {
+            logger.error('Get metrics trends error:', error.message);
+            next(error);
+        }
+    }
+
+    /**
      * Calculate system health score
      */
     calculateSystemHealth(totalAssets, openIncidents, criticalRisks) {

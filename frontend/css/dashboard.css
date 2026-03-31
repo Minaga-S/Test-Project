@@ -188,6 +188,30 @@
 }
 
 /* ============================================
+   METRIC SPARKLINES
+   ============================================ */
+
+.metric-sparkline {
+    flex-shrink: 0;
+    margin: 0 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity var(--duration-normal);
+}
+
+.metric-card:hover .metric-sparkline {
+    opacity: 1;
+}
+
+.sparkline-canvas {
+    display: block;
+    max-width: 80px;
+    height: auto;
+}
+
+/* ============================================
    CHARTS SECTION
    ============================================ */
 
