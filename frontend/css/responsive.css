@@ -243,6 +243,19 @@
         max-width: 100%;
     }
 
+    /* Ensure logout modal displays above sidebar on mobile */
+    .modal {
+        z-index: 2000;
+    }
+
+    .modal-overlay {
+        z-index: 1999;
+    }
+
+    .modal-content {
+        z-index: 2001;
+    }
+
     .detail-grid {
         grid-template-columns: 1fr;
     }
