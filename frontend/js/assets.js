@@ -90,6 +90,7 @@ function setupEventListeners() {
 
 async function loadAssets() {
     showLoading(true);
+    renderTableSkeleton('assets-tbody', 7, 4);
 
     try {
         assets = await apiClient.getAssets();
