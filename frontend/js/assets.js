@@ -115,13 +115,13 @@ function displayAssets(assetsToDisplay) {
     assetsToDisplay.forEach(asset => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${asset.assetName}</td>
-            <td>${asset.assetType}</td>
-            <td>${asset.location || '-'}</td>
-            <td><span class="status-badge status-${asset.status.toLowerCase()}">${asset.status}</span></td>
-            <td>${asset.criticality}</td>
-            <td>${asset.owner || '-'}</td>
-            <td>
+            <td data-label="Asset Name">${asset.assetName}</td>
+            <td data-label="Type">${asset.assetType}</td>
+            <td data-label="Location">${asset.location || '-'}</td>
+            <td data-label="Status"><span class="status-badge status-${asset.status.toLowerCase()}">${asset.status}</span></td>
+            <td data-label="Criticality">${asset.criticality}</td>
+            <td data-label="Owner">${asset.owner || '-'}</td>
+            <td data-label="Actions">
                 <button class="btn btn-sm btn-secondary" onclick="editAsset('${asset._id}')">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${asset._id}')">Delete</button>
             </td>
