@@ -439,10 +439,9 @@ function displayRecentIncidents(incidents) {
 
     if (summary) {
         if (incidentList.length === 0) {
-            summary.innerHTML = '<span class="summary-badge severity-low">0 incidents</span>';
+            summary.innerHTML = createSummaryBadge('0 incidents');
         } else {
-            const severity = getHighestRiskLevel(incidentList.map((item) => item.riskLevel));
-            summary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${incidentList.length} incidents</span>`;
+            summary.innerHTML = createSummaryBadge(`${incidentList.length} incidents`);
         }
     }
 
@@ -543,11 +542,10 @@ function renderRiskDistributionChart(riskData) {
 
         if (riskSummary) {
             const total = riskData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-            const severity = findDominantSeverity(riskData.labels, riskData.data);
-            riskSummary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${total} total</span>`;
+            riskSummary.innerHTML = createSummaryBadge(`${total} total`);
         }
     } else if (riskSummary) {
-        riskSummary.innerHTML = '<span class="summary-badge severity-low">0 total</span>';
+        riskSummary.innerHTML = createSummaryBadge('0 total');
     }
 }
 
@@ -565,10 +563,10 @@ function renderThreatCategoriesChart(threatData) {
 
         if (threatSummary) {
             const total = threatData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-            threatSummary.innerHTML = `<span class="summary-badge severity-medium">${total} threats</span>`;
+            threatSummary.innerHTML = createSummaryBadge(`${total} threats`);
         }
     } else if (threatSummary) {
-        threatSummary.innerHTML = '<span class="summary-badge severity-low">0 threats</span>';
+        threatSummary.innerHTML = createSummaryBadge('0 threats');
     }
 }
 
@@ -586,45 +584,15 @@ function renderVulnerableAssetsChart(assetsData) {
 
         if (assetsSummary) {
             const total = assetsData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-            const severity = findDominantSeverity(assetsData.labels, assetsData.data);
-            assetsSummary.innerHTML = `<span class="summary-badge severity-${severity.toLowerCase()}">${total} incidents</span>`;
+            assetsSummary.innerHTML = createSummaryBadge(`${total} incidents`);
         }
     } else if (assetsSummary) {
-        assetsSummary.innerHTML = '<span class="summary-badge severity-low">0 incidents</span>';
+        assetsSummary.innerHTML = createSummaryBadge('0 incidents');
     }
 }
 
-function getHighestRiskLevel(riskLevels = []) {
-    const rank = {
-        Critical: 4,
-        High: 3,
-        Medium: 2,
-        Low: 1,
-    };
-
-    return riskLevels.reduce((highest, level) => {
-        const current = rank[level] ? level : 'Low';
-        return rank[current] > rank[highest] ? current : highest;
-    }, 'Low');
-}
-
-function findDominantSeverity(labels = [], data = []) {
-    if (!Array.isArray(labels) || !Array.isArray(data) || labels.length === 0 || data.length === 0) {
-        return 'Low';
-    }
-
-    let dominantIndex = 0;
-    data.forEach((value, index) => {
-        if ((Number(value) || 0) > (Number(data[dominantIndex]) || 0)) {
-            dominantIndex = index;
-        }
-    });
-
-    const label = String(labels[dominantIndex] || '').toLowerCase();
-    if (label.includes('critical')) return 'Critical';
-    if (label.includes('high')) return 'High';
-    if (label.includes('medium')) return 'Medium';
-    return 'Low';
+function createSummaryBadge(text) {
+    return `<span class="summary-badge">${text}</span>`;
 }
 
 window.addEventListener('resize', () => {
