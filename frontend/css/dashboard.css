@@ -11,6 +11,29 @@
     margin-bottom: 2rem;
 }
 
+.metric-carousel-dots {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 0.45rem;
+    margin: -0.6rem 0 1.4rem;
+}
+
+.metric-carousel-dot {
+    width: 7px;
+    height: 7px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(100, 116, 139, 0.35);
+    transition: transform var(--duration-fast), background-color var(--duration-fast);
+    cursor: pointer;
+}
+
+.metric-carousel-dot.is-active {
+    background: var(--primary-color);
+    transform: scale(1.35);
+}
+
 .quick-actions-strip {
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(148, 163, 184, 0.25);

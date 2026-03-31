@@ -13,6 +13,7 @@
 
 
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
+const MOBILE_BREAKPOINT = 768;
 let chartJsLoadPromise = null;
 let dashboardCharts = {};
 
@@ -29,6 +30,7 @@ async function initializeDashboard() {
     await displayUserInfo();
     setupLogoutButton();
     setupCollapsiblePanels();
+    setupMetricCarousel();
     await loadDashboardData();
 }
 
@@ -80,6 +82,66 @@ function setupCollapsiblePanels() {
             }
         });
     });
+}
+
+function setupMetricCarousel() {
+    const track = document.querySelector('.metrics-section');
+    const dotsContainer = document.getElementById('metric-carousel-dots');
+    if (!track || !dotsContainer) {
+        return;
+    }
+
+    const cards = Array.from(track.querySelectorAll('.metric-card'));
+    if (cards.length === 0) {
+        return;
+    }
+
+    dotsContainer.innerHTML = '';
+    const dots = cards.map((_, index) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = 'metric-carousel-dot';
+        dot.setAttribute('aria-label', `Go to metric ${index + 1}`);
+        dot.addEventListener('click', () => {
+            const cardWidth = cards[0].getBoundingClientRect().width;
+            const gap = parseFloat(getComputedStyle(track).gap || '0');
+            const targetLeft = index * (cardWidth + gap);
+            track.scrollTo({ left: targetLeft, behavior: 'smooth' });
+        });
+
+        dotsContainer.appendChild(dot);
+        return dot;
+    });
+
+    const setActiveDot = () => {
+        if (window.innerWidth > MOBILE_BREAKPOINT) {
+            dots.forEach((dot) => {
+                dot.classList.remove('is-active');
+                dot.removeAttribute('aria-current');
+            });
+            return;
+        }
+
+        const cardWidth = cards[0].getBoundingClientRect().width;
+        const gap = parseFloat(getComputedStyle(track).gap || '0');
+        const step = cardWidth + gap;
+        const rawIndex = step > 0 ? Math.round(track.scrollLeft / step) : 0;
+        const activeIndex = Math.max(0, Math.min(cards.length - 1, rawIndex));
+
+        dots.forEach((dot, index) => {
+            const isActive = index === activeIndex;
+            dot.classList.toggle('is-active', isActive);
+            if (isActive) {
+                dot.setAttribute('aria-current', 'true');
+            } else {
+                dot.removeAttribute('aria-current');
+            }
+        });
+    };
+
+    track.addEventListener('scroll', setActiveDot, { passive: true });
+    window.addEventListener('resize', setActiveDot);
+    setActiveDot();
 }
 
 async function loadDashboardData() {
