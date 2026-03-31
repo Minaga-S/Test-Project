@@ -356,6 +356,10 @@ class APIClient {
         return this.get('/dashboard/metrics');
     }
 
+    async getMetricsTrends() {
+        return this.get('/dashboard/metrics/trends');
+    }
+
     async getRiskDistributionChart() {
         return this.get('/dashboard/charts/risk-distribution');
     }
