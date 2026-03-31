@@ -100,13 +100,13 @@ function displayIncidents(incidentsToDisplay) {
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
         row.innerHTML = `
-            <td>${incident.incidentId}</td>
-            <td>${incident.asset?.assetName || 'Unknown'}</td>
-            <td>${incident.threatType}</td>
-            <td><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel}</span></td>
-            <td><span class="status-badge status-${incident.status.toLowerCase()}">${incident.status}</span></td>
-            <td>${formatDate(incident.createdAt)}</td>
-            <td>
+            <td data-label="Incident ID">${incident.incidentId}</td>
+            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
+            <td data-label="Threat Type">${incident.threatType}</td>
+            <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel}</span></td>
+            <td data-label="Status"><span class="status-badge status-${incident.status.toLowerCase()}">${incident.status}</span></td>
+            <td data-label="Date">${formatDate(incident.createdAt)}</td>
+            <td data-label="Action">
                 <button class="btn btn-sm btn-secondary" onclick="viewIncidentDetails('${incident._id}')">View</button>
             </td>
         `;
