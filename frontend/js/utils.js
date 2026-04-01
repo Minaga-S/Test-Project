@@ -88,6 +88,15 @@ function getFormData(formElement) {
 }
 
 function displayFormError(fieldName, errorMessage) {
+    const field = document.getElementById(fieldName);
+    if (field) {
+        const group = field.closest('.form-group');
+        if (group) {
+            group.classList.add('error');
+            group.classList.remove('success');
+        }
+    }
+
     const errorElement = document.getElementById(`${fieldName}-error`);
     if (errorElement) {
         errorElement.textContent = errorMessage;
@@ -96,6 +105,14 @@ function displayFormError(fieldName, errorMessage) {
 }
 
 function clearFormError(fieldName) {
+    const field = document.getElementById(fieldName);
+    if (field) {
+        const group = field.closest('.form-group');
+        if (group) {
+            group.classList.remove('error');
+        }
+    }
+
     const errorElement = document.getElementById(`${fieldName}-error`);
     if (errorElement) {
         errorElement.textContent = '';
@@ -104,9 +121,15 @@ function clearFormError(fieldName) {
 }
 
 function clearFormErrors(formElement) {
+    const groups = formElement.querySelectorAll('.form-group.error');
+    groups.forEach((group) => {
+        group.classList.remove('error');
+    });
+
     const errorElements = formElement.querySelectorAll('.error-message');
-    errorElements.forEach(el => {
+    errorElements.forEach((el) => {
         el.textContent = '';
+        el.style.display = 'none';
     });
 }
 
