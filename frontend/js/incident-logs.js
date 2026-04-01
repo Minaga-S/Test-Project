@@ -106,8 +106,10 @@ function displayIncidents(incidentsToDisplay) {
             <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel}</span></td>
             <td data-label="Status"><span class="status-badge status-${incident.status.toLowerCase()}">${incident.status}</span></td>
             <td data-label="Date">${formatDate(incident.createdAt)}</td>
-            <td data-label="Action">
-                <button class="btn btn-sm btn-secondary" onclick="viewIncidentDetails('${incident._id}')">View</button>
+            <td data-label="Actions">
+                <div class="row-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="viewIncidentDetails('${incident._id}')">View</button>
+                </div>
             </td>
         `;
         row.addEventListener('click', () => viewIncidentDetails(incident._id));
