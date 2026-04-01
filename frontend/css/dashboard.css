@@ -1159,26 +1159,28 @@
     font-size: 1rem;
 }
 
-/* Keep logout confirmation centered on dashboard page */
-body.dashboard-page #logout-confirm-modal {
+/* Keep logout confirmation centered consistently across pages */
+#logout-confirm-modal {
     align-items: center;
     justify-content: center;
 }
 
-body.dashboard-page #logout-confirm-modal .modal-content {
+#logout-confirm-modal .modal-content {
     margin: 0 auto;
 }
 
-body.dashboard-page #logout-confirm-modal .form-actions {
+#logout-confirm-modal .form-actions {
     display: flex;
     gap: 1rem;
     justify-content: center;
     align-items: center;
+    flex-direction: row;
 }
 
-body.dashboard-page #logout-confirm-modal .form-actions .btn {
+#logout-confirm-modal .form-actions .btn {
     font-family: var(--font-family);
     flex: 0 0 auto;
+    width: auto;
 }
 
 
