@@ -122,8 +122,10 @@ function displayAssets(assetsToDisplay) {
             <td data-label="Criticality">${asset.criticality}</td>
             <td data-label="Owner">${asset.owner || '-'}</td>
             <td data-label="Actions">
-                <button class="btn btn-sm btn-secondary" onclick="editAsset('${asset._id}')">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${asset._id}')">Delete</button>
+                <div class="row-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="editAsset('${asset._id}')">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${asset._id}')">Delete</button>
+                </div>
             </td>
         `;
         tbody.appendChild(row);
