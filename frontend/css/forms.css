@@ -201,14 +201,6 @@ textarea {
     width: 100%;
 }
 
-input:invalid {
-    border-color: var(--danger-color);
-}
-
-input:invalid:focus {
-    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
-}
-
 /* ============================================
    SELECT STYLES
    ============================================ */
