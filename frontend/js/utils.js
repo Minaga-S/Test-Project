@@ -558,8 +558,15 @@ function createBarChart(canvasId, labels, data, title = '') {
             datasets: [{
                 label: title,
                 data,
-                backgroundColor: '#48BB78',
+                backgroundColor: [
+                    '#4070FF',
+                    '#5B8DEE',
+                    '#7B9BE6',
+                    '#9AB5DD',
+                    '#B8CDE1',
+                ],
                 borderRadius: 8,
+                borderSkipped: false,
             }],
         },
         options: {
@@ -569,12 +576,45 @@ function createBarChart(canvasId, labels, data, title = '') {
                 legend: {
                     display: false,
                 },
+                tooltip: {
+                    backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                    padding: 12,
+                    borderRadius: 8,
+                    titleFont: {
+                        size: 13,
+                        weight: 600,
+                    },
+                    bodyFont: {
+                        size: 12,
+                    },
+                    displayColors: true,
+                },
             },
             scales: {
                 y: {
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1,
+                        color: '#718096',
+                        font: {
+                            size: 11,
+                        },
+                    },
+                    grid: {
+                        color: 'rgba(203, 213, 225, 0.3)',
+                        drawBorder: false,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: '#718096',
+                        font: {
+                            size: 11,
+                        },
+                    },
+                    grid: {
+                        display: false,
+                        drawBorder: false,
                     },
                 },
             },
@@ -584,16 +624,18 @@ function createBarChart(canvasId, labels, data, title = '') {
 
 function createPieChart(canvasId, labels, data, title = '') {
     const ctx = document.getElementById(canvasId).getContext('2d');
-    const colors = ['#48BB78', '#5B8DEE', '#ED8936', '#F56565', '#5B8DEE'];
+    const riskColors = ['#F56565', '#ED8936', '#5B8DEE', '#48BB78', '#4070FF'];
     
     return new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels,
             datasets: [{
                 label: title,
                 data,
-                backgroundColor: colors,
+                backgroundColor: riskColors.slice(0, labels.length),
+                borderColor: '#FFFFFF',
+                borderWidth: 2,
                 borderRadius: 8,
             }],
         },
@@ -602,7 +644,33 @@ function createPieChart(canvasId, labels, data, title = '') {
             maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12,
+                        },
+                        color: '#4A5568',
+                    },
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                    padding: 12,
+                    borderRadius: 8,
+                    titleFont: {
+                        size: 13,
+                        weight: 600,
+                    },
+                    bodyFont: {
+                        size: 12,
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                            const percentage = Math.round((context.parsed * 100) / total);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        },
+                    },
                 },
             },
         },
