@@ -423,8 +423,13 @@
     }
 
     .login-side-info {
-        order: -1;
+        order: 2;
         gap: 0.75rem;
+    }
+
+    .login-page {
+        align-items: flex-start;
+        padding: 1rem;
     }
 
     .info-card {
