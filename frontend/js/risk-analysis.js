@@ -201,21 +201,32 @@ function displayRiskMatrix(matrixData) {
                 label: 'Risk Matrix',
                 data: points,
                 backgroundColor: points.map((point) => getRiskColor(point.riskLevel)),
-                borderColor: '#2D3748',
-                borderWidth: 1,
+                borderColor: '#FFFFFF',
+                borderWidth: 2,
             }],
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
                     display: false,
                 },
                 tooltip: {
+                    backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                    padding: 12,
+                    borderRadius: 8,
+                    titleFont: {
+                        size: 13,
+                        weight: 600,
+                    },
+                    bodyFont: {
+                        size: 12,
+                    },
                     callbacks: {
                         label: (context) => {
                             const riskPoint = context.raw || {};
-                            return `${riskPoint.label || 'Incident'} | ${riskPoint.threatType || 'Unknown'} | ${riskPoint.riskLevel || 'Low'}`;
+                            return `${riskPoint.threatType || 'Unknown'} (${riskPoint.riskLevel || 'Low'})`;
                         },
                     },
                 },
@@ -227,6 +238,18 @@ function displayRiskMatrix(matrixData) {
                     title: {
                         display: true,
                         text: 'Likelihood',
+                        font: {
+                            size: 13,
+                            weight: 600,
+                        },
+                        color: '#2D3748',
+                    },
+                    ticks: {
+                        color: '#718096',
+                    },
+                    grid: {
+                        color: 'rgba(203, 213, 225, 0.2)',
+                        drawBorder: false,
                     },
                     min: 0,
                     max: 4,
@@ -235,6 +258,18 @@ function displayRiskMatrix(matrixData) {
                     title: {
                         display: true,
                         text: 'Impact',
+                        font: {
+                            size: 13,
+                            weight: 600,
+                        },
+                        color: '#2D3748',
+                    },
+                    ticks: {
+                        color: '#718096',
+                    },
+                    grid: {
+                        color: 'rgba(203, 213, 225, 0.2)',
+                        drawBorder: false,
                     },
                     min: 0,
                     max: 4,
@@ -260,16 +295,44 @@ function displayRiskDistribution(data) {
             labels,
             datasets: [{
                 data: values,
-                backgroundColor: ['#E53E3E', '#F56565', '#ED8936', '#48BB78'],
-                borderColor: '#fff',
+                backgroundColor: ['#F56565', '#ED8936', '#5B8DEE', '#48BB78'],
+                borderColor: '#FFFFFF',
                 borderWidth: 2,
+                borderRadius: 6,
             }],
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12,
+                        },
+                        color: '#4A5568',
+                    },
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                    padding: 12,
+                    borderRadius: 8,
+                    titleFont: {
+                        size: 13,
+                        weight: 600,
+                    },
+                    bodyFont: {
+                        size: 12,
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
+                            const percentage = Math.round((context.parsed * 100) / total);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        },
+                    },
                 },
             },
         },
@@ -293,22 +356,70 @@ function displayRiskTrends(data) {
             datasets: [{
                 label: 'Risk Score Trend',
                 data: values,
-                borderColor: '#F56565',
-                backgroundColor: 'rgba(245, 101, 101, 0.12)',
+                borderColor: '#4070FF',
+                backgroundColor: 'rgba(64, 112, 255, 0.1)',
                 tension: 0.4,
                 fill: true,
+                borderWidth: 3,
+                pointRadius: 5,
+                pointBackgroundColor: '#4070FF',
+                pointBorderColor: '#FFFFFF',
+                pointBorderWidth: 2,
+                pointHoverRadius: 7,
             }],
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    display: false,
+                    display: true,
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12,
+                        },
+                        color: '#4A5568',
+                    },
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                    padding: 12,
+                    borderRadius: 8,
+                    titleFont: {
+                        size: 13,
+                        weight: 600,
+                    },
+                    bodyFont: {
+                        size: 12,
+                    },
                 },
             },
             scales: {
                 y: {
                     beginAtZero: true,
+                    ticks: {
+                        color: '#718096',
+                        font: {
+                            size: 11,
+                        },
+                    },
+                    grid: {
+                        color: 'rgba(203, 213, 225, 0.3)',
+                        drawBorder: false,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: '#718096',
+                        font: {
+                            size: 11,
+                        },
+                    },
+                    grid: {
+                        display: false,
+                        drawBorder: false,
+                    },
                 },
             },
         },
