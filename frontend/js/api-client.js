@@ -102,7 +102,7 @@ class APIClient {
 
             if (response.status === 401) {
                 this.clearAuth();
-                window.location.href = 'index.html';
+                window.location.href = 'login.html';
                 return null;
             }
 

@@ -259,7 +259,7 @@ function ensureLogoutModal() {
 
         if (event.target.id === 'logout-confirm-btn') {
             apiClient.logout();
-            window.location.href = 'index.html';
+            window.location.href = 'login.html';
         }
     });
 

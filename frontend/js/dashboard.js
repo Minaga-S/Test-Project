@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeDashboard() {
     if (!apiClient.isAuthenticated()) {
-        window.location.href = 'index.html';
+        window.location.href = 'login.html';
         return;
     }
 
