@@ -194,6 +194,6 @@ async function handleSignup(e) {
 
 function logout() {
     apiClient.logout();
-    window.location.href = 'index.html';
+    window.location.href = 'login.html';
 }
 
