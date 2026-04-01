@@ -1,3 +1,61 @@
+    .risk-matrix-section {
+        padding: 1rem;
+    }
+
+    .risk-matrix-container {
+        padding: 1rem;
+        min-height: 320px;
+    }
+
+    /* Adjust bubble chart for touch interaction on mobile */
+    .risk-matrix-container canvas {
+        max-height: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    .risk-matrix-section {
+        padding: 0.75rem;
+    }
+
+    .risk-matrix-container {
+        padding: 0.75rem;
+        min-height: 250px;
+    }
+
+    .risk-summary {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+}
+   CHART RESPONSIVENESS
+   ============================================ */
+
+@media (max-width: 768px) {
+    .chart-container {
+        padding: 1rem;
+        border-radius: 10px;
+    }
+
+    .chart-container-full {
+        min-height: 300px;
+    }
+
+    /* Force legend to bottom on mobile for doughnut/pie charts */
+    canvas[id*="chart"] {
+        max-height: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        padding: 0.75rem;
+    }
+
+    .chart-container-full {
+        min-height: 250px;
+    }
+}
 /* NOTE: Styles in this file control visual layout only; behavior is in frontend/js page scripts. */
 
 /* ============================================
