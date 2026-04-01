@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initializeIncidentReport() {
     // Page boot flow: guard auth, load user context, then prepare form data and listeners.
     if (!apiClient.isAuthenticated()) {
-        window.location.href = 'index.html';
+        window.location.href = 'login.html';
         return;
     }
 
