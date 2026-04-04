@@ -2,10 +2,11 @@
 
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
+const { DEPARTMENTS } = require('../utils/constants');
 
 const ROLE_PERMISSIONS = {
     Admin: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'user:manage', 'dashboard:read'],
-    Staff: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'dashboard:read'],
+    User: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'dashboard:read'],
 };
 
 const UserSchema = new mongoose.Schema({
@@ -28,19 +29,20 @@ const UserSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['Admin', 'Staff'],
-        default: 'Staff',
+        enum: ['Admin', 'User'],
+        default: 'User',
     },
     roles: {
         type: [String],
-        default: ['Staff'],
+        default: ['User'],
     },
     permissions: {
         type: [String],
-        default: ROLE_PERMISSIONS.Staff,
+        default: ROLE_PERMISSIONS.User,
     },
     department: {
         type: String,
+        enum: [...DEPARTMENTS, ''],
         default: '',
         trim: true,
     },
@@ -77,9 +79,10 @@ const UserSchema = new mongoose.Schema({
 UserSchema.index({ email: 1 }, { unique: true });
 
 UserSchema.pre('validate', function(next) {
-    const normalizedRole = this.role || 'Staff';
+    const normalizedRole = this.role === 'Staff' ? 'User' : (this.role || 'User');
+    this.role = normalizedRole;
     this.roles = [normalizedRole];
-    this.permissions = ROLE_PERMISSIONS[normalizedRole] || ROLE_PERMISSIONS.Staff;
+    this.permissions = ROLE_PERMISSIONS[normalizedRole] || ROLE_PERMISSIONS.User;
     next();
 });
 

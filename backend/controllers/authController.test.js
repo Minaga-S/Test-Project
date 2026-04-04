@@ -1,0 +1,82 @@
+process.env.JWT_SECRET = 'test-jwt-secret';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
+process.env.JWT_EXPIRATION = '24h';
+process.env.JWT_REFRESH_EXPIRATION = '7d';
+
+require('../services/auditLogService');
+require('../utils/logger');
+require('jsonwebtoken');
+
+jest.mock('jsonwebtoken', () => ({
+    sign: jest.fn(() => 'signed-token'),
+    verify: jest.fn(),
+}));
+
+jest.mock('../services/auditLogService', () => ({
+    record: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+}));
+
+jest.mock('../services/totpService', () => ({
+    generateSecret: jest.fn(),
+    buildOtpAuthUrl: jest.fn(),
+    generateQrCodeDataUrl: jest.fn(),
+    verifyToken: jest.fn(),
+}));
+
+const mockUser = jest.fn().mockImplementation((userData) => ({
+    ...userData,
+    _id: 'user-id',
+    save: jest.fn().mockResolvedValue(undefined),
+    toJSON() {
+        const { save, toJSON, ...user } = this;
+        return user;
+    },
+}));
+
+mockUser.findOne = jest.fn();
+mockUser.findById = jest.fn();
+mockUser.findByIdAndUpdate = jest.fn();
+
+jest.mock('../models/User', () => mockUser);
+
+const authController = require('./authController');
+
+describe('authController.register', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should register new users as User with the selected department', async () => {
+        mockUser.findOne.mockResolvedValue(null);
+
+        const request = {
+            body: {
+                email: 'newuser@example.com',
+                password: 'Password123!',
+                fullName: 'New User',
+                department: 'Front Office',
+            },
+            ip: '127.0.0.1',
+        };
+
+        const response = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+
+        await authController.register(request, response, jest.fn());
+
+        expect(response.json.mock.calls[0][0]).toMatchObject({
+            success: true,
+            user: {
+                role: 'User',
+                department: 'Front Office',
+            },
+        });
+    });
+});

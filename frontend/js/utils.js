@@ -12,6 +12,22 @@
 
 
 
+
+window.APP_DEPARTMENTS = [
+    'Management',
+    'Front Office',
+    'Reservations',
+    'Housekeeping',
+    'Food and Beverage',
+    'Finance',
+    'Human Resources',
+    'Security',
+    'Maintenance',
+    'Sales and Marketing',
+    'IT and Systems',
+    'Operations',
+];
+
 // ============== DATE & TIME ==============
 
 function formatDate(date) {
