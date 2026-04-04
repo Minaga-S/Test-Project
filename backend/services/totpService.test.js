@@ -26,6 +26,14 @@ describe('totpService', () => {
         expect(result).toBe(true);
     });
 
+    it('should verify a token with formatting characters', () => {
+        const secret = totpService.generateSecret();
+        const token = authenticator.generate(secret);
+        const formattedToken = `${token.slice(0, 3)}-${token.slice(3)}`;
+        const result = totpService.verifyToken(secret, formattedToken);
+
+        expect(result).toBe(true);
+    });
     it('should reject an invalid token', () => {
         const secret = totpService.generateSecret();
         const result = totpService.verifyToken(secret, '123456');
