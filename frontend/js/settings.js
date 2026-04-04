@@ -28,16 +28,38 @@ async function initializeSettings() {
     setupLogoutButton();
     setupTabHandlers();
     setupFormHandlers();
+    setupDepartmentSelects();
     setupTwoFactorCodeFormatting();
     await loadUserSettings();
 }
 
-function setupTwoFactorCodeFormatting() {
-    attachTwoFactorFormatter('settings-two-factor-code');
-    attachTwoFactorFormatter('settings-two-factor-disable-code');
+function setupDepartmentSelects() {
+    populateDepartmentSelect('profile-department');
 }
 
-function attachTwoFactorFormatter(inputId) {
+function populateDepartmentSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) {
+        return;
+    }
+
+    const departments = Array.isArray(window.APP_DEPARTMENTS) ? window.APP_DEPARTMENTS : [];
+    const currentValue = select.value;
+
+    select.innerHTML = [
+        '<option value="">Select department</option>',
+        ...departments.map((department) => `<option value="${department}">${department}</option>`),
+    ].join('');
+
+    select.value = departments.includes(currentValue) ? currentValue : '';
+}
+
+function setupTwoFactorCodeFormatting() {
+    attachTwoFactorFormatter('settings-two-factor-code', 'settings-two-factor-setup-error');
+    attachTwoFactorFormatter('settings-two-factor-disable-code', 'settings-two-factor-disable-error');
+}
+
+function attachTwoFactorFormatter(inputId, errorId) {
     const input = document.getElementById(inputId);
     if (!input) {
         return;
@@ -45,6 +67,7 @@ function attachTwoFactorFormatter(inputId) {
 
     input.addEventListener('input', () => {
         input.value = formatTwoFactorCode(input.value);
+        clearTwoFactorFieldError(inputId, errorId);
     });
 }
 
@@ -221,12 +244,10 @@ async function handleTwoFactorEnableFromSettings(e) {
     e.preventDefault();
 
     const code = normalizeTwoFactorCode(document.getElementById('settings-two-factor-code').value);
-    const setupError = document.getElementById('settings-two-factor-setup-error');
-
-    setupError.textContent = '';
+    clearTwoFactorFieldError('settings-two-factor-code', 'settings-two-factor-setup-error');
 
     if (!/^\d{6}$/.test(code)) {
-        setupError.textContent = 'Enter a valid 6-digit code.';
+        setTwoFactorFieldError('settings-two-factor-code', 'settings-two-factor-setup-error', 'Enter a valid 6-digit code.');
         return;
     }
 
@@ -239,7 +260,7 @@ async function handleTwoFactorEnableFromSettings(e) {
         renderTwoFactorStatus();
         showNotification('2FA enabled successfully.', 'success');
     } catch (error) {
-        setupError.textContent = error.message || 'Could not enable 2FA.';
+        setTwoFactorFieldError('settings-two-factor-code', 'settings-two-factor-setup-error', error.message || 'Could not enable 2FA.');
     } finally {
         showLoading(false);
     }
@@ -249,12 +270,10 @@ async function handleTwoFactorDisableFromSettings(e) {
     e.preventDefault();
 
     const code = normalizeTwoFactorCode(document.getElementById('settings-two-factor-disable-code').value);
-    const disableError = document.getElementById('settings-two-factor-disable-error');
-
-    disableError.textContent = '';
+    clearTwoFactorFieldError('settings-two-factor-disable-code', 'settings-two-factor-disable-error');
 
     if (!/^\d{6}$/.test(code)) {
-        disableError.textContent = 'Enter a valid 6-digit code.';
+        setTwoFactorFieldError('settings-two-factor-disable-code', 'settings-two-factor-disable-error', 'Enter a valid 6-digit code.');
         return;
     }
 
@@ -268,7 +287,7 @@ async function handleTwoFactorDisableFromSettings(e) {
         renderTwoFactorStatus();
         showNotification('2FA disabled successfully.', 'success');
     } catch (error) {
-        disableError.textContent = error.message || 'Could not disable 2FA.';
+        setTwoFactorFieldError('settings-two-factor-disable-code', 'settings-two-factor-disable-error', error.message || 'Could not disable 2FA.');
     } finally {
         showLoading(false);
     }
@@ -375,5 +394,33 @@ function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.type = 'button';
+    }
+}
+
+function setTwoFactorFieldError(inputId, errorId, message) {
+    const errorEl = document.getElementById(errorId);
+    const input = document.getElementById(inputId);
+    const formGroup = input ? input.closest('.form-group') : null;
+
+    if (errorEl) {
+        errorEl.textContent = message;
+    }
+
+    if (formGroup) {
+        formGroup.classList.add('error');
+    }
+}
+
+function clearTwoFactorFieldError(inputId, errorId) {
+    const errorEl = document.getElementById(errorId);
+    const input = document.getElementById(inputId);
+    const formGroup = input ? input.closest('.form-group') : null;
+
+    if (errorEl) {
+        errorEl.textContent = '';
+    }
+
+    if (formGroup) {
+        formGroup.classList.remove('error');
     }
 }

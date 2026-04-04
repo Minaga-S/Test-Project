@@ -37,6 +37,21 @@ const INCIDENT_STATUS = [
     'Resolved',
 ];
 
+const DEPARTMENTS = [
+    'Management',
+    'Front Office',
+    'Reservations',
+    'Housekeeping',
+    'Food and Beverage',
+    'Finance',
+    'Human Resources',
+    'Security',
+    'Maintenance',
+    'Sales and Marketing',
+    'IT and Systems',
+    'Operations',
+];
+
 const NIST_FUNCTIONS = [
     'Identify',
     'Protect',
@@ -148,6 +163,7 @@ module.exports = {
     NIST_FUNCTIONS,
     NIST_CONTROLS,
     THREAT_KNOWLEDGE_BASE,
+    DEPARTMENTS,
     calculateRiskLevel,
     generateIncidentId,
 };

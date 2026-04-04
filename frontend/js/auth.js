@@ -60,9 +60,31 @@ function initializeAuth() {
     }
 
     setupPasswordToggles();
+    setupDepartmentSelects();
     setupTwoFactorModalActions();
     setupTwoFactorCodeFormatting();
     setupPasswordGuidance();
+}
+
+function setupDepartmentSelects() {
+    populateDepartmentSelect('signup-department');
+}
+
+function populateDepartmentSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) {
+        return;
+    }
+
+    const departments = Array.isArray(window.APP_DEPARTMENTS) ? window.APP_DEPARTMENTS : [];
+    const currentValue = select.value;
+
+    select.innerHTML = [
+        '<option value="">Select department</option>',
+        ...departments.map((department) => `<option value="${department}">${department}</option>`),
+    ].join('');
+
+    select.value = departments.includes(currentValue) ? currentValue : '';
 }
 
 function setupPasswordGuidance() {
@@ -188,11 +210,11 @@ function setupTwoFactorModalActions() {
 }
 
 function setupTwoFactorCodeFormatting() {
-    attachTwoFactorFormatter('two-factor-login-code');
-    attachTwoFactorFormatter('two-factor-setup-code');
+    attachTwoFactorFormatter('two-factor-login-code', 'two-factor-login-error');
+    attachTwoFactorFormatter('two-factor-setup-code', 'two-factor-setup-error');
 }
 
-function attachTwoFactorFormatter(inputId) {
+function attachTwoFactorFormatter(inputId, errorId) {
     const input = document.getElementById(inputId);
     if (!input) {
         return;
@@ -200,6 +222,7 @@ function attachTwoFactorFormatter(inputId) {
 
     input.addEventListener('input', () => {
         input.value = formatTwoFactorCode(input.value);
+        clearTwoFactorFieldError(inputId, errorId);
     });
 }
 
@@ -417,9 +440,17 @@ function closeTwoFactorLoginModal() {
 }
 
 function setTwoFactorLoginError(message) {
-    const errorEl = document.getElementById('two-factor-login-error');
-    const codeInput = document.getElementById('two-factor-login-code');
-    const formGroup = codeInput ? codeInput.closest('.form-group') : null;
+    setTwoFactorFieldError('two-factor-login-code', 'two-factor-login-error', message);
+}
+
+function clearTwoFactorLoginError() {
+    clearTwoFactorFieldError('two-factor-login-code', 'two-factor-login-error');
+}
+
+function setTwoFactorFieldError(inputId, errorId, message) {
+    const errorEl = document.getElementById(errorId);
+    const input = document.getElementById(inputId);
+    const formGroup = input ? input.closest('.form-group') : null;
 
     if (errorEl) {
         errorEl.textContent = message;
@@ -430,10 +461,10 @@ function setTwoFactorLoginError(message) {
     }
 }
 
-function clearTwoFactorLoginError() {
-    const errorEl = document.getElementById('two-factor-login-error');
-    const codeInput = document.getElementById('two-factor-login-code');
-    const formGroup = codeInput ? codeInput.closest('.form-group') : null;
+function clearTwoFactorFieldError(inputId, errorId) {
+    const errorEl = document.getElementById(errorId);
+    const input = document.getElementById(inputId);
+    const formGroup = input ? input.closest('.form-group') : null;
 
     if (errorEl) {
         errorEl.textContent = '';
@@ -472,8 +503,10 @@ async function handleSignup(e) {
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
     const confirmPassword = document.getElementById('signup-confirm').value;
+    const department = document.getElementById('signup-department').value;
 
     clearFormError('signup-error');
+    clearFormError('signup-department');
 
     if (!fullName.trim()) {
         displayFormError('signup-name', 'Full name is required');
@@ -496,10 +529,15 @@ async function handleSignup(e) {
         return;
     }
 
+    if (!department) {
+        displayFormError('signup-department', 'Department is required');
+        return;
+    }
+
     showLoading(true);
 
     try {
-        const registerResponse = await apiClient.register(email, password, fullName);
+        const registerResponse = await apiClient.register(email, password, fullName, department);
         apiClient.setToken(registerResponse.token);
         localStorage.setItem('user', JSON.stringify(registerResponse.user));
 
