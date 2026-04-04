@@ -46,7 +46,7 @@ class AuthController {
      */
     async register(req, res, next) {
         try {
-            const { email, password, fullName } = req.body;
+            const { email, password, fullName, department } = req.body;
             const normalizedEmail = email.toLowerCase();
 
             const existingUser = await User.findOne({ email: normalizedEmail });
@@ -61,7 +61,8 @@ class AuthController {
                 email: normalizedEmail,
                 password,
                 fullName,
-                role: 'Staff',
+                role: 'User',
+                department,
             });
 
             await user.save();

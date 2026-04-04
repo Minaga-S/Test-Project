@@ -176,11 +176,12 @@ class APIClient {
 
     // ============== AUTH ENDPOINTS ==============
 
-    async register(email, password, fullName) {
+    async register(email, password, fullName, department) {
         return this.post('/auth/register', {
             email,
             password,
             fullName,
+            department,
         });
     }
 

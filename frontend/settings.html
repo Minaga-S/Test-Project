@@ -66,7 +66,6 @@
             <header class="top-header">
                 <div class="header-left">
                     <h1>Settings</h1>
-                    <p class="header-subtitle">Manage your account and preferences</p>
                 </div>
             </header>
 
@@ -145,11 +144,13 @@
 
                         <div class="form-group">
                             <label for="profile-department">Department</label>
-                            <input 
-                                type="text" 
+                            <select 
                                 id="profile-department" 
                                 name="department"
+                                required
                             >
+                                <option value="">Select department</option>
+                            </select>
                         </div>
 
                             <button type="submit" class="btn btn-primary">
@@ -204,8 +205,10 @@
                 <div id="security-tab" class="settings-tab-content">
                         <h2>Two-Factor Authentication</h2>
                         <form id="two-factor-setup-form-settings" class="settings-form">
-                            <p id="two-factor-status-text">Loading 2FA status...</p>
-                            <button type="button" id="start-two-factor-setup-btn" class="btn btn-primary">Enable 2FA Setup</button>
+                            <div class="two-factor-status-card">
+                                <p id="two-factor-status-text">Loading 2FA status...</p>
+                                <button type="button" id="start-two-factor-setup-btn" class="btn btn-primary">Enable 2FA Setup</button>
+                            </div>
                             <div id="two-factor-setup-panel" style="display: none;">
                                 <div class="two-factor-qr-wrap">
                                     <img id="settings-two-factor-qr-image" alt="Google Authenticator QR code" width="180" height="180">
