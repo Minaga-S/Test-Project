@@ -1151,3 +1151,44 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 }
 
 
+
+.two-factor-modal-content {
+    max-width: 520px;
+}
+
+.two-factor-qr-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0.5rem 0 0.9rem;
+}
+
+.two-factor-qr-wrap img {
+    border: 1px solid #E8EAEF;
+    border-radius: 12px;
+    padding: 0.5rem;
+    background: #FFFFFF;
+}
+
+.two-factor-key {
+    text-align: center;
+    word-break: break-all;
+    color: #334155;
+}
+
+.two-factor-status-enabled {
+    display: block;
+    width: 100%;
+    margin: 0 0 0.75rem;
+    text-align: left;
+    color: var(--success-color);
+    font-weight: 700;
+}
+
+.two-factor-status-disabled {
+    display: block;
+    width: 100%;
+    margin: 0 0 0.75rem;
+    text-align: left;
+    color: var(--warning-color);
+    font-weight: 700;
+}

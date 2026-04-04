@@ -75,6 +75,56 @@
     font-size: var(--font-size-sm);
 }
 
+.password-guidance {
+    margin-top: 0.6rem;
+    padding: 0.75rem;
+    border: 1px solid #E8EAEF;
+    border-radius: 10px;
+    background: #FAFBFF;
+}
+
+.password-guidance-title {
+    margin: 0 0 0.4rem;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: #334155;
+}
+
+.password-strength {
+    margin: 0 0 0.5rem;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+.password-strength.strength-weak {
+    color: var(--danger-color);
+}
+
+.password-strength.strength-fair {
+    color: var(--warning-color);
+}
+
+.password-strength.strength-strong {
+    color: var(--success-color);
+}
+
+.password-guidance-list {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.25rem;
+}
+
+.password-rule {
+    color: #64748B;
+    font-size: var(--font-size-sm);
+}
+
+.password-rule.is-met {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
 /* ============================================
    FORM CONTAINERS
    ============================================ */

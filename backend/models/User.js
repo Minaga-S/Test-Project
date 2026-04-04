@@ -48,6 +48,22 @@ const UserSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    twoFactorEnabled: {
+        type: Boolean,
+        default: false,
+    },
+    twoFactorSecret: {
+        type: String,
+        default: '',
+    },
+    twoFactorTempSecret: {
+        type: String,
+        default: '',
+    },
+    hasLoggedInOnce: {
+        type: Boolean,
+        default: false,
+    },
     createdAt: {
         type: Date,
         default: Date.now,
@@ -89,8 +105,11 @@ UserSchema.methods.comparePassword = async function(password) {
 UserSchema.methods.toJSON = function() {
     const user = this.toObject();
     delete user.password;
+    delete user.twoFactorSecret;
+    delete user.twoFactorTempSecret;
     return user;
 };
 
 module.exports = mongoose.model('User', UserSchema);
+
 
