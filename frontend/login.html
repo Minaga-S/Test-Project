@@ -116,7 +116,19 @@
                                     <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
                                 </button>
                             </div>
-                            <small>At least 8 characters</small>
+                            <div id="signup-password-guidance" class="password-guidance" aria-live="polite">
+                                <p class="password-guidance-title">Use a strong password:</p>
+                                <p id="signup-password-strength" class="password-strength">Strength: Weak</p>
+                                <ul class="password-guidance-list">
+                                    <li id="rule-length" class="password-rule">At least 12 characters</li>
+                                    <li id="rule-upper" class="password-rule">At least 1 uppercase letter</li>
+                                    <li id="rule-lower" class="password-rule">At least 1 lowercase letter</li>
+                                    <li id="rule-number" class="password-rule">At least 1 number</li>
+                                    <li id="rule-symbol" class="password-rule">At least 1 symbol (for example: !@#$%)</li>
+                                    <li id="rule-space" class="password-rule">No spaces</li>
+                                    <li id="rule-common" class="password-rule">Avoid common words like "password"</li>
+                                </ul>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -144,7 +156,7 @@
 
                     <div class="form-footer">
                         <span>Already have an account?</span>
-                        <a href="#login" class="link" id="toggle-login">Sign In</a>
+                        <a href="#login" class="link" id="toggle-login">Log In</a>
                     </div>
                 </div>
             </div>
@@ -156,24 +168,87 @@
 
         <div class="login-side-info">
             <div class="info-card">
-                <h3>🛡️ Asset Protection</h3>
+                <h3>Asset Protection</h3>
                 <p>Track and monitor all your digital assets in one secure place.</p>
             </div>
             <div class="info-card">
-                <h3>⚠️ Threat Detection</h3>
+                <h3>Threat Detection</h3>
                 <p>AI-powered analysis identifies cyber threats instantly.</p>
             </div>
             <div class="info-card">
-                <h3>📊 Risk Assessment</h3>
+                <h3>Risk Assessment</h3>
                 <p>Understand your cybersecurity risk in simple terms.</p>
             </div>
             <div class="info-card">
-                <h3>✅ NIST Compliance</h3>
+                <h3>NIST Compliance</h3>
                 <p>Follow industry-standard cybersecurity frameworks.</p>
+            </div>
+        </div>
+        </div>
+
+    <div id="two-factor-login-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content modal-content-small confirm-modal two-factor-modal-content" role="dialog" aria-modal="true" aria-labelledby="two-factor-login-title">
+            <div class="modal-header">
+                <h2 id="two-factor-login-title">Enter 2FA Code</h2>
+            </div>
+            <p>Enter the 6-digit code from Google Authenticator.</p>
+            <form id="two-factor-login-form" class="modal-form">
+                <div class="form-group">
+                    <label for="two-factor-login-code">Authentication Code</label>
+                    <input type="text" id="two-factor-login-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456" required>
+                    <small id="two-factor-login-error" class="error-message" aria-live="polite"></small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-two-factor-login-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Verify</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="two-factor-enable-prompt-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content modal-content-small confirm-modal two-factor-modal-content" role="dialog" aria-modal="true" aria-labelledby="two-factor-enable-title">
+            <div class="modal-header">
+                <h2 id="two-factor-enable-title">Enable Two-Factor Authentication?</h2>
+            </div>
+            <p>Add Google Authenticator for better account security.</p>
+            <div class="form-actions">
+                <button type="button" id="skip-2fa-for-now-btn" class="btn btn-secondary">Maybe Later</button>
+                <button type="button" id="enable-2fa-now-btn" class="btn btn-primary">Enable Now</button>
             </div>
         </div>
     </div>
 
+    <div id="two-factor-setup-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content confirm-modal two-factor-modal-content" role="dialog" aria-modal="true" aria-labelledby="two-factor-setup-title">
+            <div class="modal-header">
+                <h2 id="two-factor-setup-title">Set Up Google Authenticator</h2>
+            </div>
+            <p>Scan the QR code, then enter the current 6-digit code.</p>
+            <div class="two-factor-qr-wrap">
+                <img id="two-factor-qr-image" alt="Google Authenticator QR code" width="180" height="180">
+            </div>
+            <p class="two-factor-key">Manual key: <strong id="two-factor-manual-key"></strong></p>
+            <form id="two-factor-setup-form" class="modal-form">
+                <div class="form-group">
+                    <label for="two-factor-setup-code">Authentication Code</label>
+                    <input type="text" id="two-factor-setup-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456" required>
+                    <small id="two-factor-setup-error" class="error-message" aria-live="polite"></small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-two-factor-setup-btn" class="btn btn-secondary">Skip for Now</button>
+                    <button type="submit" class="btn btn-primary">Confirm and Enable</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
     <script src="js/utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/auth.js"></script>

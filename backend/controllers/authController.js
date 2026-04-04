@@ -3,11 +3,14 @@
  */
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
-
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const auditLogService = require('../services/auditLogService');
+const totpService = require('../services/totpService');
+
+const TWO_FACTOR_CHALLENGE_EXPIRATION = '5m';
+const DEFAULT_TOTP_APP_NAME = 'HCGS';
 
 class AuthController {
     createAccessToken(user) {
@@ -26,16 +29,26 @@ class AuthController {
         );
     }
 
+    createTwoFactorChallengeToken(user) {
+        return jwt.sign(
+            { userId: user._id, type: '2fa_login' },
+            process.env.JWT_SECRET,
+            { expiresIn: TWO_FACTOR_CHALLENGE_EXPIRATION }
+        );
+    }
+
+    getTwoFactorAppName() {
+        return process.env.TOTP_APP_NAME || DEFAULT_TOTP_APP_NAME;
+    }
+
     /**
      * Register user
      */
     async register(req, res, next) {
         try {
             const { email, password, fullName } = req.body;
-
             const normalizedEmail = email.toLowerCase();
 
-            // Check if user already exists
             const existingUser = await User.findOne({ email: normalizedEmail });
             if (existingUser) {
                 return res.status(400).json({
@@ -44,7 +57,6 @@ class AuthController {
                 });
             }
 
-            // Create new user
             const user = new User({
                 email: normalizedEmail,
                 password,
@@ -68,17 +80,17 @@ class AuthController {
 
             logger.info(`User registered: ${normalizedEmail}`);
 
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 message: 'User registered successfully',
                 token,
                 refreshToken,
+                promptToEnableTwoFactor: true,
                 user: user.toJSON(),
             });
-
         } catch (error) {
             logger.error(`Registration error: ${error.message}`);
-            next(error);
+            return next(error);
         }
     }
 
@@ -90,7 +102,6 @@ class AuthController {
             const { email, password } = req.body;
             const normalizedEmail = email.toLowerCase();
 
-            // Find user
             const user = await User.findOne({ email: normalizedEmail });
             if (!user) {
                 return res.status(401).json({
@@ -99,7 +110,6 @@ class AuthController {
                 });
             }
 
-            // Check password
             const isPasswordValid = await user.comparePassword(password);
             if (!isPasswordValid) {
                 return res.status(401).json({
@@ -108,12 +118,29 @@ class AuthController {
                 });
             }
 
-            // Check if user is active
             if (!user.isActive) {
                 return res.status(403).json({
                     success: false,
                     message: 'User account is inactive',
                 });
+            }
+
+            if (user.twoFactorEnabled && user.twoFactorSecret) {
+                const challengeToken = this.createTwoFactorChallengeToken(user);
+                return res.json({
+                    success: true,
+                    message: 'Two-factor authentication required',
+                    requiresTwoFactor: true,
+                    challengeToken,
+                });
+            }
+
+            const shouldPromptToEnableTwoFactor = !user.twoFactorEnabled && Boolean(user.hasLoggedInOnce);
+
+            if (!user.hasLoggedInOnce) {
+                user.hasLoggedInOnce = true;
+                user.updatedAt = new Date();
+                await user.save();
             }
 
             const token = this.createAccessToken(user);
@@ -129,17 +156,236 @@ class AuthController {
 
             logger.info(`User logged in: ${normalizedEmail}`);
 
-            res.json({
+            return res.json({
                 success: true,
                 message: 'Login successful',
                 token,
                 refreshToken,
+                promptToEnableTwoFactor: shouldPromptToEnableTwoFactor,
                 user: user.toJSON(),
             });
-
         } catch (error) {
             logger.error(`Login error: ${error.message}`);
-            next(error);
+            return next(error);
+        }
+    }
+
+    async verifyTwoFactorLogin(req, res, next) {
+        try {
+            const { challengeToken, code } = req.body;
+
+            let decoded;
+            try {
+                decoded = jwt.verify(challengeToken, process.env.JWT_SECRET);
+            } catch (error) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid or expired 2FA challenge token',
+                });
+            }
+
+            if (decoded.type !== '2fa_login') {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid 2FA challenge token',
+                });
+            }
+
+            const user = await User.findById(decoded.userId);
+            if (!user || !user.isActive) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid login attempt',
+                });
+            }
+
+            if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Two-factor authentication is not enabled for this account',
+                });
+            }
+
+            const isCodeValid = totpService.verifyToken(user.twoFactorSecret, code);
+            if (!isCodeValid) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid 2FA code',
+                });
+            }
+
+            if (!user.hasLoggedInOnce) {
+                user.hasLoggedInOnce = true;
+                user.updatedAt = new Date();
+                await user.save();
+            }
+
+            const token = this.createAccessToken(user);
+            const refreshToken = this.createRefreshToken(user);
+
+            await auditLogService.record({
+                actorUserId: user._id,
+                action: 'USER_LOGIN_2FA',
+                entityType: 'User',
+                entityId: String(user._id),
+                ipAddress: req.ip || '',
+            });
+
+            logger.info(`User logged in with 2FA: ${user.email}`);
+
+            return res.json({
+                success: true,
+                message: '2FA verification successful',
+                token,
+                refreshToken,
+                user: user.toJSON(),
+            });
+        } catch (error) {
+            logger.error(`2FA login verification error: ${error.message}`);
+            return next(error);
+        }
+    }
+
+    async setupTwoFactor(req, res, next) {
+        try {
+            const user = await User.findById(req.user.userId);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+            }
+
+            if (user.twoFactorEnabled) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Two-factor authentication is already enabled',
+                });
+            }
+
+            const secret = totpService.generateSecret();
+            const otpAuthUrl = totpService.buildOtpAuthUrl({
+                appName: this.getTwoFactorAppName(),
+                email: user.email,
+                secret,
+            });
+            const qrCodeDataUrl = await totpService.generateQrCodeDataUrl(otpAuthUrl);
+
+            user.twoFactorTempSecret = secret;
+            user.updatedAt = new Date();
+            await user.save();
+
+            return res.json({
+                success: true,
+                message: '2FA setup generated successfully',
+                qrCodeDataUrl,
+                manualEntryKey: secret,
+            });
+        } catch (error) {
+            logger.error(`2FA setup error: ${error.message}`);
+            return next(error);
+        }
+    }
+
+    async enableTwoFactor(req, res, next) {
+        try {
+            const { code } = req.body;
+            const user = await User.findById(req.user.userId);
+
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+            }
+
+            if (!user.twoFactorTempSecret) {
+                return res.status(400).json({
+                    success: false,
+                    message: '2FA setup has not been initialized',
+                });
+            }
+
+            const isCodeValid = totpService.verifyToken(user.twoFactorTempSecret, code);
+            if (!isCodeValid) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid 2FA code',
+                });
+            }
+
+            user.twoFactorSecret = user.twoFactorTempSecret;
+            user.twoFactorTempSecret = '';
+            user.twoFactorEnabled = true;
+            user.updatedAt = new Date();
+            await user.save();
+
+            await auditLogService.record({
+                actorUserId: user._id,
+                action: 'USER_2FA_ENABLED',
+                entityType: 'User',
+                entityId: String(user._id),
+                ipAddress: req.ip || '',
+            });
+
+            return res.json({
+                success: true,
+                message: 'Two-factor authentication enabled successfully',
+            });
+        } catch (error) {
+            logger.error(`Enable 2FA error: ${error.message}`);
+            return next(error);
+        }
+    }
+
+    async disableTwoFactor(req, res, next) {
+        try {
+            const { code } = req.body;
+            const user = await User.findById(req.user.userId);
+
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+            }
+
+            if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Two-factor authentication is not enabled',
+                });
+            }
+
+            const isCodeValid = totpService.verifyToken(user.twoFactorSecret, code);
+            if (!isCodeValid) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid 2FA code',
+                });
+            }
+
+            user.twoFactorEnabled = false;
+            user.twoFactorSecret = '';
+            user.twoFactorTempSecret = '';
+            user.updatedAt = new Date();
+            await user.save();
+
+            await auditLogService.record({
+                actorUserId: user._id,
+                action: 'USER_2FA_DISABLED',
+                entityType: 'User',
+                entityId: String(user._id),
+                ipAddress: req.ip || '',
+            });
+
+            return res.json({
+                success: true,
+                message: 'Two-factor authentication disabled successfully',
+            });
+        } catch (error) {
+            logger.error(`Disable 2FA error: ${error.message}`);
+            return next(error);
         }
     }
 
@@ -198,14 +444,13 @@ class AuthController {
                 });
             }
 
-            res.json({
+            return res.json({
                 success: true,
                 user: user.toJSON(),
             });
-
         } catch (error) {
             logger.error(`Get profile error: ${error.message}`);
-            next(error);
+            return next(error);
         }
     }
 
@@ -246,15 +491,14 @@ class AuthController {
 
             logger.info(`User profile updated: ${user.email}`);
 
-            res.json({
+            return res.json({
                 success: true,
                 message: 'Profile updated successfully',
                 user: user.toJSON(),
             });
-
         } catch (error) {
             logger.error(`Update profile error: ${error.message}`);
-            next(error);
+            return next(error);
         }
     }
 
@@ -273,7 +517,6 @@ class AuthController {
                 });
             }
 
-            // Verify current password
             const isPasswordValid = await user.comparePassword(currentPassword);
             if (!isPasswordValid) {
                 return res.status(401).json({
@@ -282,7 +525,6 @@ class AuthController {
                 });
             }
 
-            // Update password
             user.password = newPassword;
             user.updatedAt = new Date();
             await user.save();
@@ -297,17 +539,15 @@ class AuthController {
 
             logger.info(`Password changed for user: ${user.email}`);
 
-            res.json({
+            return res.json({
                 success: true,
                 message: 'Password changed successfully',
             });
-
         } catch (error) {
             logger.error(`Change password error: ${error.message}`);
-            next(error);
+            return next(error);
         }
     }
 }
 
 module.exports = new AuthController();
-
