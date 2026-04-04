@@ -100,7 +100,8 @@ class APIClient {
         try {
             const response = await fetch(url, config);
 
-            if (response.status === 401) {
+            const hasAuthorizationHeader = Boolean(headers.Authorization);
+            if (response.status === 401 && hasAuthorizationHeader) {
                 this.clearAuth();
                 window.location.href = 'login.html';
                 return null;
@@ -188,10 +189,26 @@ class APIClient {
             email,
             password,
         });
+
+        if (response.token && !response.requiresTwoFactor) {
+            this.setToken(response.token);
+            localStorage.setItem('user', JSON.stringify(response.user));
+        }
+
+        return response;
+    }
+
+    async verifyTwoFactorLogin(challengeToken, code) {
+        const response = await this.post('/auth/2fa/verify-login', {
+            challengeToken,
+            code,
+        });
+
         if (response.token) {
             this.setToken(response.token);
             localStorage.setItem('user', JSON.stringify(response.user));
         }
+
         return response;
     }
 
@@ -213,6 +230,18 @@ class APIClient {
             currentPassword,
             newPassword,
         });
+    }
+
+    async getTwoFactorSetup() {
+        return this.post('/auth/2fa/setup', {});
+    }
+
+    async enableTwoFactor(code) {
+        return this.post('/auth/2fa/enable', { code });
+    }
+
+    async disableTwoFactor(code) {
+        return this.post('/auth/2fa/disable', { code });
     }
 
     // ============== ASSET ENDPOINTS ==============
