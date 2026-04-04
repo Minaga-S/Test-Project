@@ -5,14 +5,14 @@
 /**
  * SECTION GUIDE:
  * 1) Settings Boot: validates auth and loads user preferences.
- * 2) Tab Navigation: switches profile/password/notification sections.
- * 3) Form Submission: applies profile/password/notification updates.
+ * 2) Tab Navigation: switches profile/password/security/notification sections.
+ * 3) Form Submission: applies profile/password/2FA/notification updates.
  * 4) Feedback: displays success/error notifications for each update.
  */
 
+const USER_TABS = ['profile', 'password', 'security', 'notifications'];
 
-
-const USER_TABS = ['profile', 'password', 'notifications'];
+let isTwoFactorEnabled = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeSettings();
@@ -28,7 +28,37 @@ async function initializeSettings() {
     setupLogoutButton();
     setupTabHandlers();
     setupFormHandlers();
+    setupTwoFactorCodeFormatting();
     await loadUserSettings();
+}
+
+function setupTwoFactorCodeFormatting() {
+    attachTwoFactorFormatter('settings-two-factor-code');
+    attachTwoFactorFormatter('settings-two-factor-disable-code');
+}
+
+function attachTwoFactorFormatter(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) {
+        return;
+    }
+
+    input.addEventListener('input', () => {
+        input.value = formatTwoFactorCode(input.value);
+    });
+}
+
+function normalizeTwoFactorCode(value) {
+    return String(value || '').replace(/\D/g, '').slice(0, 6);
+}
+
+function formatTwoFactorCode(value) {
+    const digits = normalizeTwoFactorCode(value);
+    if (digits.length <= 3) {
+        return digits;
+    }
+
+    return `${digits.slice(0, 3)} ${digits.slice(3)}`;
 }
 
 function setupFormHandlers() {
@@ -46,12 +76,27 @@ function setupFormHandlers() {
     if (notificationsForm) {
         notificationsForm.addEventListener('submit', handleNotificationsUpdate);
     }
+
+    const twoFactorSetupForm = document.getElementById('two-factor-setup-form-settings');
+    if (twoFactorSetupForm) {
+        twoFactorSetupForm.addEventListener('submit', handleTwoFactorEnableFromSettings);
+    }
+
+    const twoFactorDisableForm = document.getElementById('two-factor-disable-form');
+    if (twoFactorDisableForm) {
+        twoFactorDisableForm.addEventListener('submit', handleTwoFactorDisableFromSettings);
+    }
+
+    const startTwoFactorSetupButton = document.getElementById('start-two-factor-setup-btn');
+    if (startTwoFactorSetupButton) {
+        startTwoFactorSetupButton.addEventListener('click', startTwoFactorSetupFromSettings);
+    }
 }
 
 function setupTabHandlers() {
     const tabButtons = document.querySelectorAll('.tab-btn');
 
-    tabButtons.forEach(button => {
+    tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
             activateTab(tabName);
@@ -85,16 +130,15 @@ async function loadUserSettings() {
     try {
         const profileResponse = await apiClient.getProfile();
         const user = profileResponse?.user || profileResponse || {};
+
         setLocalStorage('user', user);
         setupUserInfo();
-        
-        // Fill profile tab
+
         document.getElementById('profile-name').value = user.fullName || '';
         document.getElementById('profile-email').value = user.email || '';
         document.getElementById('profile-role').value = user.role || 'User';
         document.getElementById('profile-department').value = user.department || '';
 
-        // Load notification preferences
         const preferences = getLocalStorage('notificationPreferences') || {};
         document.getElementById('notify-critical').checked = preferences.notifyCritical !== false;
         document.getElementById('notify-high').checked = preferences.notifyHigh !== false;
@@ -102,14 +146,140 @@ async function loadUserSettings() {
         document.getElementById('notify-resolved').checked = preferences.notifyResolved !== false;
         document.getElementById('notify-daily-summary').checked = preferences.notifyDailySummary !== false;
 
-        activateTab('profile');
+        isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
+        renderTwoFactorStatus();
 
+        activateTab('profile');
     } catch (error) {
         console.error('Error loading settings:', error);
         showNotification('Error loading settings', 'error');
     } finally {
         showLoading(false);
     }
+}
+
+function renderTwoFactorStatus() {
+    const statusText = document.getElementById('two-factor-status-text');
+    const startSetupButton = document.getElementById('start-two-factor-setup-btn');
+    const setupPanel = document.getElementById('two-factor-setup-panel');
+    const disableForm = document.getElementById('two-factor-disable-form');
+
+    if (!statusText || !startSetupButton || !setupPanel || !disableForm) {
+        return;
+    }
+
+    setupPanel.style.display = 'none';
+
+    if (isTwoFactorEnabled) {
+        statusText.textContent = '2FA is currently enabled for your account.';
+        statusText.className = 'two-factor-status-enabled';
+        startSetupButton.style.display = 'none';
+        disableForm.style.display = 'flex';
+    } else {
+        statusText.textContent = '2FA is currently disabled for your account.';
+        statusText.className = 'two-factor-status-disabled';
+        startSetupButton.style.display = 'inline-flex';
+        disableForm.style.display = 'none';
+    }
+}
+
+async function startTwoFactorSetupFromSettings() {
+    const setupPanel = document.getElementById('two-factor-setup-panel');
+    const setupError = document.getElementById('settings-two-factor-setup-error');
+    const qrImage = document.getElementById('settings-two-factor-qr-image');
+    const manualKey = document.getElementById('settings-two-factor-manual-key');
+
+    if (isTwoFactorEnabled) {
+        showNotification('2FA is already enabled.', 'info');
+        return;
+    }
+
+    setupError.textContent = '';
+    showLoading(true);
+
+    try {
+        const setupResponse = await apiClient.getTwoFactorSetup();
+        qrImage.src = setupResponse.qrCodeDataUrl;
+        manualKey.textContent = setupResponse.manualEntryKey;
+        setupPanel.style.display = 'block';
+        setupPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        const codeInput = document.getElementById('settings-two-factor-code');
+        if (codeInput) {
+            codeInput.focus();
+        }
+
+        showNotification('2FA setup generated. Scan the QR code below.', 'success');
+    } catch (error) {
+        setupError.textContent = error.message || 'Could not start 2FA setup.';
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function handleTwoFactorEnableFromSettings(e) {
+    e.preventDefault();
+
+    const code = normalizeTwoFactorCode(document.getElementById('settings-two-factor-code').value);
+    const setupError = document.getElementById('settings-two-factor-setup-error');
+
+    setupError.textContent = '';
+
+    if (!/^\d{6}$/.test(code)) {
+        setupError.textContent = 'Enter a valid 6-digit code.';
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        await apiClient.post('/auth/2fa/enable', { code });
+        isTwoFactorEnabled = true;
+        await refreshUserProfile();
+        renderTwoFactorStatus();
+        showNotification('2FA enabled successfully.', 'success');
+    } catch (error) {
+        setupError.textContent = error.message || 'Could not enable 2FA.';
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function handleTwoFactorDisableFromSettings(e) {
+    e.preventDefault();
+
+    const code = normalizeTwoFactorCode(document.getElementById('settings-two-factor-disable-code').value);
+    const disableError = document.getElementById('settings-two-factor-disable-error');
+
+    disableError.textContent = '';
+
+    if (!/^\d{6}$/.test(code)) {
+        disableError.textContent = 'Enter a valid 6-digit code.';
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        await apiClient.post('/auth/2fa/disable', { code });
+        isTwoFactorEnabled = false;
+        document.getElementById('two-factor-disable-form').reset();
+        await refreshUserProfile();
+        renderTwoFactorStatus();
+        showNotification('2FA disabled successfully.', 'success');
+    } catch (error) {
+        disableError.textContent = error.message || 'Could not disable 2FA.';
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function refreshUserProfile() {
+    const profileResponse = await apiClient.getProfile();
+    const user = profileResponse?.user || profileResponse || {};
+
+    setLocalStorage('user', user);
+    isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
 }
 
 async function handleProfileUpdate(e) {
@@ -127,15 +297,13 @@ async function handleProfileUpdate(e) {
         });
 
         showNotification('Profile updated successfully', 'success');
-        
-        // Update local storage
+
         const user = getLocalStorage('user');
         user.fullName = fullName;
         user.department = department;
         setLocalStorage('user', user);
-        
-        setupUserInfo();
 
+        setupUserInfo();
     } catch (error) {
         console.error('Error updating profile:', error);
         document.getElementById('profile-success').textContent = '';
@@ -152,7 +320,6 @@ async function handlePasswordChange(e) {
     const newPassword = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
 
-    // Validate
     if (newPassword !== confirmPassword) {
         document.getElementById('password-error').textContent = 'Passwords do not match';
         return;
@@ -167,12 +334,11 @@ async function handlePasswordChange(e) {
 
     try {
         await apiClient.changePassword(currentPassword, newPassword);
-        
+
         showNotification('Password changed successfully', 'success');
         document.getElementById('password-form').reset();
         document.getElementById('password-success').textContent = '';
         document.getElementById('password-error').textContent = '';
-
     } catch (error) {
         console.error('Error changing password:', error);
         document.getElementById('password-error').textContent = error.message || 'Error changing password';
@@ -193,7 +359,7 @@ async function handleNotificationsUpdate(e) {
     };
 
     setLocalStorage('notificationPreferences', preferences);
-    
+
     showNotification('Notification preferences updated', 'success');
 }
 
@@ -211,4 +377,3 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
-
