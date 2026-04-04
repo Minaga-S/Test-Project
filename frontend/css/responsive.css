@@ -1012,3 +1012,59 @@
     }
 }
 
+/* ============================================
+   GLOBAL MOBILE HEADER CONSISTENCY OVERRIDE
+   ============================================ */
+
+@media (max-width: 932px) {
+    .top-header {
+        position: relative;
+        min-height: 132px;
+        align-items: stretch;
+    }
+
+    .top-header .header-left {
+        padding-right: 11rem;
+    }
+
+    .top-header .header-right {
+        position: absolute;
+        top: 50%;
+        right: 1rem;
+        transform: translateY(-50%);
+        width: 10.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+    }
+
+    .top-header .header-right .btn {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+    }
+
+    .dashboard-page .user-profile,
+    .dashboard-page .live-badge {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-header {
+        min-height: 124px;
+    }
+
+    .top-header .header-left {
+        padding-right: 9.75rem;
+    }
+
+    .top-header .header-right {
+        width: 9.4rem;
+        right: 0.85rem;
+    }
+}
+
