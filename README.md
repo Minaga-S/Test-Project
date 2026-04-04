@@ -142,9 +142,9 @@ The backend is designed to run as a Node.js web service (for example on Render).
 - `JWT_EXPIRATION`
 - `JWT_REFRESH_SECRET`
 - `JWT_REFRESH_EXPIRATION`
-- `OPENAI_API_KEY` (if AI endpoints are used)
-- `OPENAI_MODEL`
-- `CORS_ORIGIN`
+- `GEMINI_API_KEY` (if AI endpoints are used)
+- `GEMINI_MODEL`
+- `GEMINI_MODEL_VERSION`
 
 ### Production API Endpoint
 
@@ -172,3 +172,4 @@ If database seeding is enabled, default test users are:
 - alerting and notification workflows,
 - automated compliance reporting exports,
 - extended analytics for trend forecasting.
+

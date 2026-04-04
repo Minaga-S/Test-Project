@@ -6,6 +6,7 @@ const authController = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/rateLimiter');
 const { validateRequest } = require('../middleware/validateRequest');
+const { DEPARTMENTS } = require('../utils/constants');
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ const registerValidation = [
     body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
     body('fullName').trim().notEmpty().withMessage('Full name is required'),
+    body('department').trim().isIn(DEPARTMENTS).withMessage('Valid department is required'),
     validateRequest,
 ];
 
@@ -31,7 +33,7 @@ const refreshValidation = [
 
 const updateProfileValidation = [
     body('fullName').optional().trim().notEmpty().withMessage('Full name cannot be empty'),
-    body('department').optional().trim(),
+    body('department').optional({ checkFalsy: true }).trim().isIn(DEPARTMENTS).withMessage('Valid department is required'),
     validateRequest,
 ];
 

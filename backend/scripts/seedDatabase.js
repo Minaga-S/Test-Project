@@ -17,12 +17,7 @@ const testUsers = [
         password: 'Admin123456',
         fullName: 'Admin User',
         role: 'Admin',
-    },
-    {
-        email: 'staff@test.com',
-        password: 'Staff123456',
-        fullName: 'Staff User',
-        role: 'Staff',
+        department: 'Management',
     },
 ];
 
