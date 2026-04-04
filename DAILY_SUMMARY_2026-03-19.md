@@ -66,7 +66,7 @@
   - Incident listing and detail navigation
 
 ### Backend/infra hardening
-- Set strong production secrets in Render (JWT secrets, OpenAI key, etc.) if placeholders are still used.
+- Set strong production secrets in Render (JWT secrets, Gemini key, etc.) if placeholders are still used.
 - Verify Render environment uses production-safe values (`NODE_ENV=production`, CORS origin list, DB URI).
 - Consider disabling automatic seeding in production (or guard behind env flag).
 
@@ -85,3 +85,4 @@
 2. Run full hosted smoke test on all major pages.
 3. Normalize remaining frontend response handling patterns.
 4. Add minimal test coverage for auth and dashboard endpoints.
+
