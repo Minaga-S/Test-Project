@@ -98,6 +98,9 @@
                     <button class="tab-btn" data-tab="password" type="button">
                         <span class="material-symbols-rounded" aria-hidden="true">key</span> Password
                     </button>
+                    <button class="tab-btn" data-tab="security" type="button">
+                        <span class="material-symbols-rounded" aria-hidden="true">shield_lock</span> Security
+                    </button>
                     <button class="tab-btn" data-tab="notifications" type="button">
                         <span class="material-symbols-rounded" aria-hidden="true">notifications</span> Notifications
                     </button>
@@ -198,7 +201,36 @@
                             <small id="password-error" class="error-message"></small>
                         </form>
                 </div>
+                <div id="security-tab" class="settings-tab-content">
+                        <h2>Two-Factor Authentication</h2>
+                        <form id="two-factor-setup-form-settings" class="settings-form">
+                            <p id="two-factor-status-text">Loading 2FA status...</p>
+                            <button type="button" id="start-two-factor-setup-btn" class="btn btn-primary">Enable 2FA Setup</button>
+                            <div id="two-factor-setup-panel" style="display: none;">
+                                <div class="two-factor-qr-wrap">
+                                    <img id="settings-two-factor-qr-image" alt="Google Authenticator QR code" width="180" height="180">
+                                </div>
+                                <p class="two-factor-key">Manual key: <strong id="settings-two-factor-manual-key"></strong></p>
+                                <div class="form-group">
+                                    <label for="settings-two-factor-code">Enter 6-digit code to enable</label>
+                                    <input type="text" id="settings-two-factor-code" inputmode="numeric" maxlength="7" placeholder="123 456">
+                                    <small id="settings-two-factor-setup-error" class="error-message"></small>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Enable 2FA</button>
+                            </div>
+                        </form>
 
+                        <form id="two-factor-disable-form" class="settings-form" style="display: none;">
+                            <h3>Disable 2FA</h3>
+                            <p>Enter your current 6-digit authenticator code to disable two-factor authentication.</p>
+                            <div class="form-group">
+                                <label for="settings-two-factor-disable-code">Authenticator Code</label>
+                                <input type="text" id="settings-two-factor-disable-code" inputmode="numeric" maxlength="7" placeholder="123 456">
+                                <small id="settings-two-factor-disable-error" class="error-message"></small>
+                            </div>
+                            <button type="submit" class="btn btn-secondary">Disable 2FA</button>
+                        </form>
+                </div>
                 <!-- Notifications Tab -->
                 <div id="notifications-tab" class="settings-tab-content">
                         <h2>Notification Preferences</h2>

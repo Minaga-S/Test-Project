@@ -41,12 +41,26 @@ const changePasswordValidation = [
     validateRequest,
 ];
 
+const twoFactorCodeValidation = [
+    body('code').matches(/^\d{6}$/).withMessage('2FA code must be 6 digits'),
+    validateRequest,
+];
+
+const verifyTwoFactorLoginValidation = [
+    body('challengeToken').notEmpty().withMessage('Challenge token is required'),
+    body('code').matches(/^\d{6}$/).withMessage('2FA code must be 6 digits'),
+    validateRequest,
+];
+
 router.post('/register', authLimiter, registerValidation, withController(authController, 'register'));
 router.post('/login', authLimiter, loginValidation, withController(authController, 'login'));
 router.post('/refresh', authLimiter, refreshValidation, withController(authController, 'refreshToken'));
+router.post('/2fa/verify-login', authLimiter, verifyTwoFactorLoginValidation, withController(authController, 'verifyTwoFactorLogin'));
+router.post('/2fa/setup', authMiddleware, withController(authController, 'setupTwoFactor'));
+router.post('/2fa/enable', authMiddleware, twoFactorCodeValidation, withController(authController, 'enableTwoFactor'));
+router.post('/2fa/disable', authMiddleware, twoFactorCodeValidation, withController(authController, 'disableTwoFactor'));
 router.get('/profile', authMiddleware, withController(authController, 'getProfile'));
 router.put('/profile', authMiddleware, updateProfileValidation, withController(authController, 'updateProfile'));
 router.post('/change-password', authMiddleware, changePasswordValidation, withController(authController, 'changePassword'));
 
 module.exports = router;
-
