@@ -17,6 +17,24 @@ const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 const enrichmentCache = new Map();
 
+const SERVICE_KEYWORD_ALIASES = new Map([
+    ['ssh', ['openssh']],
+    ['http', ['apache http server', 'apache']],
+    ['https', ['openssl', 'tls', 'nginx']],
+    ['mysql', ['mysql server', 'mariadb']],
+    ['tomcat', ['apache tomcat']],
+    ['nginx', ['nginx']],
+    ['ftp', ['vsftpd', 'proftpd']],
+    ['smb', ['samba']],
+    ['smtp', ['postfix', 'exim']],
+    ['dns', ['bind', 'isc bind']],
+    ['snmp', ['net-snmp']],
+    ['postgres', ['postgresql']],
+    ['redis', ['redis']],
+    ['mongodb', ['mongodb']],
+    ['rdp', ['remote desktop', 'mstsc']],
+]);
+
 function normalize(value) {
     return String(value || '').trim();
 }
@@ -145,6 +163,8 @@ function buildSearchTerms(profile = {}) {
         profile.product,
         profile.productVersion,
         profile.osName,
+        profile.assetName,
+        profile.assetType,
     ].forEach((value) => pushUnique(terms, value));
 
     if (Array.isArray(profile.serviceNames)) {
@@ -152,6 +172,36 @@ function buildSearchTerms(profile = {}) {
     }
 
     return terms;
+}
+
+function buildFallbackSearchTerms(profile = {}) {
+    const terms = [];
+    const primaryTerms = buildSearchTerms(profile);
+
+    primaryTerms.forEach((term) => pushUnique(terms, term));
+
+    if (Array.isArray(profile.serviceNames)) {
+        profile.serviceNames.forEach((serviceName) => {
+            const normalizedServiceName = normalize(serviceName).toLowerCase();
+            const aliases = SERVICE_KEYWORD_ALIASES.get(normalizedServiceName) || [];
+            aliases.forEach((alias) => pushUnique(terms, alias));
+        });
+    }
+
+    return terms;
+}
+
+function mergeCveMatches(targetMatches = [], sourceMatches = []) {
+    const seen = new Set(targetMatches.map((entry) => entry.cveId));
+
+    sourceMatches.forEach((entry) => {
+        if (entry?.cveId && !seen.has(entry.cveId)) {
+            seen.add(entry.cveId);
+            targetMatches.push(entry);
+        }
+    });
+
+    return targetMatches;
 }
 
 function extractCvssScore(metrics = {}) {
@@ -270,16 +320,75 @@ class NistCveService {
                     : [];
 
                 const matches = vulnerabilities.map(mapCve).filter((entry) => entry.cveId);
+
+                if (matches.length > 0) {
+                    const result = {
+                        source: 'NIST NVD API',
+                        query: {
+                            keywordSearch,
+                            searchTerms,
+                        },
+                        matches,
+                        totalMatches: matches.length,
+                        retrievedAt: new Date().toISOString(),
+                        confidence: computeConfidence(profile, matches.length),
+                        cacheHit: false,
+                    };
+
+                    setCachedResult(cacheKey, result);
+
+                    await recordAuditLog('CVE_ENRICHMENT_SUCCESS', safeMeta, {
+                        cacheHit: false,
+                        durationMs: Date.now() - startedAt,
+                        attempts: attempt + 1,
+                        searchTermsCount: searchTerms.length,
+                        matches: matches.length,
+                        confidence: result.confidence,
+                        vendor: profile.vendor,
+                        product: profile.product,
+                        cpeUri: profile.cpeUri,
+                    });
+
+                    return result;
+                }
+
+                const fallbackTerms = buildFallbackSearchTerms(profile).filter((term) => term !== keywordSearch);
+                const fallbackMatches = [];
+
+                for (const term of fallbackTerms) {
+                    try {
+                        const fallbackResponse = await axios.get(NVD_API_URL, {
+                            params: {
+                                keywordSearch: term,
+                                resultsPerPage: DEFAULT_RESULTS_PER_PAGE,
+                            },
+                            headers,
+                            timeout: REQUEST_TIMEOUT_MS,
+                        });
+
+                        const fallbackVulnerabilities = Array.isArray(fallbackResponse?.data?.vulnerabilities)
+                            ? fallbackResponse.data.vulnerabilities
+                            : [];
+                        const termMatches = fallbackVulnerabilities.map(mapCve).filter((entry) => entry.cveId);
+                        mergeCveMatches(fallbackMatches, termMatches);
+                    } catch (fallbackError) {
+                        if (!shouldRetry(fallbackError)) {
+                            continue;
+                        }
+                    }
+                }
+
                 const result = {
                     source: 'NIST NVD API',
                     query: {
                         keywordSearch,
                         searchTerms,
+                        fallbackSearchTerms: fallbackTerms,
                     },
-                    matches,
-                    totalMatches: matches.length,
+                    matches: fallbackMatches,
+                    totalMatches: fallbackMatches.length,
                     retrievedAt: new Date().toISOString(),
-                    confidence: computeConfidence(profile, matches.length),
+                    confidence: computeConfidence(profile, fallbackMatches.length),
                     cacheHit: false,
                 };
 
@@ -289,8 +398,8 @@ class NistCveService {
                     cacheHit: false,
                     durationMs: Date.now() - startedAt,
                     attempts: attempt + 1,
-                    searchTermsCount: searchTerms.length,
-                    matches: matches.length,
+                    searchTermsCount: searchTerms.length + fallbackTerms.length,
+                    matches: fallbackMatches.length,
                     confidence: result.confidence,
                     vendor: profile.vendor,
                     product: profile.product,

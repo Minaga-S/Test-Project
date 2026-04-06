@@ -1,15 +1,12 @@
-/**
+﻿/**
  * Database Seed Script
  * Creates test users on first run
  */
 // NOTE: Script utility: one-off or startup helper tasks for local/dev operations.
 
-
 const mongoose = require('mongoose');
 const bcryptjs = require('bcryptjs');
 const User = require('../models/User');
-const ThreatKnowledgeBase = require('../models/ThreatKnowledgeBase');
-const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
 
 const testUsers = [
     {
@@ -36,19 +33,10 @@ async function seedDatabase() {
             console.log('✓ Users already seeded, skipping user seed');
         }
 
-        // Upsert threat knowledge base entries.
-        for (const entry of THREAT_KNOWLEDGE_BASE) {
-            await ThreatKnowledgeBase.findOneAndUpdate(
-                { threatType: entry.threatType },
-                {
-                    ...entry,
-                    updatedAt: new Date(),
-                },
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-        }
-
-        console.log('✓ Threat knowledge base seed completed');
+        // NOTE: Threat data is now sourced from NIST threat intelligence service
+        // and live CVE analysis. No local seed data is required for threat types.
+        // See: backend/services/nistThreatIntelService.js
+        console.log('✓ Threat data: Using NIST intelligence service');
         console.log('✓ Database seeded successfully');
     } catch (error) {
         console.error('✗ Seed error:', error.message);
@@ -57,4 +45,3 @@ async function seedDatabase() {
 }
 
 module.exports = { seedDatabase };
-

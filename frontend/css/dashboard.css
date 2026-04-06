@@ -1252,6 +1252,55 @@
 
 
 
+.cve-panel {
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #f8fbff;
+    overflow: hidden;
+}
+
+.cve-panel-summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    background: #eef4ff;
+}
+
+.cve-panel-summary::-webkit-details-marker {
+    display: none;
+}
+
+.cve-panel-summary::after {
+    content: 'Expand';
+    font-size: 0.75rem;
+    color: #2563eb;
+    font-weight: 700;
+}
+
+.cve-panel[open] .cve-panel-summary::after {
+    content: 'Collapse';
+}
+
+.cve-panel-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: #334155;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 0.18rem 0.6rem;
+}
+
+.cve-panel-content {
+    padding: 1rem;
+}
 /* Incident detail UX refinements */
 .detail-content {
     padding-top: 0.5rem;

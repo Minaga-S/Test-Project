@@ -3,6 +3,8 @@
  */
 // NOTE: Formats persisted scan history into the structure used by incident analysis.
 
+const ENRICHMENT_STALE_HOURS = Number(process.env.CVE_ENRICHMENT_STALE_HOURS || 72);
+
 function normalize(value) {
     return String(value || '').trim();
 }
@@ -30,11 +32,40 @@ function buildCveQuery(profile = {}) {
 }
 
 function buildDataSources(cveResult = null) {
-    const cveSource = cveResult?.source ? 'NIST Enriched' : 'NIST Pending';
+    const source = normalize(cveResult?.source);
+    const scanSource = normalize(cveResult?.scanSource) || (source ? 'Live Nmap Scan' : 'Live scan pending');
 
     return {
-        scan: 'Simulated Scan',
-        cve: cveSource,
+        scan: scanSource,
+        cve: source ? `${source} Enriched` : 'Enrichment Pending',
+    };
+}
+
+function buildEnrichmentMetadata(cveResult = null) {
+    const retrievedAt = normalize(cveResult?.retrievedAt);
+    if (!retrievedAt) {
+        return {
+            source: normalize(cveResult?.source) || 'Unknown',
+            lastEnrichedAt: '',
+            confidence: normalize(cveResult?.confidence) || 'Low',
+            cacheHit: Boolean(cveResult?.cacheHit),
+            ageHours: null,
+            isStale: true,
+        };
+    }
+
+    const parsed = new Date(retrievedAt);
+    const ageHours = Number.isNaN(parsed.getTime())
+        ? null
+        : Number(((Date.now() - parsed.getTime()) / (1000 * 60 * 60)).toFixed(2));
+
+    return {
+        source: normalize(cveResult?.source) || 'Unknown',
+        lastEnrichedAt: retrievedAt,
+        confidence: normalize(cveResult?.confidence) || 'Low',
+        cacheHit: Boolean(cveResult?.cacheHit),
+        ageHours,
+        isStale: ageHours === null ? true : ageHours > ENRICHMENT_STALE_HOURS,
     };
 }
 
@@ -47,13 +78,8 @@ function buildFallbackContext(asset, reason = 'No completed scan history yet', c
     return {
         generatedAt: new Date().toISOString(),
         source: 'asset-profile',
-        dataSources: buildDataSources(cveResult),
-        enrichment: {
-            source: cveResult?.source || 'NIST NVD API',
-            lastEnrichedAt: cveResult?.retrievedAt || '',
-            confidence: cveResult?.confidence || 'Low',
-            cacheHit: Boolean(cveResult?.cacheHit),
-        },
+        dataSources: buildDataSources({ ...cveResult, scanSource: liveScan.enabled ? 'Live scan pending' : 'Live scan disabled' }),
+        enrichment: buildEnrichmentMetadata(cveResult),
         asset: {
             assetId: asset?._id ? String(asset._id) : '',
             assetName: normalize(asset?.assetName),
@@ -69,7 +95,7 @@ function buildFallbackContext(asset, reason = 'No completed scan history yet', c
             status: reason,
         },
         cve: {
-            source: cveResult?.source || 'NIST NVD API',
+            source: cveResult?.source || 'Unknown',
             query: cveResult?.query || buildCveQuery(vulnerabilityProfile),
             matches: cveMatches,
             totalMatches: cveMatches.length,
@@ -98,13 +124,8 @@ function buildFromScanResult(asset, scanResult = {}, cveResult = {}, scanHistory
     return {
         generatedAt: scanHistory?.completedAt || new Date().toISOString(),
         source: 'persisted-scan-history',
-        dataSources: buildDataSources(cveResult),
-        enrichment: {
-            source: cveResult.source || 'NIST NVD API',
-            lastEnrichedAt: cveResult.retrievedAt || '',
-            confidence: cveResult.confidence || 'Low',
-            cacheHit: Boolean(cveResult.cacheHit),
-        },
+        dataSources: buildDataSources({ ...cveResult, scanSource: liveScan.enabled ? 'Live scan pending' : 'Live scan disabled' }),
+        enrichment: buildEnrichmentMetadata(cveResult),
         scanHistoryId: scanHistory?._id ? String(scanHistory._id) : '',
         asset: {
             assetId: asset?._id ? String(asset._id) : '',
@@ -121,7 +142,7 @@ function buildFromScanResult(asset, scanResult = {}, cveResult = {}, scanHistory
             status: scanHistory?.status || 'Completed',
         },
         cve: {
-            source: cveResult.source || 'NIST NVD API',
+            source: cveResult.source || 'Unknown',
             query: cveResult.query || buildCveQuery(vulnerabilityProfile),
             matches: cveMatches,
             totalMatches: cveMatches.length,

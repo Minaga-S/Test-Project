@@ -1,34 +1,20 @@
-/**
+﻿/**
  * NIST Cybersecurity Framework Mapping Service
  */
 // NOTE: Service layer: contains core business logic used by controllers.
 
-
-const { THREAT_KNOWLEDGE_BASE, NIST_FUNCTIONS, NIST_CONTROLS } = require('../utils/constants');
+const nistThreatIntelService = require('./nistThreatIntelService');
+const { NIST_FUNCTIONS, NIST_CONTROLS } = require('../utils/constants');
 const logger = require('../utils/logger');
 
 class NISTMappingService {
     /**
-     * Get NIST mapping for threat type
+     * Get NIST mapping for threat type using threat intelligence service
      */
     getNISTMapping(threatType) {
         try {
-            const threatEntry = THREAT_KNOWLEDGE_BASE.find(t => t.threatType === threatType);
-
-            if (!threatEntry) {
-                logger.warn(`No NIST mapping found for threat: ${threatType}`);
-                return {
-                    functions: this.getDefaultFunctions(),
-                    controls: this.getDefaultControls(),
-                };
-            }
-
-            return {
-                functions: threatEntry.nistFunctions || [],
-                controls: threatEntry.nistControls || [],
-                recommendations: threatEntry.mitigationSteps || [],
-            };
-
+            // Delegate to threat intelligence service for NIST mapping
+            return nistThreatIntelService.getNISTMapping(threatType);
         } catch (error) {
             logger.error('NIST mapping error:', error.message);
             return {
@@ -82,7 +68,7 @@ class NISTMappingService {
     }
 
     /**
-     * Map threat to NIST framework
+     * Map threat to NIST framework with enriched details
      */
     mapThreatToNIST(threatType) {
         const mapping = this.getNISTMapping(threatType);
@@ -97,12 +83,11 @@ class NISTMappingService {
                 code: c,
                 description: this.getControlDescription(c),
             })),
-            recommendations: mapping.recommendations || [],
         };
     }
 
     /**
-     * Get control description
+     * Get NIST control description
      */
     getControlDescription(controlCode) {
         const controlDescriptions = {
@@ -133,7 +118,7 @@ class NISTMappingService {
     }
 
     /**
-     * Get compliance report
+     * Get compliance report for incidents
      */
     getComplianceReport(incidents) {
         const functionCoverage = {};
@@ -146,19 +131,23 @@ class NISTMappingService {
         incidents.forEach(incident => {
             const mapping = this.getNISTMapping(incident.threatType);
 
-            mapping.functions.forEach(func => {
-                functionCoverage[func]++;
-            });
+            if (mapping.functions) {
+                mapping.functions.forEach(func => {
+                    functionCoverage[func] = (functionCoverage[func] || 0) + 1;
+                });
+            }
 
-            mapping.controls.forEach(control => {
-                controlCoverage[control] = (controlCoverage[control] || 0) + 1;
-            });
+            if (mapping.controls) {
+                mapping.controls.forEach(ctrl => {
+                    controlCoverage[ctrl] = (controlCoverage[ctrl] || 0) + 1;
+                });
+            }
         });
 
         return {
             functions: functionCoverage,
             controls: controlCoverage,
-            totalIncidents: incidents.length,
+            summary: `Incidents cover ${Object.values(functionCoverage).filter(v => v > 0).length}/${NIST_FUNCTIONS.length} NIST functions`
         };
     }
 }

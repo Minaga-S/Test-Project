@@ -1,11 +1,10 @@
-/**
+﻿/**
  * Threat Classification Service
  */
 // NOTE: Service layer: contains core business logic used by controllers.
 
-
 const { analyzeThreatWithAI } = require('../config/ai-config');
-const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
+const nistThreatIntelService = require('./nistThreatIntelService');
 const logger = require('../utils/logger');
 
 // These keywords indicate the report may describe ransomware behavior.
@@ -23,17 +22,27 @@ const RANSOMWARE_SEVERE_INDICATORS = [
 
 class ThreatClassificationService {
     /**
-     * Classify threat based on description
+     * Classify threat based on description and security context
+     * Enhanced with live CVE data and NIST threat mapping
      */
     async classifyThreat(description, securityContext = null) {
         try {
+            // Extract CVE data from security context for threat analysis
+            const cveList = this.extractCVEsFromContext(securityContext);
+
+            // Get AI analysis with enhanced context
             const aiAnalysis = await analyzeThreatWithAI(description, securityContext);
-            const baseClassification = this.enrichThreatData(aiAnalysis);
+
+            // Classify threat using live threat intelligence
+            const threatIntelligence = await nistThreatIntelService.classifyThreatFromCVEs(cveList, description);
+
+            // Blend AI analysis with threat intelligence
+            const baseClassification = this.blendAnalysis(aiAnalysis, threatIntelligence, securityContext);
 
             // Guardrail: keep severe ransomware descriptions from being scored too low.
             const classification = this.applyRansomwareSeverityGuardrail(description, baseClassification);
 
-            logger.info(`Threat classified: ${classification.threatType}`);
+            logger.info(`Threat classified: ${classification.threatType} (source: ${classification.source || 'ai+intel'})`);
 
             return classification;
         } catch (error) {
@@ -43,31 +52,48 @@ class ThreatClassificationService {
     }
 
     /**
-     * Enrich threat data with knowledge base information
+     * Extract CVE data from security context
      */
-    enrichThreatData(aiAnalysis) {
-        const knowledgeEntry = THREAT_KNOWLEDGE_BASE.find(
-            (entry) => entry.threatType === aiAnalysis.threatType
-        );
+    extractCVEsFromContext(securityContext) {
+        if (!securityContext || !securityContext.cve || !Array.isArray(securityContext.cve.matches)) {
+            return [];
+        }
+
+        return securityContext.cve.matches.map(match => ({
+            id: match.cveId || match.id,
+            description: match.description || match.summary || '',
+            severity: match.severity || match.baseSeverity || 'UNKNOWN',
+            baseScore: match.baseScore || parseFloat(match.score) || 0,
+        }));
+    }
+
+    /**
+     * Blend AI analysis with threat intelligence
+     */
+    blendAnalysis(aiAnalysis, threatIntel, securityContext) {
+        const threatType = aiAnalysis.threatType || threatIntel.threatType || 'Unknown';
+        const nistMapping = nistThreatIntelService.getNISTMapping(threatType);
+        const threatCharacteristics = nistThreatIntelService.getThreatCharacteristics(threatType);
 
         return {
-            threatType: aiAnalysis.threatType || 'Unknown',
-            threatCategory: aiAnalysis.threatCategory || 'Other',
-            affectedAsset: aiAnalysis.affectedAsset || 'General',
-            confidence: aiAnalysis.confidence || 75,
-            likelihood: Math.max(1, Math.min(4, aiAnalysis.likelihood || 2)),
-            impact: Math.max(1, Math.min(4, aiAnalysis.impact || 2)),
-            nistFunctions: aiAnalysis.nistFunctions || [],
-            nistControls: aiAnalysis.nistControls || [],
+            threatType,
+            threatCategory: aiAnalysis.threatCategory || threatIntel.threatType, 
+            affectedAsset: aiAnalysis.affectedAsset || threatCharacteristics.assets?.[0] || 'General',
+            confidence: Math.max(aiAnalysis.confidence || 0, threatIntel.confidence || 0),
+            likelihood: Math.max(1, Math.min(4, aiAnalysis.likelihood || threatCharacteristics.likelihood || 2)),
+            impact: Math.max(1, Math.min(4, aiAnalysis.impact || threatCharacteristics.impact || 2)),
+            nistFunctions: aiAnalysis.nistFunctions || nistMapping.functions || [],
+            nistControls: aiAnalysis.nistControls || nistMapping.controls || [],
             mitigationSteps: aiAnalysis.mitigationSteps || [],
-            knowledgeBase: knowledgeEntry || null,
+            liveContextApplied: Boolean(securityContext?.cve?.matches?.length > 0),
+            discoveredServices: securityContext?.services || [],
+            cveCount: securityContext?.cve?.totalMatches || 0,
+            source: 'ai_with_threat_intel',
         };
     }
 
-    // Detect ransomware signals and how severe they are in the incident text.
     getRansomwareSignal(description) {
         const lowerDesc = String(description || '').toLowerCase();
-
         const hasRansomwareKeywords = RANSOMWARE_KEYWORDS.some((keyword) => lowerDesc.includes(keyword));
         const severeIndicatorCount = RANSOMWARE_SEVERE_INDICATORS
             .filter((indicator) => lowerDesc.includes(indicator))
@@ -80,7 +106,6 @@ class ThreatClassificationService {
         };
     }
 
-    // Enforce minimum scores for ransomware so AI underestimation does not hide real risk.
     applyRansomwareSeverityGuardrail(description, classification) {
         const signal = this.getRansomwareSignal(description);
         const normalizedThreatType = String(classification.threatType || '').toLowerCase();
@@ -111,12 +136,8 @@ class ThreatClassificationService {
         };
     }
 
-    /**
-     * Fallback classification if AI fails
-     */
     fallbackClassification(description) {
         logger.warn('Using fallback threat classification');
-
         const lowerDesc = String(description || '').toLowerCase();
 
         if (lowerDesc.includes('email') || lowerDesc.includes('link') || lowerDesc.includes('clicked')) {
@@ -126,6 +147,7 @@ class ThreatClassificationService {
                 confidence: 60,
                 likelihood: 3,
                 impact: 2,
+                source: 'fallback_keyword',
             };
         }
 
@@ -136,20 +158,19 @@ class ThreatClassificationService {
                 confidence: 60,
                 likelihood: 3,
                 impact: 3,
+                source: 'fallback_keyword',
             };
         }
 
         const ransomwareSignal = this.getRansomwareSignal(description);
-
         if (ransomwareSignal.hasRansomwareKeywords) {
-            const isCriticalRansomware = ransomwareSignal.isCriticalRansomware;
-
             return {
                 threatType: 'Ransomware',
                 threatCategory: 'Malicious Software',
-                confidence: isCriticalRansomware ? 85 : 75,
-                likelihood: isCriticalRansomware ? 4 : 3,
+                confidence: ransomwareSignal.isCriticalRansomware ? 85 : 75,
+                likelihood: ransomwareSignal.isCriticalRansomware ? 4 : 3,
                 impact: 4,
+                source: 'fallback_ransomware',
             };
         }
 
@@ -160,22 +181,20 @@ class ThreatClassificationService {
                 confidence: 50,
                 likelihood: 2,
                 impact: 3,
+                source: 'fallback_keyword',
             };
         }
 
-        // Safe default when no known attack pattern is detected.
         return {
             threatType: 'Unauthorized Access',
             threatCategory: 'Access Control',
             confidence: 50,
             likelihood: 2,
             impact: 2,
+            source: 'fallback_default',
         };
     }
 
-    /**
-     * Get threat confidence score
-     */
     getConfidenceLevel(confidence) {
         if (confidence >= 85) return 'Very High';
         if (confidence >= 70) return 'High';
@@ -183,13 +202,13 @@ class ThreatClassificationService {
         return 'Low';
     }
 
-    /**
-     * Validate threat type
-     */
+    getValidThreatTypes() {
+        return nistThreatIntelService.getAllThreatTypes();
+    }
+
     isValidThreatType(threatType) {
-        return THREAT_KNOWLEDGE_BASE.some((entry) => entry.threatType === threatType);
+        return this.getValidThreatTypes().includes(threatType);
     }
 }
 
 module.exports = new ThreatClassificationService();
-

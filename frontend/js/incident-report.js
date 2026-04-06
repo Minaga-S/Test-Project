@@ -93,16 +93,34 @@ function setStepState(stepId, state) {
         return;
     }
 
-    stepEl.style.opacity = state === 'pending' ? '0.55' : '1';
-    stepEl.style.fontWeight = state === 'active' ? '700' : '500';
+    const baseLabel = stepEl.dataset.stepLabel || stepEl.textContent.trim();
+    stepEl.dataset.stepLabel = baseLabel;
+
+    const stateEl = stepEl.querySelector('.analysis-step-state');
+    const labelEl = stepEl.querySelector('.analysis-step-label');
+
+    stepEl.classList.remove('is-pending', 'is-active', 'is-done');
+    stepEl.classList.add(`is-${state}`);
+
+    if (labelEl) {
+        labelEl.textContent = baseLabel;
+    }
+
+    if (!stateEl) {
+        return;
+    }
+
+    if (state === 'active') {
+        stateEl.innerHTML = '<span class="analysis-step-spinner" aria-hidden="true"></span><span class="analysis-step-status-text">Loading</span>';
+        return;
+    }
 
     if (state === 'done') {
-        if (!stepEl.textContent.trim().startsWith('✓')) {
-            stepEl.textContent = `✓ ${stepEl.textContent.replace(/^\d+\.\s*/, '')}`;
-        }
-    } else {
-        stepEl.textContent = stepEl.textContent.replace(/^✓\s*/, '');
+        stateEl.innerHTML = '<span class="analysis-step-check" aria-hidden="true">&#10003;</span><span class="analysis-step-status-text">Done</span>';
+        return;
     }
+
+    stateEl.innerHTML = '<span class="analysis-step-pending" aria-hidden="true">&bull;</span><span class="analysis-step-status-text">Waiting</span>';
 }
 
 function resetAnalysisSteps() {
@@ -119,15 +137,15 @@ function beginAnalysisProgress() {
 
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl) {
-        etaEl.textContent = 'Estimated completion: about 15-45 seconds depending on scan and AI response times.';
+        etaEl.textContent = 'Estimated completion: about 15-45 seconds depending on the asset scan, CVE lookup, and AI analysis.';
     }
 
     let currentProgress = 8;
-    updateAnalysisStatus('Preparing incident analysis workflow...', currentProgress);
+    updateAnalysisStatus('Preparing live scan, CVE enrichment, and AI threat analysis...', currentProgress);
 
     progressTimer = window.setInterval(() => {
         currentProgress = Math.min(currentProgress + Math.random() * 5, 90);
-        updateAnalysisStatus('Working through analysis steps...', currentProgress);
+        updateAnalysisStatus('Collecting scan results, CVEs, and threat signals...', currentProgress);
     }, 450);
 }
 
@@ -166,18 +184,18 @@ async function handleIncidentSubmit(e) {
         let clientSecurityContext = null;
 
         setStepState('step-scan', 'active');
-        updateAnalysisStatus('Running live scan (if enabled for selected asset)...', 20);
+        updateAnalysisStatus('Requesting security context and running an on-demand live scan when allowed...', 20);
         const securityResponse = await apiClient.getAssetSecurityContext(assetId);
         clientSecurityContext = securityResponse?.securityContext || null;
         updateAnalysisDataSources(clientSecurityContext);
         setStepState('step-scan', 'done');
 
         setStepState('step-cve', 'active');
-        updateAnalysisStatus('Checking vulnerability intelligence and CVE context...', 44);
+        updateAnalysisStatus('Querying NIST NVD for vulnerabilities tied to the discovered services and asset profile...', 44);
         setStepState('step-cve', 'done');
 
         setStepState('step-ai', 'active');
-        updateAnalysisStatus('Performing AI threat analysis and risk scoring...', 68);
+        updateAnalysisStatus('Passing the incident description, scan output, and CVE matches into AI for threat classification...', 68);
 
         const incidentData = {
             assetId,
@@ -193,11 +211,11 @@ async function handleIncidentSubmit(e) {
         setStepState('step-ai', 'done');
 
         setStepState('step-rec', 'active');
-        updateAnalysisStatus('Generating recommendations and NIST controls...', 90);
+        updateAnalysisStatus('Generating mitigation guidance and NIST control mapping...', 90);
         setStepState('step-rec', 'done');
 
         stopAnalysisProgress();
-        updateAnalysisStatus('Analysis complete', 100);
+        updateAnalysisStatus('Analysis complete. Threat intelligence and recommendations are ready.', 100);
 
         setTimeout(() => {
             hideModal('analysis-modal');
@@ -303,20 +321,20 @@ function updateAnalysisDataSources(securityContext) {
     const enrichment = securityContext?.enrichment || {};
 
     if (scanBadge) {
-        scanBadge.textContent = sources.scan || 'Simulated Scan';
+        scanBadge.textContent = sources.scan || 'Live scan pending';
     }
 
     if (cveBadge) {
-        cveBadge.textContent = sources.cve || 'NIST Pending';
+        cveBadge.textContent = sources.cve || 'CVE enrichment pending';
     }
 
     if (confidenceBadge) {
-        confidenceBadge.textContent = `Confidence: ${enrichment.confidence || securityContext?.cve?.confidence || 'Low'}`;
+        confidenceBadge.textContent = `Confidence: ${enrichment.confidence || securityContext?.cve?.confidence || 'Pending'}`;
     }
 
     if (enrichedMeta) {
         const enrichedAt = enrichment.lastEnrichedAt || securityContext?.cve?.retrievedAt;
-        const resolvedText = enrichedAt ? formatDateTime(enrichedAt) : 'Not available yet';
+        const resolvedText = enrichedAt ? formatDateTime(enrichedAt) : 'Pending';
         enrichedMeta.textContent = `Last enriched: ${resolvedText}`;
     }
 }

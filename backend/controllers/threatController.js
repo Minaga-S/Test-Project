@@ -1,18 +1,16 @@
-/**
+﻿/**
  * Threat Controller
  */
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
-
 const threatService = require('../services/threatClassificationService');
-const { THREAT_KNOWLEDGE_BASE, THREAT_TYPES } = require('../utils/constants');
+const nistThreatIntelService = require('../services/nistThreatIntelService');
 const Threat = require('../models/Threat');
-const ThreatKnowledgeBase = require('../models/ThreatKnowledgeBase');
 const logger = require('../utils/logger');
 
 class ThreatController {
     /**
-     * Analyze threat
+     * Analyze threat - AI-powered with live threat intelligence
      */
     async analyzeThreat(req, res, next) {
         try {
@@ -55,55 +53,17 @@ class ThreatController {
     }
 
     /**
-     * Get threat knowledge base
-     */
-    async getKnowledgeBase(req, res, next) {
-        try {
-            const storedKnowledge = await ThreatKnowledgeBase.find().sort({ threatType: 1 });
-            const knowledgeBase = storedKnowledge.length > 0 ? storedKnowledge : THREAT_KNOWLEDGE_BASE;
-
-            res.json({
-                success: true,
-                knowledgeBase,
-                count: knowledgeBase.length,
-            });
-
-        } catch (error) {
-            logger.error('Get knowledge base error:', error.message);
-            next(error);
-        }
-    }
-
-    /**
-     * Get threat categories
-     */
-    async getThreatCategories(req, res, next) {
-        try {
-            const storedKnowledge = await ThreatKnowledgeBase.find({}, { threatCategory: 1, _id: 0 });
-            const source = storedKnowledge.length > 0 ? storedKnowledge : THREAT_KNOWLEDGE_BASE;
-            const categories = [...new Set(source.map((t) => t.threatCategory))];
-
-            res.json({
-                success: true,
-                categories,
-                count: categories.length,
-            });
-
-        } catch (error) {
-            logger.error('Get categories error:', error.message);
-            next(error);
-        }
-    }
-
-    /**
-     * Get threat types
+     * Get threat types available in threat intelligence database
      */
     async getThreatTypes(req, res, next) {
         try {
+            const threatTypes = nistThreatIntelService.getAllThreatTypes();
+
             res.json({
                 success: true,
-                threatTypes: THREAT_TYPES,
-                count: THREAT_TYPES.length,
+                threatTypes,
+                count: threatTypes.length,
+                source: 'NIST Threat Intelligence',
             });
 
         } catch (error) {
@@ -113,25 +73,32 @@ class ThreatController {
     }
 
     /**
-     * Get threat details
+     * Get threat details with NIST mapping
      */
     async getThreatDetails(req, res, next) {
         try {
             const { threatType } = req.params;
 
-            const threatDetails = await ThreatKnowledgeBase.findOne({ threatType })
-                || THREAT_KNOWLEDGE_BASE.find((t) => t.threatType === threatType);
-
-            if (!threatDetails) {
+            const validTypes = nistThreatIntelService.getAllThreatTypes();
+            if (!validTypes.includes(threatType)) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Threat type not found',
+                    message: 'Threat type not found in threat intelligence database',
                 });
             }
 
+            const nistMapping = nistThreatIntelService.getNISTMapping(threatType);
+            const characteristics = nistThreatIntelService.getThreatCharacteristics(threatType);
+
             res.json({
                 success: true,
-                threat: threatDetails,
+                threat: {
+                    threatType,
+                    ...nistMapping,
+                    ...characteristics,
+                    source: 'NIST Threat Intelligence Database',
+                    description: `Threat profile for ${threatType} based on NIST threat intelligence and CVE analysis`,
+                },
             });
 
         } catch (error) {
