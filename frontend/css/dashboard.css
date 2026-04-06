@@ -1251,3 +1251,56 @@
 }
 
 
+
+/* Incident detail UX refinements */
+.detail-content {
+    padding-top: 0.5rem;
+}
+
+.cve-item {
+    border-left-color: #2f855a;
+    padding: 0;
+    overflow: hidden;
+}
+
+.cve-item summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.95rem 1rem;
+    background: #f8fbff;
+}
+
+.cve-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.cve-item summary::after {
+    content: 'Show details';
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #2f855a;
+}
+
+.cve-item[open] summary::after {
+    content: 'Hide details';
+}
+
+.cve-summary-id {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.cve-summary-meta {
+    font-size: 0.82rem;
+    color: #4b5563;
+}
+
+.cve-item p {
+    margin: 0;
+    padding: 0.85rem 1rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    line-height: 1.5;
+}

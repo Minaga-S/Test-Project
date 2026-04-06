@@ -153,7 +153,7 @@
     <!-- Analysis Progress Modal -->
     <div id="analysis-modal" class="modal" style="display: none;">
         <div class="modal-overlay"></div>
-        <div class="modal-content modal-content-small">
+        <div class="modal-content modal-content-small analysis-modal-content">
             <div class="modal-header">
                 <h2>Analyzing Your Report...</h2>
             </div>
@@ -164,6 +164,12 @@
                     <div class="progress-fill" id="progress-fill"></div>
                 </div>
                 <p id="analysis-eta" class="small">Estimated completion: about 15-45 seconds depending on scan and AI response times.</p>
+                <div id="analysis-data-sources" class="analysis-data-sources" aria-live="polite">
+                    <span id="badge-scan-source" class="live-badge">Simulated Scan</span>
+                    <span id="badge-cve-source" class="live-badge">NIST Pending</span>
+                    <span id="badge-enrichment-confidence" class="live-badge">Confidence: Low</span>
+                </div>
+                <p id="enriched-meta" class="small">Last enriched: Not available yet</p>
                 <ul id="analysis-steps" class="examples-list">
                     <li id="step-scan">1. Running live scan (if enabled for the selected asset)</li>
                     <li id="step-cve">2. Checking CVE intelligence from known vulnerability data</li>
