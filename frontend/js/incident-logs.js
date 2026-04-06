@@ -136,6 +136,20 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function renderRecommendationWithNistTag(recommendationText) {
+    const normalizedText = String(recommendationText || '').trim();
+    const tagMatch = normalizedText.match(/^\[([^\]]+)\]\s*(.*)$/);
+
+    if (!tagMatch) {
+        return `<div class="recommendation-item"><p class="recommendation-body">${escapeHtml(normalizedText)}</p></div>`;
+    }
+
+    const nistLabel = tagMatch[1].trim();
+    const message = (tagMatch[2] || '').trim();
+
+    return `<div class="recommendation-item"><div class="recommendation-label-row"><span class="nist-tag">${escapeHtml(nistLabel)}</span></div><p class="recommendation-body">${escapeHtml(message)}</p></div>`;
+}
+
 function getIncidentCveMatches(incident) {
     if (Array.isArray(incident?.cveMatches) && incident.cveMatches.length > 0) {
         return incident.cveMatches;
@@ -148,6 +162,50 @@ function getIncidentCveMatches(incident) {
     return [];
 }
 
+const CVE_SEVERITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
+
+function normalizeCveSeverity(entry) {
+    const rawSeverity = String(entry?.severity || '').trim().toUpperCase();
+    if (CVE_SEVERITY_ORDER.includes(rawSeverity)) {
+        return rawSeverity;
+    }
+
+    const score = Number(entry?.cvssScore);
+    if (!Number.isFinite(score)) {
+        return 'UNKNOWN';
+    }
+
+    if (score >= 9.0) {
+        return 'CRITICAL';
+    }
+
+    if (score >= 7.0) {
+        return 'HIGH';
+    }
+
+    if (score >= 4.0) {
+        return 'MEDIUM';
+    }
+
+    return 'LOW';
+}
+
+function buildCveCategories(cveMatches) {
+    const grouped = cveMatches.reduce((accumulator, entry) => {
+        const severity = normalizeCveSeverity(entry);
+        if (!accumulator[severity]) {
+            accumulator[severity] = [];
+        }
+
+        accumulator[severity].push(entry);
+        return accumulator;
+    }, {});
+
+    return CVE_SEVERITY_ORDER
+        .map((severity) => ({ severity, entries: grouped[severity] || [] }))
+        .filter((group) => group.entries.length > 0);
+}
+
 function renderIncidentCveDetails(incident) {
     const securityContext = incident?.securityContext || {};
     const enrichment = securityContext?.enrichment || {};
@@ -158,7 +216,6 @@ function renderIncidentCveDetails(incident) {
     const confidenceEl = document.getElementById('detail-enrichment-confidence');
     const enrichedAtEl = document.getElementById('detail-enriched-at');
     const countEl = document.getElementById('detail-cve-count');
-    const summaryCountEl = document.getElementById('detail-cve-summary-count');
     const cvePanel = document.getElementById('detail-cve-panel');
     const listEl = document.getElementById('detail-cve-list');
 
@@ -179,12 +236,8 @@ function renderIncidentCveDetails(incident) {
         countEl.textContent = String(cveMatches.length);
     }
 
-    if (summaryCountEl) {
-        summaryCountEl.textContent = `${cveMatches.length} ${cveMatches.length === 1 ? 'CVE' : 'CVEs'}`;
-    }
-
     if (cvePanel) {
-        cvePanel.open = cveMatches.length > 0 && cveMatches.length <= 5;
+        cvePanel.open = false;
     }
 
     if (!listEl) {
@@ -196,14 +249,21 @@ function renderIncidentCveDetails(incident) {
         return;
     }
 
-    listEl.innerHTML = cveMatches.map((entry) => {
-        const cveId = entry.cveId || entry.id || 'Unknown CVE';
-        const severity = entry.severity || 'UNKNOWN';
-        const score = entry.cvssScore !== undefined && entry.cvssScore !== null ? entry.cvssScore : 'N/A';
-        const published = entry.published ? formatDate(entry.published) : 'N/A';
-        const description = entry.description || entry.title || 'No additional description available.';
+    const categorizedMatches = buildCveCategories(cveMatches);
 
-        return `<details class="recommendation-item cve-item"><summary><span class="cve-summary-id">${escapeHtml(cveId)}</span><span class="cve-summary-meta">Severity: ${escapeHtml(severity)} | CVSS: ${escapeHtml(score)} | Published: ${escapeHtml(published)}</span></summary><p>${escapeHtml(description)}</p></details>`;
+    listEl.innerHTML = categorizedMatches.map((group) => {
+        const severityClass = group.severity.toLowerCase();
+        const cveItems = group.entries.map((entry) => {
+            const cveId = entry.cveId || entry.id || 'Unknown CVE';
+            const normalizedSeverity = normalizeCveSeverity(entry);
+            const score = entry.cvssScore !== undefined && entry.cvssScore !== null ? entry.cvssScore : 'N/A';
+            const published = entry.published ? formatDate(entry.published) : 'N/A';
+            const description = entry.description || entry.title || 'No additional description available.';
+
+            return `<details class="recommendation-item cve-item"><summary><span class="cve-summary-id">${escapeHtml(cveId)}</span><span class="cve-summary-meta">Severity: ${escapeHtml(normalizedSeverity)} | CVSS: ${escapeHtml(score)} | Published: ${escapeHtml(published)}</span></summary><p>${escapeHtml(description)}</p></details>`;
+        }).join('');
+
+        return `<details class="cve-category cve-category-${severityClass}"><summary><span class="cve-category-header-main"><span class="cve-category-title">${escapeHtml(group.severity)}</span><span class="cve-category-count">${group.entries.length} ${group.entries.length === 1 ? 'CVE' : 'CVEs'}</span><span class="cve-category-toggle" aria-hidden="true"></span></span></summary><div class="cve-category-items">${cveItems}</div></details>`;
     }).join('');
 }
 
@@ -496,7 +556,7 @@ function displayIncidentDetails(incident) {
 
     const recommendationsEl = document.getElementById('detail-recommendations');
     recommendationsEl.innerHTML = (incident.recommendations || [])
-        .map((rec) => `<div class="recommendation-item">${rec}</div>`)
+        .map((rec) => renderRecommendationWithNistTag(rec))
         .join('');
 
     renderIncidentCveDetails(incident);
