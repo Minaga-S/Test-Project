@@ -54,6 +54,33 @@ class IncidentController {
             const securityContext = assetSecurityContextService.buildForAsset(asset, latestScanHistory);
             if (clientSecurityContext && typeof clientSecurityContext === 'object') {
                 securityContext.clientReported = clientSecurityContext;
+
+                const existingCveMatches = Array.isArray(securityContext?.cve?.matches)
+                    ? securityContext.cve.matches
+                    : [];
+                const clientCveMatches = Array.isArray(clientSecurityContext?.cve?.matches)
+                    ? clientSecurityContext.cve.matches
+                    : [];
+
+                if (existingCveMatches.length === 0 && clientCveMatches.length > 0) {
+                    securityContext.cve = {
+                        ...(securityContext.cve || {}),
+                        ...(clientSecurityContext.cve || {}),
+                        matches: clientCveMatches,
+                        totalMatches: clientCveMatches.length,
+                    };
+
+                    if (clientSecurityContext.enrichment && typeof clientSecurityContext.enrichment === 'object') {
+                        securityContext.enrichment = {
+                            ...(securityContext.enrichment || {}),
+                            ...clientSecurityContext.enrichment,
+                        };
+                    }
+
+                    if (securityContext.dataSources && typeof securityContext.dataSources === 'object') {
+                        securityContext.dataSources.cve = 'NIST Enriched';
+                    }
+                }
             }
 
             const threatAnalysis = await threatService.classifyThreat(description, securityContext);

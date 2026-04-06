@@ -78,6 +78,32 @@ describe('validateAsset', () => {
         expect(result.errors.scanFrequency).toBe('Scan frequency is invalid');
     });
 
+    it('should fail when vulnerability vendor contains illegal characters', () => {
+        const result = validateAsset({
+            assetName: 'Core Server',
+            assetType: 'Server',
+            criticality: 'High',
+            vulnerabilityProfile: {
+                vendor: 'Apache<script>',
+            },
+        });
+
+        expect(result.errors.vendor).toBe('Vendor contains invalid characters');
+    });
+
+    it('should fail when CPE URI format is invalid', () => {
+        const result = validateAsset({
+            assetName: 'Core Server',
+            assetType: 'Server',
+            criticality: 'High',
+            vulnerabilityProfile: {
+                cpeUri: 'invalid-cpe-format',
+            },
+        });
+
+        expect(result.errors.cpeUri).toBe('CPE URI must use cpe:2.3 format');
+    });
+
     it('should pass for valid live scan details', () => {
         const result = validateAsset({
             assetName: 'Core Server',
@@ -88,6 +114,12 @@ describe('validateAsset', () => {
                 target: '10.0.0.12',
                 ports: '22,80,443',
                 frequency: 'Daily',
+            },
+            vulnerabilityProfile: {
+                cpeUri: 'cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*',
+                vendor: 'Apache',
+                product: 'Log4j',
+                productVersion: '2.14.1',
             },
         });
 

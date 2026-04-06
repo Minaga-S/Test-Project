@@ -7,6 +7,9 @@ const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
 const HOSTNAME_PATTERN = /^[a-zA-Z0-9.-]+$/;
 const IPV4_PATTERN = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
 const PORT_LIST_PATTERN = /^$|^\d{1,5}(,\d{1,5})*$/;
+const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 ._\-/]{0,80}$/;
+const PROFILE_VERSION_PATTERN = /^[a-zA-Z0-9 ._\-]{0,40}$/;
+const CPE_URI_PATTERN = /^$|^cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}$/i;
 
 function validateEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,6 +35,32 @@ function isValidScanTarget(value) {
 
     const normalizedValue = value.trim();
     return IPV4_PATTERN.test(normalizedValue) || HOSTNAME_PATTERN.test(normalizedValue);
+}
+
+function validateVulnerabilityProfile(profile = {}) {
+    const errors = {};
+
+    if (isNonEmptyString(profile.osName) && !PROFILE_TEXT_PATTERN.test(profile.osName.trim())) {
+        errors.osName = 'OS name contains invalid characters';
+    }
+
+    if (isNonEmptyString(profile.vendor) && !PROFILE_TEXT_PATTERN.test(profile.vendor.trim())) {
+        errors.vendor = 'Vendor contains invalid characters';
+    }
+
+    if (isNonEmptyString(profile.product) && !PROFILE_TEXT_PATTERN.test(profile.product.trim())) {
+        errors.product = 'Product contains invalid characters';
+    }
+
+    if (isNonEmptyString(profile.productVersion) && !PROFILE_VERSION_PATTERN.test(profile.productVersion.trim())) {
+        errors.productVersion = 'Product version contains invalid characters';
+    }
+
+    if (isNonEmptyString(profile.cpeUri) && !CPE_URI_PATTERN.test(profile.cpeUri.trim())) {
+        errors.cpeUri = 'CPE URI must use cpe:2.3 format';
+    }
+
+    return errors;
 }
 
 function validateAsset(assetData) {
@@ -67,6 +96,9 @@ function validateAsset(assetData) {
         errors.scanFrequency = 'Scan frequency is invalid';
     }
 
+    const vulnerabilityErrors = validateVulnerabilityProfile(assetData.vulnerabilityProfile || {});
+    Object.assign(errors, vulnerabilityErrors);
+
     return {
         isValid: Object.keys(errors).length === 0,
         errors,
@@ -95,4 +127,5 @@ module.exports = {
     validatePassword,
     validateAsset,
     validateIncident,
+    validateVulnerabilityProfile,
 };
