@@ -11,6 +11,7 @@ const recommendationService = require('../services/recommendationService');
 const nistService = require('../services/nistMappingService');
 const assetSecurityContextService = require('../services/assetSecurityContextService');
 const scanHistoryService = require('../services/scanHistoryService');
+const nmapScanService = require('../services/nmapScanService');
 const auditLogService = require('../services/auditLogService');
 const { validateIncident } = require('../utils/validators');
 const { generateIncidentId } = require('../utils/constants');
@@ -50,6 +51,24 @@ class IncidentController {
                 });
             }
 
+            const liveScanTarget = String(asset?.liveScan?.target || '').trim();
+            if (liveScanTarget) {
+                if (!nmapScanService.isAllowedScanTarget(liveScanTarget)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Scan target must be internal/private. External targets are not allowed.',
+                    });
+                }
+
+                try {
+                    nmapScanService.assertTargetWithinRequesterNetwork(liveScanTarget, req.ip || '');
+                } catch (scopeError) {
+                    return res.status(400).json({
+                        success: false,
+                        message: scopeError.message,
+                    });
+                }
+            }
             const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
             const securityContext = assetSecurityContextService.buildForAsset(asset, latestScanHistory);
             if (clientSecurityContext && typeof clientSecurityContext === 'object') {

@@ -9,6 +9,135 @@ let selectedAssetIds = new Set();
 let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 
+function isIpv4Address(value) {
+    return /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/.test(String(value || '').trim());
+}
+
+function isPrivateIpv4Address(value) {
+    const parts = String(value || '').trim().split('.').map(Number);
+    if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+        return false;
+    }
+
+    const first = parts[0];
+    const second = parts[1];
+
+    if (first === 10) return true;
+    if (first === 127) return true;
+    if (first === 169 && second === 254) return true;
+    if (first === 172 && second >= 16 && second <= 31) return true;
+    if (first === 192 && second === 168) return true;
+    if (first === 100 && second >= 64 && second <= 127) return true;
+    return false;
+}
+
+function isLocalScanHostname(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'localhost'
+        || normalized.endsWith('.local')
+        || normalized.endsWith('.internal')
+        || normalized.endsWith('.lan');
+}
+
+function isAllowedLiveScanTarget(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized) {
+        return false;
+    }
+
+    if (isIpv4Address(normalized)) {
+        return isPrivateIpv4Address(normalized);
+    }
+
+    return isLocalScanHostname(normalized);
+}
+
+function setScanDetailsVisibility(isVisible) {
+    const panel = document.getElementById('asset-edit-scan-panel');
+    if (panel) {
+        panel.style.display = isVisible ? 'block' : 'none';
+    }
+}
+
+function setAssetModalMode(isEditMode) {
+    setScanDetailsVisibility(isEditMode);
+}
+
+function applyScanPreviewToForm(previewPayload = {}) {
+    const inferredProfile = previewPayload?.inferredProfile || {};
+    const cveQuery = previewPayload?.cveResult?.query || {};
+
+    document.getElementById('asset-live-scan-enabled').checked = true;
+
+    if (!document.getElementById('asset-os-name').value) {
+        document.getElementById('asset-os-name').value = inferredProfile.osName || '';
+    }
+
+    if (!document.getElementById('asset-vendor').value) {
+        document.getElementById('asset-vendor').value = inferredProfile.vendor || '';
+    }
+
+    if (!document.getElementById('asset-product').value) {
+        document.getElementById('asset-product').value = inferredProfile.product || '';
+    }
+
+    if (!document.getElementById('asset-product-version').value) {
+        document.getElementById('asset-product-version').value = inferredProfile.productVersion || '';
+    }
+
+    if (!document.getElementById('asset-cpe-uri').value) {
+        document.getElementById('asset-cpe-uri').value = inferredProfile.cpeUri || cveQuery.cpeUri || '';
+    }
+}
+
+function buildScanPreviewPayload() {
+    return {
+        assetName: String(document.getElementById('asset-name').value || '').trim(),
+        assetType: String(document.getElementById('asset-type').value || '').trim(),
+        liveScan: {
+            enabled: true,
+            target: String(document.getElementById('asset-scan-target').value || '').trim(),
+            ports: String(document.getElementById('asset-scan-ports').value || '').trim(),
+            frequency: String(document.getElementById('asset-scan-frequency').value || DEFAULT_SCAN_FREQUENCY),
+        },
+        vulnerabilityProfile: {
+            osName: String(document.getElementById('asset-os-name').value || '').trim(),
+            vendor: String(document.getElementById('asset-vendor').value || '').trim(),
+            product: String(document.getElementById('asset-product').value || '').trim(),
+            productVersion: String(document.getElementById('asset-product-version').value || '').trim(),
+            cpeUri: String(document.getElementById('asset-cpe-uri').value || '').trim(),
+        },
+    };
+}
+
+async function runLiveScanPreview() {
+    setScanDetailsVisibility(true);
+
+    const payload = buildScanPreviewPayload();
+    if (!payload.liveScan.target) {
+        showNotification('Scan target is required before running live scan', 'warning');
+        return;
+    }
+
+    if (!isAllowedLiveScanTarget(payload.liveScan.target)) {
+        showNotification('Only private/local network scan targets are allowed', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const response = await apiClient.previewAssetScan(payload);
+        const preview = response?.preview || response;
+        applyScanPreviewToForm(preview);
+        showNotification('Live scan completed. Detected data has been auto-filled.', 'success');
+    } catch (error) {
+        console.error('Live scan preview error:', error);
+        showNotification('Live scan failed. You can still enter details manually.', 'warning');
+    } finally {
+        showLoading(false);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeAssets();
 });
@@ -23,11 +152,6 @@ async function initializeAssets() {
     setupLogoutButton();
     setupEventListeners();
     await loadAssets();
-
-    const query = new URLSearchParams(window.location.search);
-    if (query.get('scan') === '1') {
-        showNotification('Select assets from the table and click Scan Assets to start a live scan.', 'info');
-    }
 }
 
 function setupEventListeners() {
@@ -36,9 +160,19 @@ function setupEventListeners() {
         addBtn.addEventListener('click', openAssetModal);
     }
 
-    const scanAssetsBtn = document.getElementById('scan-assets-btn');
-    if (scanAssetsBtn) {
-        scanAssetsBtn.addEventListener('click', handleScanSelectedAssets);
+    const runLiveScanBtn = document.getElementById('asset-run-live-scan-btn');
+    if (runLiveScanBtn) {
+        runLiveScanBtn.addEventListener('click', runLiveScanPreview);
+    }
+
+
+
+    const enterManualBtn = document.getElementById('asset-enter-manual-btn');
+    if (enterManualBtn) {
+        enterManualBtn.addEventListener('click', () => {
+            setScanDetailsVisibility(true);
+            showNotification('You can now enter scan and software details manually.', 'info');
+        });
     }
 
     const selectAllAssetsBtn = document.getElementById('select-all-assets-btn');
@@ -195,26 +329,6 @@ function handleSelectAllAssetsClick() {
     updateSelectionState();
 }
 
-async function handleScanSelectedAssets() {
-    if (selectedAssetIds.size === 0) {
-        showNotification('Select at least one asset to scan', 'warning');
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const assetIds = Array.from(selectedAssetIds);
-        const scanResponse = await apiClient.scanAssets(assetIds);
-        const scannedCount = scanResponse?.scannedCount || assetIds.length;
-        showNotification(`Live scan request completed for ${scannedCount} assets`, 'success');
-    } catch (error) {
-        console.error('Error scanning assets:', error);
-        showNotification('Failed to run live scan', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
 async function handleBulkDeleteAssets() {
     if (selectedAssetIds.size === 0) {
         showNotification('Select at least one asset to delete', 'warning');
@@ -233,8 +347,8 @@ function filterAssets() {
     const statusFilter = document.getElementById('filter-status').value;
 
     const filtered = assets.filter((asset) => {
-        const matchesSearch = asset.assetName.toLowerCase().includes(searchQuery) ||
-            asset.description?.toLowerCase().includes(searchQuery);
+        const matchesSearch = asset.assetName.toLowerCase().includes(searchQuery)
+            || asset.description?.toLowerCase().includes(searchQuery);
         const matchesType = !typeFilter || asset.assetType === typeFilter;
         const matchesStatus = !statusFilter || asset.status === statusFilter;
 
@@ -248,6 +362,7 @@ function openAssetModal() {
     currentEditingAssetId = null;
     document.getElementById('modal-title').textContent = 'Add New Asset';
     document.getElementById('asset-form').reset();
+    setAssetModalMode(false);
     showModal('asset-modal');
 }
 
@@ -255,6 +370,7 @@ function closeAssetModal() {
     hideModal('asset-modal');
     document.getElementById('asset-form').reset();
     currentEditingAssetId = null;
+    setAssetModalMode(false);
 }
 
 async function editAsset(assetId) {
@@ -286,6 +402,7 @@ async function editAsset(assetId) {
         document.getElementById('asset-product-version').value = vulnerabilityProfile.productVersion || '';
         document.getElementById('asset-cpe-uri').value = vulnerabilityProfile.cpeUri || '';
 
+            setAssetModalMode(true);
         showModal('asset-modal');
     } catch (error) {
         console.error('Error loading asset:', error);
@@ -325,6 +442,11 @@ async function handleAssetFormSubmit(e) {
         return;
     }
 
+    if (payload.liveScan.target && !isAllowedLiveScanTarget(payload.liveScan.target)) {
+        showNotification('Only private/local network scan targets are allowed', 'error');
+        return;
+    }
+
     showLoading(true);
 
     try {
@@ -340,7 +462,8 @@ async function handleAssetFormSubmit(e) {
         await loadAssets();
     } catch (error) {
         console.error('Error saving asset:', error);
-        showNotification('Error saving asset', 'error');
+        const errorMessage = String(error?.message || '').trim();
+        showNotification(errorMessage || 'Error saving asset', 'error');
     } finally {
         showLoading(false);
     }

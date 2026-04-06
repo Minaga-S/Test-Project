@@ -1,9 +1,10 @@
-/**
+﻿/**
  * Scan History Service
  */
 // NOTE: Orchestrates real scan execution and provider-based CVE enrichment.
 
 const ScanHistory = require('../models/ScanHistory');
+const Asset = require('../models/Asset');
 const assetSecurityContextService = require('./assetSecurityContextService');
 const cveEnrichmentService = require('./cveEnrichmentService');
 const nmapScanService = require('./nmapScanService');
@@ -84,10 +85,109 @@ function shouldFallbackToEnrichment(error) {
     return message.includes('nmap is not installed') || message.includes('nmap scan failed');
 }
 
+function inferVendorFromServices(serviceNames = []) {
+    const normalized = serviceNames.map((item) => String(item || '').toLowerCase());
+
+    if (normalized.some((service) => service.includes('microsoft'))) {
+        return 'Microsoft';
+    }
+
+    if (normalized.some((service) => service.includes('ssh'))) {
+        return 'OpenSSH';
+    }
+
+    if (normalized.some((service) => service.includes('http'))) {
+        return 'Web Service';
+    }
+
+    return '';
+}
+
+function isMeaningfulHostName(hostName, target) {
+    const normalizedHostName = String(hostName || '').trim().toLowerCase();
+    const normalizedTarget = String(target || '').trim().toLowerCase();
+
+    if (!normalizedHostName || normalizedHostName === 'unknown') {
+        return false;
+    }
+
+    if (normalizedHostName === normalizedTarget) {
+        return false;
+    }
+
+    const ipv4Pattern = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
+    return !ipv4Pattern.test(normalizedHostName);
+}
+function inferProfileUpdates(asset, scanResult) {
+    const existingProfile = asset?.vulnerabilityProfile || {};
+    const currentOsName = String(existingProfile.osName || '').trim();
+    const currentVendor = String(existingProfile.vendor || '').trim();
+    const currentProduct = String(existingProfile.product || '').trim();
+
+    const detectedServices = Array.isArray(scanResult?.services)
+        ? scanResult.services
+            .map((service) => String(service?.service || '').trim())
+            .filter(Boolean)
+        : [];
+    const uniqueServices = [...new Set(detectedServices)];
+
+    const nextProfile = {
+        ...existingProfile,
+        osName: currentOsName,
+        vendor: currentVendor,
+        product: currentProduct,
+    };
+
+    if (!nextProfile.osName) {
+        const detectedHostName = String(scanResult?.hostState?.hostName || '').trim();
+        const scanTarget = String(scanResult?.target || '').trim();
+        if (isMeaningfulHostName(detectedHostName, scanTarget)) {
+            nextProfile.osName = detectedHostName;
+        }
+    }
+
+    if (!nextProfile.product && uniqueServices.length > 0) {
+        nextProfile.product = uniqueServices.slice(0, 3).join(', ');
+    }
+
+    if (!nextProfile.vendor) {
+        nextProfile.vendor = inferVendorFromServices(uniqueServices);
+    }
+
+    const hasChanges = nextProfile.osName !== currentOsName
+        || nextProfile.vendor !== currentVendor
+        || nextProfile.product !== currentProduct;
+
+    return {
+        hasChanges,
+        nextProfile,
+    };
+}
+
+async function persistInferredProfile(asset, userId, scanResult) {
+    const inferred = inferProfileUpdates(asset, scanResult);
+    if (!inferred.hasChanges) {
+        return;
+    }
+
+    await Asset.updateOne(
+        { _id: asset._id, userId },
+        {
+            $set: {
+                vulnerabilityProfile: inferred.nextProfile,
+                updatedAt: new Date(),
+            },
+        }
+    );
+
+    asset.vulnerabilityProfile = inferred.nextProfile;
+}
+
 class ScanHistoryService {
     async runAssetScan(asset, userId, requestMeta = {}) {
         const target = String(asset?.liveScan?.target || '').trim();
         const requestedPortsText = String(asset?.liveScan?.ports || '').trim();
+        const requesterIp = requestMeta.ipAddress || '';
         const startedAt = new Date();
         const canRunNmap = shouldRunNmap(asset, target);
         let scanResult = buildEmptyScanResult(asset, target);
@@ -95,7 +195,7 @@ class ScanHistoryService {
 
         if (canRunNmap) {
             try {
-                scanResult = await nmapScanService.runScan({ target, ports: requestedPortsText });
+                scanResult = await nmapScanService.runScan({ target, ports: requestedPortsText, requestIp: requesterIp });
             } catch (error) {
                 if (!shouldFallbackToEnrichment(error)) {
                     throw error;
@@ -111,11 +211,15 @@ class ScanHistoryService {
             {
                 userId,
                 assetId: String(asset?._id || ''),
-                ipAddress: requestMeta.ipAddress || '',
+                ipAddress: requesterIp,
             }
         );
 
         const ranLiveScan = canRunNmap && !scanError;
+        if (ranLiveScan) {
+            await persistInferredProfile(asset, userId, scanResult);
+        }
+
         const securityContext = ranLiveScan
             ? assetSecurityContextService.buildFromScanResult(asset, scanResult, cveResult)
             : assetSecurityContextService.buildFallbackContext(asset, buildScanStatusReason(asset, target, scanError), cveResult);
@@ -147,18 +251,23 @@ class ScanHistoryService {
 
     async buildOnDemandSecurityContext(asset, userId, requestMeta = {}) {
         const target = String(asset?.liveScan?.target || '').trim();
+        const requesterIp = requestMeta.ipAddress || '';
         const canRunNmap = shouldRunNmap(asset, target);
 
         if (canRunNmap) {
             try {
-                const scanResult = await nmapScanService.runScan({ target, ports: asset?.liveScan?.ports || '' });
+                const scanResult = await nmapScanService.runScan({
+                    target,
+                    ports: asset?.liveScan?.ports || '',
+                    requestIp: requesterIp,
+                });
                 const cveResult = await cveEnrichmentService.enrichForAsset(
                     buildCveProfile(asset, scanResult),
                     target,
                     {
                         userId,
                         assetId: String(asset?._id || ''),
-                        ipAddress: requestMeta.ipAddress || '',
+                        ipAddress: requesterIp,
                     }
                 );
 
@@ -178,7 +287,7 @@ class ScanHistoryService {
                     {
                         userId,
                         assetId: String(asset?._id || ''),
-                        ipAddress: requestMeta.ipAddress || '',
+                        ipAddress: requesterIp,
                     }
                 );
 
@@ -196,7 +305,7 @@ class ScanHistoryService {
             {
                 userId,
                 assetId: String(asset?._id || ''),
-                ipAddress: requestMeta.ipAddress || '',
+                ipAddress: requesterIp,
             }
         );
 
@@ -207,6 +316,61 @@ class ScanHistoryService {
         );
     }
 
+    async runPreviewScan(assetDraft = {}, userId, requestMeta = {}) {
+        const target = String(assetDraft?.liveScan?.target || '').trim();
+        const requestedPortsText = String(assetDraft?.liveScan?.ports || '').trim();
+        const requesterIp = requestMeta.ipAddress || '';
+
+        if (!target) {
+            throw new Error('Scan target is required for preview');
+        }
+
+        if (!nmapScanService.isAllowedScanTarget(target)) {
+            throw new Error('Nmap scans are restricted to localhost and private-network targets');
+        }
+
+        nmapScanService.assertTargetWithinRequesterNetwork(target, requesterIp);
+
+        const scanResult = await nmapScanService.runScan({
+            target,
+            ports: requestedPortsText,
+            requestIp: requesterIp,
+        });
+
+        const cveResult = await cveEnrichmentService.enrichForAsset(
+            buildCveProfile(assetDraft, scanResult),
+            target,
+            {
+                userId,
+                assetId: String(assetDraft?._id || ''),
+                ipAddress: requesterIp,
+            }
+        );
+
+        const inferred = inferProfileUpdates(assetDraft, scanResult);
+        const enrichedAssetDraft = {
+            ...assetDraft,
+            vulnerabilityProfile: inferred.nextProfile,
+        };
+
+        const securityContext = assetSecurityContextService.buildFromScanResult(
+            enrichedAssetDraft,
+            scanResult,
+            cveResult,
+            {
+                _id: '',
+                status: 'Completed',
+                completedAt: new Date().toISOString(),
+            }
+        );
+
+        return {
+            scanResult,
+            cveResult,
+            inferredProfile: inferred.nextProfile,
+            securityContext,
+        };
+    }
     async getLatestScanHistory(assetId, userId) {
         return ScanHistory.findOne({ assetId, userId }).sort({ createdAt: -1 });
     }

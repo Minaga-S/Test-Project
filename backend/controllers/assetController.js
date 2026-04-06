@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const auditLogService = require('../services/auditLogService');
 const assetSecurityContextService = require('../services/assetSecurityContextService');
 const scanHistoryService = require('../services/scanHistoryService');
+const nmapScanService = require('../services/nmapScanService');
 
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 
@@ -32,6 +33,24 @@ function sanitizeVulnerabilityProfileInput(profileInput = {}) {
     };
 }
 
+function getLiveScanScopeError(liveScanInput = {}, requestIp = '') {
+    const liveScan = sanitizeLiveScanInput(liveScanInput);
+    if (!liveScan.target) {
+        return '';
+    }
+
+    if (!nmapScanService.isAllowedScanTarget(liveScan.target)) {
+        return 'Live scan target must be localhost or a private-network address';
+    }
+
+    try {
+        nmapScanService.assertTargetWithinRequesterNetwork(liveScan.target, requestIp);
+        return '';
+    } catch (error) {
+        return error.message;
+    }
+}
+
 class AssetController {
     async createAsset(req, res, next) {
         try {
@@ -41,6 +60,14 @@ class AssetController {
                     success: false,
                     message: 'Validation failed',
                     errors: validation.errors,
+                });
+            }
+
+            const createScopeError = getLiveScanScopeError(req.body.liveScan, req.ip);
+            if (createScopeError) {
+                return res.status(400).json({
+                    success: false,
+                    message: createScopeError,
                 });
             }
 
@@ -145,6 +172,14 @@ class AssetController {
                     success: false,
                     message: 'Validation failed',
                     errors: validation.errors,
+                });
+            }
+
+            const updateScopeError = getLiveScanScopeError(req.body.liveScan !== undefined ? req.body.liveScan : asset.liveScan, req.ip);
+            if (updateScopeError) {
+                return res.status(400).json({
+                    success: false,
+                    message: updateScopeError,
                 });
             }
 
@@ -291,6 +326,13 @@ class AssetController {
                 });
             }
 
+            const securityContextScopeError = getLiveScanScopeError(asset.liveScan, req.ip);
+            if (securityContextScopeError) {
+                return res.status(400).json({
+                    success: false,
+                    message: securityContextScopeError,
+                });
+            }
             const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
             const securityContext = latestScanHistory
                 ? assetSecurityContextService.buildForAsset(asset, latestScanHistory)
@@ -332,6 +374,46 @@ class AssetController {
         }
     }
 
+    async scanAssetPreview(req, res, next) {
+        try {
+            const liveScan = sanitizeLiveScanInput(req.body.liveScan);
+            const vulnerabilityProfile = sanitizeVulnerabilityProfileInput(req.body.vulnerabilityProfile);
+
+            const scopeError = getLiveScanScopeError(liveScan, req.ip);
+            if (scopeError) {
+                return res.status(400).json({
+                    success: false,
+                    message: scopeError,
+                });
+            }
+
+            const assetDraft = {
+                _id: '',
+                assetName: req.body.assetName || 'Asset Draft',
+                assetType: req.body.assetType || 'Other',
+                liveScan: {
+                    enabled: true,
+                    target: liveScan.target,
+                    ports: liveScan.ports,
+                    frequency: liveScan.frequency || DEFAULT_SCAN_FREQUENCY,
+                },
+                vulnerabilityProfile,
+            };
+
+            const preview = await scanHistoryService.runPreviewScan(assetDraft, req.user.userId, {
+                ipAddress: req.ip || '',
+            });
+
+            return res.json({
+                success: true,
+                message: 'Live scan preview completed',
+                preview,
+            });
+        } catch (error) {
+            logger.error(`Scan preview error: ${error.message}`);
+            return next(error);
+        }
+    }
     async scanAssets(req, res, next) {
         try {
             const assetIds = Array.isArray(req.body.assetIds) ? req.body.assetIds : [];
@@ -356,6 +438,14 @@ class AssetController {
 
             const scans = [];
             for (const asset of assets) {
+                const scanScopeError = getLiveScanScopeError(asset.liveScan, req.ip);
+                if (scanScopeError) {
+                    return res.status(400).json({
+                        success: false,
+                        message: scanScopeError,
+                    });
+                }
+
                 const scanResult = await scanHistoryService.runAssetScan(asset, req.user.userId, { ipAddress: req.ip || '' });
                 scans.push({
                     assetId: String(asset._id),
