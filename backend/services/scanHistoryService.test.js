@@ -1,4 +1,5 @@
-﻿const ScanHistory = require('../models/ScanHistory');
+const ScanHistory = require('../models/ScanHistory');
+const Asset = require('../models/Asset');
 const assetSecurityContextService = require('./assetSecurityContextService');
 const cveEnrichmentService = require('./cveEnrichmentService');
 const nmapScanService = require('./nmapScanService');
@@ -8,6 +9,10 @@ jest.mock('../models/ScanHistory', () => ({
     create: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
+}));
+
+jest.mock('../models/Asset', () => ({
+    updateOne: jest.fn(),
 }));
 
 jest.mock('./cveEnrichmentService', () => ({
@@ -35,6 +40,7 @@ jest.mock('./assetSecurityContextService', () => ({
 describe('scanHistoryService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        Asset.updateOne.mockResolvedValue({ acknowledged: true, modifiedCount: 1 });
     });
 
     it('should create skipped scan history when target is missing', async () => {
@@ -64,7 +70,7 @@ describe('scanHistoryService', () => {
                 { port: 22, service: 'ssh' },
                 { port: 443, service: 'https' },
             ],
-            hostState: { state: 'up' },
+            hostState: { state: 'up', hostName: 'db-local' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
         });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
@@ -74,9 +80,9 @@ describe('scanHistoryService', () => {
             assetName: 'Production API Server',
             liveScan: { enabled: true, target: '10.0.0.10', ports: '22,443' },
             vulnerabilityProfile: { vendor: 'nginx' },
-        }, 'user-1');
+        }, 'user-1', { ipAddress: '10.0.0.50' });
 
-        expect(nmapScanService.runScan).toHaveBeenCalledWith({ target: '10.0.0.10', ports: '22,443' });
+        expect(nmapScanService.runScan).toHaveBeenCalledWith({ target: '10.0.0.10', ports: '22,443', requestIp: '10.0.0.50' });
     });
 
     it('should pass scanned services to CVE enrichment', async () => {
@@ -101,9 +107,36 @@ describe('scanHistoryService', () => {
             assetName: 'Production API Server',
             liveScan: { enabled: true, target: '10.0.0.10', ports: '22,443' },
             vulnerabilityProfile: { vendor: 'nginx' },
-        }, 'user-1');
+        }, 'user-1', { ipAddress: '10.0.0.9' });
 
         expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0].serviceNames).toEqual(['ssh', 'https']);
+    });
+
+    it('should infer and persist missing vulnerability profile fields from scan output', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22', '443'],
+            openPorts: [22, 443],
+            services: [
+                { port: 22, service: 'ssh' },
+                { port: 443, service: 'https' },
+            ],
+            hostState: { state: 'up', hostName: 'edge-gateway.local' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.runAssetScan({
+            _id: 'asset-1',
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22,443' },
+            vulnerabilityProfile: { vendor: '', product: '', osName: '' },
+        }, 'user-1', { ipAddress: '10.0.0.9' });
+
+        expect(Asset.updateOne).toHaveBeenCalled();
     });
 
     it('should fall back to enrichment when Nmap is unavailable', async () => {
@@ -117,7 +150,7 @@ describe('scanHistoryService', () => {
             assetName: 'Internal Database Server',
             liveScan: { enabled: true, target: '192.168.1.100', ports: '5432' },
             vulnerabilityProfile: { vendor: 'PostgreSQL', product: 'PostgreSQL' },
-        }, 'user-1');
+        }, 'user-1', { ipAddress: '192.168.1.22' });
 
         expect(cveEnrichmentService.enrichForAsset).toHaveBeenCalled();
     });

@@ -327,7 +327,7 @@ function displayDeltas(deltas) {
         const isPositive = delta > 0;
         const isNeutral = delta === 0;
         const absValue = Math.abs(delta);
-        const arrow = isNeutral ? '–' : (isPositive ? '↑' : '↓');
+        const arrow = isNeutral ? '\u2013' : (isPositive ? '\u2191' : '\u2193');
         
         // Determine direction (for some metrics, up is bad; for others, good)
         const metricType = elementId.split('-').pop();
@@ -454,6 +454,18 @@ function displayRecentIncidents(incidents) {
     incidentList.slice(0, 5).forEach((incident) => {
         const riskLevel = incident.riskLevel || 'Low';
         const status = incident.status || 'Open';
+        const incidentDbId = String(incident?._id || incident?.id || '').trim();
+        const incidentPublicId = String(incident?.incidentId || '').trim();
+        const viewUrl = new URL('incident-logs.html', window.location.href);
+
+        if (incidentDbId) {
+            viewUrl.searchParams.set('id', incidentDbId);
+        }
+
+        if (incidentPublicId) {
+            viewUrl.searchParams.set('incidentId', incidentPublicId);
+        }
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td data-label="Incident ID">${incident.incidentId}</td>
@@ -463,14 +475,30 @@ function displayRecentIncidents(incidents) {
             <td data-label="Status"><span class="status-badge status-${status}">${status}</span></td>
             <td data-label="Date">${formatDate(incident.createdAt)}</td>
             <td data-label="Action">
-                <a href="incident-logs.html?id=${incident._id}" class="link">View</a>
+                <button type="button" class="btn btn-sm btn-secondary">View</button>
             </td>
         `;
+
+        const actionButton = row.querySelector('button');
+        actionButton.addEventListener('click', () => {
+            const navigationTarget = {
+                incidentDbId,
+                incidentPublicId,
+                createdAt: Date.now(),
+            };
+
+            try {
+                sessionStorage.setItem('incidentLogs:openTarget', JSON.stringify(navigationTarget));
+            } catch (storageError) {
+                console.warn('Unable to persist incident deep-link target:', storageError);
+            }
+
+            window.location.href = viewUrl.toString();
+        });
+
         tbody.appendChild(row);
     });
 }
-
-
 async function ensureChartJsLoaded() {
     if (window.Chart) {
         return;
@@ -596,44 +624,3 @@ window.addEventListener('resize', () => {
 
 
 
-function viewRecentIncidentDetails(incidentId) {
-    window.location.href = `incident-logs.html?id=${incidentId}`;
-}
-
-displayRecentIncidents = function displayRecentIncidentsForDashboard(incidents) {
-    const tbody = document.getElementById('recent-incidents-tbody');
-    if (!tbody) {
-        return;
-    }
-
-    const incidentList = Array.isArray(incidents) ? incidents : [];
-    const summary = document.getElementById('dashboard-recent-incidents-summary');
-
-    if (summary) {
-        summary.innerHTML = createSummaryBadge(incidentList.length === 0 ? '0 incidents' : `${incidentList.length} incidents`);
-    }
-
-    if (incidentList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No recent incidents</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = '';
-    incidentList.slice(0, 5).forEach((incident) => {
-        const riskLevel = incident.riskLevel || 'Low';
-        const status = incident.status || 'Open';
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td data-label="Incident ID">${incident.incidentId}</td>
-            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
-            <td data-label="Threat Type">${incident.threatType || 'Unknown'}</td>
-            <td data-label="Risk Level"><span class="risk-${riskLevel.toLowerCase()}">${riskLevel}</span></td>
-            <td data-label="Status"><span class="status-badge status-${status}">${status}</span></td>
-            <td data-label="Date">${formatDate(incident.createdAt)}</td>
-            <td data-label="Action">
-                <button type="button" class="btn btn-sm btn-secondary" onclick="viewRecentIncidentDetails('${incident._id}')">View</button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-};

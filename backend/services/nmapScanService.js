@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Nmap Scan Service
  */
 // NOTE: Runs Nmap only against localhost/private-network targets and normalizes grepable output.
@@ -45,6 +45,23 @@ function parseIpv4Address(value) {
     }
 
     return octets;
+}
+
+function normalizeRequesterIp(requestIp) {
+    const rawIp = String(requestIp || '').split(',')[0].trim();
+    if (!rawIp) {
+        return '';
+    }
+
+    if (rawIp.startsWith('::ffff:')) {
+        return rawIp.slice(7);
+    }
+
+    if (rawIp === '::1') {
+        return '127.0.0.1';
+    }
+
+    return rawIp;
 }
 
 function isPrivateIpv4Address(value) {
@@ -104,6 +121,40 @@ function assertAllowedTarget(target) {
     }
 }
 
+function areInSameIpv4Subnet(target, requestIp, subnetMaskBits = 24) {
+    const targetOctets = parseIpv4Address(target);
+    const requesterOctets = parseIpv4Address(requestIp);
+
+    if (!targetOctets || !requesterOctets) {
+        return false;
+    }
+
+    if (subnetMaskBits === 24) {
+        return targetOctets[0] === requesterOctets[0]
+            && targetOctets[1] === requesterOctets[1]
+            && targetOctets[2] === requesterOctets[2];
+    }
+
+    return false;
+}
+
+function assertTargetWithinRequesterNetwork(target, requestIp) {
+    const normalizedRequesterIp = normalizeRequesterIp(requestIp);
+    if (!normalizedRequesterIp || !isPrivateIpv4Address(normalizedRequesterIp)) {
+        return;
+    }
+
+    if (isLocalHostname(target)) {
+        return;
+    }
+
+    if (areInSameIpv4Subnet(target, normalizedRequesterIp)) {
+        return;
+    }
+
+    throw new Error('Scan target must be on the same private subnet as the requester');
+}
+
 function parsePortsLine(output) {
     const portsLineMatch = output.match(/Ports:\s+([^\n]+)/);
     if (!portsLineMatch) {
@@ -159,13 +210,14 @@ function buildUnavailableErrorMessage(normalizedTarget, error) {
     return new Error(`Nmap scan failed for ${normalizedTarget}: ${error.message}.${deploymentHint}`);
 }
 
-async function runScan({ target, ports } = {}) {
+async function runScan({ target, ports, requestIp } = {}) {
     const normalizedTarget = String(target || '').trim();
     if (!normalizedTarget) {
         throw new Error('Nmap scan target is required');
     }
 
     assertAllowedTarget(normalizedTarget);
+    assertTargetWithinRequesterNetwork(normalizedTarget, requestIp);
 
     const args = buildCommandArgs(normalizedTarget, ports);
 
@@ -206,4 +258,7 @@ module.exports = {
     isAllowedScanTarget,
     isPrivateIpv4Address,
     isLocalHostname,
+    normalizeRequesterIp,
+    areInSameIpv4Subnet,
+    assertTargetWithinRequesterNetwork,
 };

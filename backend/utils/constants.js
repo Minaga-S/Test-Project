@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Application Constants
  */
 // NOTE: Utility helpers: shared reusable functions/constants used across modules.
@@ -68,75 +68,6 @@ const NIST_CONTROLS = {
     'Recover': ['RC.RP', 'RC.IM'],
 };
 
-// DEPRECATED: Use backend/services/nistThreatIntelService.js instead
-// Kept for backward compatibility during transition to live threat intelligence
-const THREAT_KNOWLEDGE_BASE = [
-    {
-        threatType: 'Phishing',
-        threatCategory: 'Social Engineering',
-        affectedAssetTypes: ['Device', 'Email'],
-        nistFunctions: ['Protect', 'Detect'],
-        nistControls: ['PR.AC', 'DE.CM'],
-        mitigationSteps: [
-            'Implement email filtering and anti-phishing tools',
-            'Conduct regular phishing awareness training',
-            'Enable multi-factor authentication',
-            'Monitor email for suspicious activities',
-        ],
-    },
-    {
-        threatType: 'Malware',
-        threatCategory: 'Malicious Software',
-        affectedAssetTypes: ['POS', 'Server', 'Device'],
-        nistFunctions: ['Protect', 'Detect', 'Respond'],
-        nistControls: ['PR.PT', 'DE.CM', 'RS.IM'],
-        mitigationSteps: [
-            'Install and update antivirus/anti-malware software',
-            'Keep operating systems and applications patched',
-            'Restrict admin access and user permissions',
-            'Regular system scans and monitoring',
-        ],
-    },
-    {
-        threatType: 'Ransomware',
-        threatCategory: 'Malicious Software',
-        affectedAssetTypes: ['Server', 'Database', 'Device'],
-        nistFunctions: ['Protect', 'Detect', 'Respond', 'Recover'],
-        nistControls: ['PR.DS', 'DE.CM', 'RS.RP', 'RC.RP'],
-        mitigationSteps: [
-            'Implement regular backups (offline and offsite)',
-            'Deploy advanced threat protection',
-            'Restrict user privileges and file access',
-            'Create an incident response plan',
-        ],
-    },
-    {
-        threatType: 'DDoS',
-        threatCategory: 'Network Attack',
-        affectedAssetTypes: ['WiFi', 'Server'],
-        nistFunctions: ['Detect', 'Respond'],
-        nistControls: ['DE.CM', 'RS.RP'],
-        mitigationSteps: [
-            'Use DDoS mitigation services',
-            'Implement rate limiting on network',
-            'Monitor network traffic for anomalies',
-            'Have an incident response plan',
-        ],
-    },
-    {
-        threatType: 'Unauthorized Access',
-        threatCategory: 'Access Control',
-        affectedAssetTypes: ['Database', 'Server', 'Device'],
-        nistFunctions: ['Identify', 'Protect', 'Detect'],
-        nistControls: ['ID.AM', 'PR.AC', 'DE.CM'],
-        mitigationSteps: [
-            'Implement strong password policies',
-            'Enable multi-factor authentication',
-            'Conduct regular access reviews',
-            'Monitor access logs for suspicious activity',
-        ],
-    },
-];
 
 function calculateRiskLevel(likelihood, impact) {
     const riskScore = likelihood * impact;
@@ -164,7 +95,6 @@ module.exports = {
     INCIDENT_STATUS,
     NIST_FUNCTIONS,
     NIST_CONTROLS,
-    THREAT_KNOWLEDGE_BASE,
     DEPARTMENTS,
     calculateRiskLevel,
     generateIncidentId,

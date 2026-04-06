@@ -42,7 +42,11 @@ async function openIncidentFromNavigationHint() {
         return;
     }
 
-    await openIncidentFromQuery(navigationTarget);
+    const didOpenIncident = await openIncidentFromQuery(navigationTarget);
+
+    if (!didOpenIncident) {
+        return;
+    }
 
     clearStoredIncidentOpenTarget();
 
@@ -50,7 +54,6 @@ async function openIncidentFromNavigationHint() {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
-
 function readStoredIncidentOpenTarget() {
     try {
         const stored = sessionStorage.getItem('incidentLogs:openTarget');
@@ -85,7 +88,7 @@ async function openIncidentFromQuery(params = {}) {
     const normalizedPublicId = String(params.incidentPublicId || '').trim();
 
     if (!normalizedDbId && !normalizedPublicId) {
-        return;
+        return false;
     }
 
     const targetIncident = incidents.find((incident) =>
@@ -94,7 +97,7 @@ async function openIncidentFromQuery(params = {}) {
 
     if (targetIncident?._id) {
         await viewIncidentDetails(targetIncident._id);
-        return;
+        return true;
     }
 
     if (normalizedPublicId) {
@@ -106,7 +109,7 @@ async function openIncidentFromQuery(params = {}) {
             const exactMatch = matchedIncidents.find((incident) => incident.incidentId === normalizedPublicId);
             if (exactMatch?._id) {
                 await viewIncidentDetails(exactMatch._id);
-                return;
+                return true;
             }
         } catch (error) {
             console.warn('Unable to resolve incident by public id:', error);
@@ -114,10 +117,16 @@ async function openIncidentFromQuery(params = {}) {
     }
 
     if (normalizedDbId) {
-        await viewIncidentDetails(normalizedDbId);
+        try {
+            await viewIncidentDetails(normalizedDbId);
+            return true;
+        } catch (error) {
+            console.warn('Unable to open incident by DB id from navigation hint:', error);
+        }
     }
-}
 
+    return false;
+}
 function escapeHtml(value) {
     return String(value || '')
         .replace(/&/g, '&amp;')
@@ -171,7 +180,7 @@ function renderIncidentCveDetails(incident) {
     }
 
     if (summaryCountEl) {
-        summaryCountEl.textContent = ${cveMatches.length} CVEs;
+        summaryCountEl.textContent = `${cveMatches.length} ${cveMatches.length === 1 ? 'CVE' : 'CVEs'}`;
     }
 
     if (cvePanel) {
