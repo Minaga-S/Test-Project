@@ -382,3 +382,49 @@ select:disabled {
     margin: 0.65rem 0 0.9rem;
 }
 
+
+/* Report page quality refinements */
+.report-incident-page .dashboard-content,
+.report-incident-page .report-section,
+.report-incident-page .report-form,
+.report-incident-page .info-box {
+    width: 100%;
+    max-width: none;
+}
+
+.report-section {
+    width: 100%;
+    max-width: none;
+    margin: 0 auto;
+    display: grid;
+    gap: 1rem;
+}
+
+.report-section .info-box {
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.report-section .info-box h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.report-form {
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.report-form .form-actions {
+    margin-top: 1.75rem;
+}
+
+.report-form textarea {
+    line-height: 1.5;
+}
+
+#incident-description {
+    min-height: 180px;
+}

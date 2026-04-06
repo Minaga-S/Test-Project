@@ -22,11 +22,170 @@ async function initializeIncidentLogs() {
     setupEventListeners();
     await loadIncidents();
 
+    await openIncidentFromNavigationHint();
+}
+
+async function openIncidentFromNavigationHint() {
     const query = new URLSearchParams(window.location.search);
-    const incidentId = query.get('id');
-    if (incidentId) {
-        await viewIncidentDetails(incidentId);
+    const queryTarget = {
+        incidentDbId: query.get('id'),
+        incidentPublicId: query.get('incidentId'),
+    };
+
+    const storedTarget = readStoredIncidentOpenTarget();
+    const navigationTarget = {
+        incidentDbId: queryTarget.incidentDbId || storedTarget?.incidentDbId || '',
+        incidentPublicId: queryTarget.incidentPublicId || storedTarget?.incidentPublicId || '',
+    };
+
+    if (!navigationTarget.incidentDbId && !navigationTarget.incidentPublicId) {
+        return;
     }
+
+    await openIncidentFromQuery(navigationTarget);
+
+    clearStoredIncidentOpenTarget();
+
+    if (window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+function readStoredIncidentOpenTarget() {
+    try {
+        const stored = sessionStorage.getItem('incidentLogs:openTarget');
+        if (!stored) {
+            return null;
+        }
+
+        const parsed = JSON.parse(stored);
+        const isStale = Number(parsed?.createdAt || 0) < (Date.now() - 10 * 60 * 1000);
+        if (isStale) {
+            clearStoredIncidentOpenTarget();
+            return null;
+        }
+
+        return parsed;
+    } catch (error) {
+        console.warn('Unable to read incident open target from session storage:', error);
+        return null;
+    }
+}
+
+function clearStoredIncidentOpenTarget() {
+    try {
+        sessionStorage.removeItem('incidentLogs:openTarget');
+    } catch (error) {
+        console.warn('Unable to clear incident open target from session storage:', error);
+    }
+}
+
+async function openIncidentFromQuery(params = {}) {
+    const normalizedDbId = String(params.incidentDbId || '').trim();
+    const normalizedPublicId = String(params.incidentPublicId || '').trim();
+
+    if (!normalizedDbId && !normalizedPublicId) {
+        return;
+    }
+
+    const targetIncident = incidents.find((incident) =>
+        incident._id === normalizedDbId || incident.incidentId === normalizedPublicId || incident.incidentId === normalizedDbId
+    );
+
+    if (targetIncident?._id) {
+        await viewIncidentDetails(targetIncident._id);
+        return;
+    }
+
+    if (normalizedPublicId) {
+        try {
+            const searchResponse = await apiClient.searchIncidents(normalizedPublicId);
+            const matchedIncidents = Array.isArray(searchResponse?.incidents)
+                ? searchResponse.incidents
+                : (Array.isArray(searchResponse) ? searchResponse : []);
+            const exactMatch = matchedIncidents.find((incident) => incident.incidentId === normalizedPublicId);
+            if (exactMatch?._id) {
+                await viewIncidentDetails(exactMatch._id);
+                return;
+            }
+        } catch (error) {
+            console.warn('Unable to resolve incident by public id:', error);
+        }
+    }
+
+    if (normalizedDbId) {
+        await viewIncidentDetails(normalizedDbId);
+    }
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getIncidentCveMatches(incident) {
+    if (Array.isArray(incident?.cveMatches) && incident.cveMatches.length > 0) {
+        return incident.cveMatches;
+    }
+
+    if (Array.isArray(incident?.securityContext?.cve?.matches) && incident.securityContext.cve.matches.length > 0) {
+        return incident.securityContext.cve.matches;
+    }
+
+    return [];
+}
+
+function renderIncidentCveDetails(incident) {
+    const securityContext = incident?.securityContext || {};
+    const enrichment = securityContext?.enrichment || {};
+    const cve = securityContext?.cve || {};
+    const cveMatches = getIncidentCveMatches(incident);
+
+    const sourceEl = document.getElementById('detail-enrichment-source');
+    const confidenceEl = document.getElementById('detail-enrichment-confidence');
+    const enrichedAtEl = document.getElementById('detail-enriched-at');
+    const countEl = document.getElementById('detail-cve-count');
+    const listEl = document.getElementById('detail-cve-list');
+
+    if (sourceEl) {
+        sourceEl.textContent = enrichment.source || cve.source || 'NIST NVD API';
+    }
+
+    if (confidenceEl) {
+        confidenceEl.textContent = enrichment.confidence || cve.confidence || 'N/A';
+    }
+
+    if (enrichedAtEl) {
+        const enrichedAt = enrichment.lastEnrichedAt || cve.retrievedAt || '';
+        enrichedAtEl.textContent = enrichedAt ? formatDateTime(enrichedAt) : 'N/A';
+    }
+
+    if (countEl) {
+        countEl.textContent = String(cveMatches.length);
+    }
+
+    if (!listEl) {
+        return;
+    }
+
+    if (cveMatches.length === 0) {
+        listEl.innerHTML = '<div class="recommendation-item"><strong>•</strong> No CVE matches were attached to this incident.</div>';
+        return;
+    }
+
+    listEl.innerHTML = cveMatches.map((entry) => {
+        const cveId = entry.cveId || entry.id || 'Unknown CVE';
+        const severity = entry.severity || 'UNKNOWN';
+        const score = entry.cvssScore !== undefined && entry.cvssScore !== null ? entry.cvssScore : 'N/A';
+        const published = entry.published ? formatDate(entry.published) : 'N/A';
+        const description = entry.description || entry.title || 'No additional description available.';
+
+        return `<details class="recommendation-item cve-item"><summary><span class="cve-summary-id">${escapeHtml(cveId)}</span><span class="cve-summary-meta">Severity: ${escapeHtml(severity)} | CVSS: ${escapeHtml(score)} | Published: ${escapeHtml(published)}</span></summary><p>${escapeHtml(description)}</p></details>`;
+    }).join('');
 }
 
 function setupEventListeners() {
@@ -137,6 +296,7 @@ function displayIncidents(incidentsToDisplay) {
             <td data-label="Actions">
                 <div class="row-actions">
                     <button class="btn btn-sm btn-secondary" onclick="viewIncidentDetails('${incident._id}')">View</button>
+                    <button class="btn btn-sm btn-danger" onclick="openDeleteIncidentModal('${incident._id}')">Delete</button>
                 </div>
             </td>
         `;
@@ -276,6 +436,11 @@ async function confirmDeleteIncidents() {
     }
 }
 
+function openDeleteIncidentModal(incidentId) {
+    pendingDeleteIncidentIds = [incidentId];
+    setDeleteConfirmationMessage('Delete this incident? This action cannot be undone.');
+    showModal('delete-modal');
+}
 function displayIncidentDetails(incident) {
     document.getElementById('detail-incident-id').textContent = incident.incidentId;
     document.getElementById('detail-status').textContent = incident.status;
@@ -314,6 +479,8 @@ function displayIncidentDetails(incident) {
     recommendationsEl.innerHTML = (incident.recommendations || [])
         .map((rec) => `<div class="recommendation-item"><strong>•</strong> ${rec}</div>`)
         .join('');
+
+    renderIncidentCveDetails(incident);
 
     document.getElementById('update-status').value = incident.status;
     document.getElementById('update-notes').value = '';

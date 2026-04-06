@@ -1232,3 +1232,37 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     color: var(--warning-color);
     font-weight: 700;
 }
+.analysis-data-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.85rem 0 0.45rem;
+}
+
+.analysis-data-sources .live-badge {
+    margin-top: 0;
+}
+.analysis-modal-content {
+    width: min(92vw, 560px);
+    max-width: 560px;
+    margin: 0 auto;
+    padding-bottom: 0.75rem;
+}
+
+.analysis-modal-content .modal-header {
+    justify-content: center;
+    text-align: center;
+    padding: 1rem 1.25rem 0.75rem;
+}
+
+.analysis-modal-content .analysis-progress {
+    width: 100%;
+    padding: 0.2rem 1.25rem 0.2rem;
+    box-sizing: border-box;
+}
+
+.analysis-modal-content #analysis-steps {
+    width: 100%;
+    text-align: left;
+    margin-top: 0.35rem;
+}

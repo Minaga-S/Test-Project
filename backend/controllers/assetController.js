@@ -292,7 +292,9 @@ class AssetController {
             }
 
             const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
-            const securityContext = assetSecurityContextService.buildForAsset(asset, latestScanHistory);
+            const securityContext = latestScanHistory
+                ? assetSecurityContextService.buildForAsset(asset, latestScanHistory)
+                : await scanHistoryService.buildOnDemandSecurityContext(asset, req.user.userId, { ipAddress: req.ip || '' });
             res.json({
                 success: true,
                 securityContext,
@@ -354,7 +356,7 @@ class AssetController {
 
             const scans = [];
             for (const asset of assets) {
-                const scanResult = await scanHistoryService.runAssetScan(asset, req.user.userId);
+                const scanResult = await scanHistoryService.runAssetScan(asset, req.user.userId, { ipAddress: req.ip || '' });
                 scans.push({
                     assetId: String(asset._id),
                     assetName: asset.assetName,

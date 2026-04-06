@@ -4,8 +4,14 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const assetController = require('../controllers/assetController');
 const { validateRequest } = require('../middleware/validateRequest');
+const { enrichmentLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
+
+const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
+const CPE_URI_PATTERN = /^cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}$/i;
+const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 ._\-/]{0,80}$/;
+const PROFILE_VERSION_PATTERN = /^[a-zA-Z0-9 ._\-]{0,40}$/;
 
 const withController = (controller, methodName) => (req, res, next) => controller[methodName](req, res, next);
 
@@ -20,12 +26,12 @@ const assetBodyValidation = [
     body('liveScan.enabled').optional().isBoolean().withMessage('Live scan enabled must be a boolean'),
     body('liveScan.target').optional().isString().trim(),
     body('liveScan.ports').optional().isString().trim(),
-    body('liveScan.frequency').optional().isIn(['OnDemand', 'Daily', 'Weekly']).withMessage('Invalid live scan frequency'),
-    body('vulnerabilityProfile.osName').optional().isString().trim(),
-    body('vulnerabilityProfile.vendor').optional().isString().trim(),
-    body('vulnerabilityProfile.product').optional().isString().trim(),
-    body('vulnerabilityProfile.productVersion').optional().isString().trim(),
-    body('vulnerabilityProfile.cpeUri').optional().isString().trim(),
+    body('liveScan.frequency').optional().isIn(LIVE_SCAN_FREQUENCIES).withMessage('Invalid live scan frequency'),
+    body('vulnerabilityProfile.osName').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('OS name contains invalid characters'),
+    body('vulnerabilityProfile.vendor').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Vendor contains invalid characters'),
+    body('vulnerabilityProfile.product').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Product contains invalid characters'),
+    body('vulnerabilityProfile.productVersion').optional().trim().matches(PROFILE_VERSION_PATTERN).withMessage('Product version contains invalid characters'),
+    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value) => value === '' || CPE_URI_PATTERN.test(value)).withMessage('CPE URI must use cpe:2.3 format'),
     validateRequest,
 ];
 
@@ -42,11 +48,11 @@ const scanAssetsValidation = [
 ];
 
 router.post('/', createAssetValidation, withController(assetController, 'createAsset'));
-router.post('/scan', scanAssetsValidation, withController(assetController, 'scanAssets'));
+router.post('/scan', enrichmentLimiter, scanAssetsValidation, withController(assetController, 'scanAssets'));
 router.get('/', withController(assetController, 'getAssets'));
 router.get('/asset-types', withController(assetController, 'getAssetTypes'));
 router.get('/search', withController(assetController, 'searchAssets'));
-router.get('/:id/security-context', objectIdValidation, withController(assetController, 'getAssetSecurityContext'));
+router.get('/:id/security-context', enrichmentLimiter, objectIdValidation, withController(assetController, 'getAssetSecurityContext'));
 router.get('/:id/scan-history', objectIdValidation, withController(assetController, 'getAssetScanHistory'));
 
 router.get('/:id', objectIdValidation, withController(assetController, 'getAsset'));

@@ -29,14 +29,31 @@ function buildCveQuery(profile = {}) {
     };
 }
 
-function buildFallbackContext(asset, reason = 'No completed scan history yet') {
+function buildDataSources(cveResult = null) {
+    const cveSource = cveResult?.source ? 'NIST Enriched' : 'NIST Pending';
+
+    return {
+        scan: 'Simulated Scan',
+        cve: cveSource,
+    };
+}
+
+function buildFallbackContext(asset, reason = 'No completed scan history yet', cveResult = null) {
     const liveScan = asset?.liveScan || {};
     const vulnerabilityProfile = asset?.vulnerabilityProfile || {};
     const requestedPorts = normalizePorts(liveScan.ports);
+    const cveMatches = Array.isArray(cveResult?.matches) ? cveResult.matches : [];
 
     return {
         generatedAt: new Date().toISOString(),
         source: 'asset-profile',
+        dataSources: buildDataSources(cveResult),
+        enrichment: {
+            source: cveResult?.source || 'NIST NVD API',
+            lastEnrichedAt: cveResult?.retrievedAt || '',
+            confidence: cveResult?.confidence || 'Low',
+            cacheHit: Boolean(cveResult?.cacheHit),
+        },
         asset: {
             assetId: asset?._id ? String(asset._id) : '',
             assetName: normalize(asset?.assetName),
@@ -52,10 +69,12 @@ function buildFallbackContext(asset, reason = 'No completed scan history yet') {
             status: reason,
         },
         cve: {
-            source: 'NIST CVE API',
-            query: buildCveQuery(vulnerabilityProfile),
-            matches: [],
-            totalMatches: 0,
+            source: cveResult?.source || 'NIST NVD API',
+            query: cveResult?.query || buildCveQuery(vulnerabilityProfile),
+            matches: cveMatches,
+            totalMatches: cveMatches.length,
+            retrievedAt: cveResult?.retrievedAt || '',
+            confidence: cveResult?.confidence || 'Low',
         },
     };
 }
@@ -79,6 +98,13 @@ function buildFromScanResult(asset, scanResult = {}, cveResult = {}, scanHistory
     return {
         generatedAt: scanHistory?.completedAt || new Date().toISOString(),
         source: 'persisted-scan-history',
+        dataSources: buildDataSources(cveResult),
+        enrichment: {
+            source: cveResult.source || 'NIST NVD API',
+            lastEnrichedAt: cveResult.retrievedAt || '',
+            confidence: cveResult.confidence || 'Low',
+            cacheHit: Boolean(cveResult.cacheHit),
+        },
         scanHistoryId: scanHistory?._id ? String(scanHistory._id) : '',
         asset: {
             assetId: asset?._id ? String(asset._id) : '',
@@ -100,6 +126,7 @@ function buildFromScanResult(asset, scanResult = {}, cveResult = {}, scanHistory
             matches: cveMatches,
             totalMatches: cveMatches.length,
             retrievedAt: cveResult.retrievedAt || '',
+            confidence: cveResult.confidence || 'Low',
         },
     };
 }

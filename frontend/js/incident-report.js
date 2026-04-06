@@ -115,6 +115,7 @@ function resetAnalysisSteps() {
 function beginAnalysisProgress() {
     stopAnalysisProgress();
     resetAnalysisSteps();
+    updateAnalysisDataSources(null);
 
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl) {
@@ -168,6 +169,7 @@ async function handleIncidentSubmit(e) {
         updateAnalysisStatus('Running live scan (if enabled for selected asset)...', 20);
         const securityResponse = await apiClient.getAssetSecurityContext(assetId);
         clientSecurityContext = securityResponse?.securityContext || null;
+        updateAnalysisDataSources(clientSecurityContext);
         setStepState('step-scan', 'done');
 
         setStepState('step-cve', 'active');
@@ -248,7 +250,31 @@ function showSuccessModal(incident) {
 
     if (viewBtn) {
         viewBtn.onclick = () => {
-            window.location.href = `incident-logs.html?id=${incident._id}`;
+            const dbId = incident?._id || incident?.id || '';
+            const publicIncidentId = incident?.incidentId || '';
+            const query = new URLSearchParams();
+
+            if (dbId) {
+                query.set('id', dbId);
+            }
+
+            if (publicIncidentId) {
+                query.set('incidentId', publicIncidentId);
+            }
+            const pendingOpenTarget = {
+                incidentDbId: dbId,
+                incidentPublicId: publicIncidentId,
+                createdAt: Date.now(),
+            };
+
+            try {
+                sessionStorage.setItem('incidentLogs:openTarget', JSON.stringify(pendingOpenTarget));
+            } catch (storageError) {
+                // Ignore storage failures and rely on query string fallback.
+                console.warn('Unable to persist incident deep-link target:', storageError);
+            }
+            const suffix = query.toString();
+            window.location.href = suffix ? `incident-logs.html?${suffix}` : 'incident-logs.html';
         };
     }
 }
@@ -265,5 +291,32 @@ function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.type = 'button';
+    }
+}
+function updateAnalysisDataSources(securityContext) {
+    const scanBadge = document.getElementById('badge-scan-source');
+    const cveBadge = document.getElementById('badge-cve-source');
+    const confidenceBadge = document.getElementById('badge-enrichment-confidence');
+    const enrichedMeta = document.getElementById('enriched-meta');
+
+    const sources = securityContext?.dataSources || {};
+    const enrichment = securityContext?.enrichment || {};
+
+    if (scanBadge) {
+        scanBadge.textContent = sources.scan || 'Simulated Scan';
+    }
+
+    if (cveBadge) {
+        cveBadge.textContent = sources.cve || 'NIST Pending';
+    }
+
+    if (confidenceBadge) {
+        confidenceBadge.textContent = `Confidence: ${enrichment.confidence || securityContext?.cve?.confidence || 'Low'}`;
+    }
+
+    if (enrichedMeta) {
+        const enrichedAt = enrichment.lastEnrichedAt || securityContext?.cve?.retrievedAt;
+        const resolvedText = enrichedAt ? formatDateTime(enrichedAt) : 'Not available yet';
+        enrichedMeta.textContent = `Last enriched: ${resolvedText}`;
     }
 }
