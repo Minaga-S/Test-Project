@@ -93,10 +93,24 @@
     padding: 1rem 1.15rem 1.15rem;
     max-height: 70vh;
     overflow-y: auto;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        max-height var(--duration-normal) var(--ease-standard),
+        opacity var(--duration-fast) var(--ease-standard),
+        transform var(--duration-fast) var(--ease-standard),
+        padding-top var(--duration-fast) var(--ease-standard),
+        padding-bottom var(--duration-fast) var(--ease-standard);
 }
 
 .collapsible-panel.collapsed .collapsible-content {
-    display: none;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    pointer-events: none;
 }
 
 .toggle-icon {
@@ -1034,13 +1048,27 @@
 
 .mobile-collapsible-panel .mobile-collapsible-content {
     background: transparent;
-    max-height: none;
+    max-height: 70vh;
     overflow: visible;
     padding: 1rem 1.25rem 1.25rem;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        max-height var(--duration-normal) var(--ease-standard),
+        opacity var(--duration-fast) var(--ease-standard),
+        transform var(--duration-fast) var(--ease-standard),
+        padding-top var(--duration-fast) var(--ease-standard),
+        padding-bottom var(--duration-fast) var(--ease-standard);
 }
 
 .mobile-collapsible-panel.collapsed .mobile-collapsible-content {
-    display: none;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    pointer-events: none;
 }
 
 .asset-risk-card {
@@ -1135,6 +1163,20 @@
     margin: 0.5rem 0 0 0;
     font-size: var(--font-size-sm);
     color: #555;
+}
+
+.recommendation-label-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.recommendation-body {
+    margin: 0.6rem 0 0;
+    font-size: var(--font-size-sm);
+    color: #555;
+    line-height: 1.5;
 }
 
 /* ============================================
@@ -1302,6 +1344,138 @@
 .cve-panel-content {
     padding: 1rem;
 }
+
+.cve-category {
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #f8fbff;
+    overflow: hidden;
+}
+
+.cve-category summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0.85rem 1rem;
+    background: #eef4ff;
+    color: #1f2937;
+    font-weight: 700;
+}
+
+.cve-category summary::-webkit-details-marker {
+    display: none;
+}
+
+.cve-category-header-main {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.cve-category-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0.35rem 0.7rem;
+    transition: var(--transition);
+    margin-left: auto;
+}
+
+.cve-category-toggle::before {
+    content: 'Expand';
+}
+
+.cve-category[open] .cve-category-toggle {
+    background: #ffffff;
+    color: var(--primary-color);
+}
+
+.cve-category[open] .cve-category-toggle::before {
+    content: 'Collapse';
+}
+
+.cve-category-title {
+    letter-spacing: 0.02em;
+}
+
+.cve-category-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.cve-category-items {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.cve-category[open] .cve-category-items {
+    animation: details-expand var(--duration-normal) var(--ease-standard);
+}
+
+.cve-category-critical {
+    border-color: #fecaca;
+}
+
+.cve-category-critical summary {
+    background: #fff1f2;
+}
+
+.cve-category-high {
+    border-color: #fed7aa;
+}
+
+.cve-category-high summary {
+    background: #fff7ed;
+}
+
+.cve-category-medium {
+    border-color: #fde68a;
+}
+
+.cve-category-medium summary {
+    background: #fffbeb;
+}
+
+.cve-category-low {
+    border-color: #bbf7d0;
+}
+
+.cve-category-low summary {
+    background: #f0fdf4;
+}
+
+.cve-category-unknown {
+    border-color: #cbd5e1;
+}
+
+.cve-category-unknown summary {
+    background: #f8fafc;
+}
+
 /* Incident detail UX refinements */
 .detail-content {
     padding-top: 0.5rem;
@@ -1353,4 +1527,52 @@
     padding: 0.85rem 1rem 1rem;
     border-top: 1px solid #e2e8f0;
     line-height: 1.5;
+}
+
+.cve-item[open] p {
+    animation: details-expand var(--duration-normal) var(--ease-standard);
+}
+
+@keyframes details-expand {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .cve-category summary {
+        padding: 0.75rem;
+    }
+
+    .cve-category-header-main {
+        width: 100%;
+        align-items: flex-start;
+        gap: 0.4rem;
+    }
+
+    .cve-category-toggle {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.72rem;
+    }
+
+    .cve-category-count {
+        font-size: 0.72rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .collapsible-content,
+    .mobile-collapsible-panel .mobile-collapsible-content,
+    .cve-category-items,
+    .cve-item p,
+    .toggle-icon,
+    .cve-category-toggle {
+        transition: none;
+    }
 }
