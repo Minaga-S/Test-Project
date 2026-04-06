@@ -115,12 +115,12 @@
                             <option value="Critical">Critical</option>
                         </select>
                     </div>
+                    <div class="filter-group filter-meta">
+                        <span id="selected-incidents-count" class="small selected-count">0 selected</span>
+                    </div>
                     <div class="filter-group filter-actions">
                         <button id="select-all-incidents-btn" class="btn btn-secondary btn-sm">Select All</button>
-                        <button id="delete-all-incidents-btn" class="btn btn-danger btn-sm">Delete All</button>
-                    </div>
-                    <div class="filter-group filter-meta">
-                        <span id="selected-incidents-count" class="small">0 selected</span>
+                        <button id="delete-all-incidents-btn" class="btn btn-danger btn-sm">Delete</button>
                     </div>
                 </section>
 
@@ -130,7 +130,7 @@
                         <table class="incidents-table">
                             <thead>
                                 <tr>
-                                    <th>Select</th>
+                                    <th class="selection-col" aria-label="Select incidents"></th>
                                     <th>Incident ID</th>
                                     <th>Asset</th>
                                     <th>Threat Type</th>
@@ -291,6 +291,21 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="delete-overlay"></div>
+        <div class="modal-content modal-content-small confirm-modal">
+            <div class="modal-header">
+                <h2><span class="material-symbols-rounded" aria-hidden="true">delete</span> Delete Incidents</h2>
+            </div>
+            <p id="delete-confirmation-message">Are you sure you want to delete the selected incidents? This action cannot be undone.</p>
+            <div class="form-actions">
+                <button class="btn btn-secondary" id="delete-cancel">Cancel</button>
+                <button class="btn btn-danger" id="delete-confirm">Delete</button>
             </div>
         </div>
     </div>

@@ -283,7 +283,7 @@ class APIClient {
     }
 
     async getAssetSecurityContext(assetId) {
-        return this.get(/assets//security-context);
+        return this.get(`/assets/${assetId}/security-context`);
     }
 
     // ============== INCIDENT ENDPOINTS ==============
