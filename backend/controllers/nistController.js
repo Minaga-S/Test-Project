@@ -1,13 +1,13 @@
-/**
+﻿/**
  * NIST Controller
  */
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
-
 const Incident = require('../models/Incident');
-const ThreatKnowledgeBase = require('../models/ThreatKnowledgeBase');
-const { NIST_FUNCTIONS, THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
+const { NIST_FUNCTIONS } = require('../utils/constants');
+const nistThreatIntelService = require('../services/nistThreatIntelService');
 const nistService = require('../services/nistMappingService');
+const recommendationService = require('../services/recommendationService');
 const logger = require('../utils/logger');
 
 class NISTController {
@@ -24,11 +24,14 @@ class NISTController {
     async getControlsForThreatType(req, res, next) {
         try {
             const { threatType } = req.params;
-            const threat = await ThreatKnowledgeBase.findOne({ threatType })
-                || THREAT_KNOWLEDGE_BASE.find((t) => t.threatType === threatType);
-
-            const controls = threat ? threat.nistControls : [];
-            res.json({ success: true, controls });
+            const mapping = nistThreatIntelService.getNISTMapping(threatType);
+            const controls = mapping.controls || [];
+            
+            res.json({ 
+                success: true, 
+                controls,
+                source: 'NIST Threat Intelligence',
+            });
         } catch (error) {
             logger.error('Get controls for threat type error:', error.message);
             next(error);
@@ -62,11 +65,13 @@ class NISTController {
     async getRecommendationsForThreatType(req, res, next) {
         try {
             const { threatType } = req.params;
-            const threat = await ThreatKnowledgeBase.findOne({ threatType })
-                || THREAT_KNOWLEDGE_BASE.find((t) => t.threatType === threatType);
-
-            const recommendations = threat ? threat.mitigationSteps : [];
-            res.json({ success: true, recommendations });
+            const recommendations = recommendationService.getThreatIntelRecommendations(threatType);
+            
+            res.json({ 
+                success: true, 
+                recommendations,
+                source: 'NIST Threat Intelligence + AI',
+            });
         } catch (error) {
             logger.error('Get recommendations for threat type error:', error.message);
             next(error);
@@ -75,4 +80,3 @@ class NISTController {
 }
 
 module.exports = new NISTController();
-

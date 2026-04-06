@@ -165,14 +165,14 @@
                 </div>
                 <p id="analysis-eta" class="small">Estimated completion: about 15-45 seconds depending on scan and AI response times.</p>
                 <div id="analysis-data-sources" class="analysis-data-sources" aria-live="polite">
-                    <span id="badge-scan-source" class="live-badge">Simulated Scan</span>
-                    <span id="badge-cve-source" class="live-badge">NIST Pending</span>
-                    <span id="badge-enrichment-confidence" class="live-badge">Confidence: Low</span>
+                    <span id="badge-scan-source" class="live-badge">Live Scan Pending</span>
+                    <span id="badge-cve-source" class="live-badge">CVE Enrichment Pending</span>
+                    <span id="badge-enrichment-confidence" class="live-badge">Confidence: Pending</span>
                 </div>
-                <p id="enriched-meta" class="small">Last enriched: Not available yet</p>
+                <p id="enriched-meta" class="small">Last enriched: Pending</p>
                 <ul id="analysis-steps" class="examples-list">
                     <li id="step-scan">1. Running live scan (if enabled for the selected asset)</li>
-                    <li id="step-cve">2. Checking CVE intelligence from known vulnerability data</li>
+                    <li id="step-cve">2. Querying NIST NVD using the discovered services, ports, and asset profile to collect matching CVEs.</li>
                     <li id="step-ai">3. Performing AI threat analysis and risk scoring</li>
                     <li id="step-rec">4. Generating response recommendations and NIST mapping</li>
                 </ul>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Application Constants
  */
 // NOTE: Utility helpers: shared reusable functions/constants used across modules.
@@ -68,6 +68,8 @@ const NIST_CONTROLS = {
     'Recover': ['RC.RP', 'RC.IM'],
 };
 
+// DEPRECATED: Use backend/services/nistThreatIntelService.js instead
+// Kept for backward compatibility during transition to live threat intelligence
 const THREAT_KNOWLEDGE_BASE = [
     {
         threatType: 'Phishing',
@@ -167,3 +169,4 @@ module.exports = {
     calculateRiskLevel,
     generateIncidentId,
 };
+

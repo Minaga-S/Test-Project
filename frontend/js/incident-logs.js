@@ -149,6 +149,8 @@ function renderIncidentCveDetails(incident) {
     const confidenceEl = document.getElementById('detail-enrichment-confidence');
     const enrichedAtEl = document.getElementById('detail-enriched-at');
     const countEl = document.getElementById('detail-cve-count');
+    const summaryCountEl = document.getElementById('detail-cve-summary-count');
+    const cvePanel = document.getElementById('detail-cve-panel');
     const listEl = document.getElementById('detail-cve-list');
 
     if (sourceEl) {
@@ -168,12 +170,20 @@ function renderIncidentCveDetails(incident) {
         countEl.textContent = String(cveMatches.length);
     }
 
+    if (summaryCountEl) {
+        summaryCountEl.textContent = ${cveMatches.length} CVEs;
+    }
+
+    if (cvePanel) {
+        cvePanel.open = cveMatches.length > 0 && cveMatches.length <= 5;
+    }
+
     if (!listEl) {
         return;
     }
 
     if (cveMatches.length === 0) {
-        listEl.innerHTML = '<div class="recommendation-item"><strong>•</strong> No CVE matches were attached to this incident.</div>';
+        listEl.innerHTML = '<div class="recommendation-item">No CVE matches were attached to this incident.</div>';
         return;
     }
 
@@ -477,7 +487,7 @@ function displayIncidentDetails(incident) {
 
     const recommendationsEl = document.getElementById('detail-recommendations');
     recommendationsEl.innerHTML = (incident.recommendations || [])
-        .map((rec) => `<div class="recommendation-item"><strong>•</strong> ${rec}</div>`)
+        .map((rec) => `<div class="recommendation-item">${rec}</div>`)
         .join('');
 
     renderIncidentCveDetails(incident);

@@ -1,11 +1,12 @@
 /**
  * Scan History Service
  */
-// NOTE: Orchestrates simulated live-scan context and real NIST CVE enrichment for Phase 1.
+// NOTE: Orchestrates real scan execution and provider-based CVE enrichment.
 
 const ScanHistory = require('../models/ScanHistory');
 const assetSecurityContextService = require('./assetSecurityContextService');
-const nistCveService = require('./nistCveService');
+const cveEnrichmentService = require('./cveEnrichmentService');
+const nmapScanService = require('./nmapScanService');
 
 function buildAssetSnapshot(asset) {
     return {
@@ -17,74 +18,70 @@ function buildAssetSnapshot(asset) {
     };
 }
 
-function normalizePorts(portsInput) {
-    const raw = String(portsInput || '').trim();
-    if (!raw) {
-        return [];
-    }
-
-    return raw
-        .split(',')
-        .map((port) => Number(port.trim()))
-        .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535);
-}
-
-function mapPortToService(port) {
-    const serviceMap = {
-        21: 'ftp',
-        22: 'ssh',
-        23: 'telnet',
-        25: 'smtp',
-        53: 'dns',
-        80: 'http',
-        110: 'pop3',
-        143: 'imap',
-        443: 'https',
-        3306: 'mysql',
-        3389: 'rdp',
-        5432: 'postgresql',
-    };
-
-    return serviceMap[port] || 'unknown';
-}
-
-function buildSimulatedScanResult(asset) {
-    const requestedPorts = normalizePorts(asset?.liveScan?.ports);
-    const openPorts = requestedPorts.length > 0 ? requestedPorts : [443];
-
-    return {
-        command: 'simulated-scan',
-        args: ['phase-1-simulated'],
-        target: String(asset?.liveScan?.target || '').trim(),
-        requestedPorts,
-        openPorts,
-        services: openPorts.map((port) => ({
-            port,
-            protocol: 'tcp',
-            service: mapPortToService(port),
-            state: 'open',
-        })),
-        hostState: {
-            hostAddress: String(asset?.liveScan?.target || '').trim(),
-            hostName: String(asset?.assetName || '').trim(),
-            state: 'up',
-        },
-        rawOutput: 'Simulated scan output (Phase 1: active scanning disabled)',
-    };
-}
-
 function buildCveProfile(asset, scanResult = {}) {
     const vulnerabilityProfile = asset?.vulnerabilityProfile || {};
+    const serviceNames = Array.isArray(scanResult.services)
+        ? scanResult.services
+            .map((service) => service.service)
+            .filter((serviceName) => Boolean(serviceName))
+        : [];
+
     return {
+        assetName: asset?.assetName || '',
+        assetType: asset?.assetType || '',
         cpeUri: vulnerabilityProfile.cpeUri || '',
         vendor: vulnerabilityProfile.vendor || '',
         product: vulnerabilityProfile.product || '',
         productVersion: vulnerabilityProfile.productVersion || '',
         osName: vulnerabilityProfile.osName || '',
-        serviceNames: Array.isArray(scanResult.services)
-            ? scanResult.services.map((service) => service.service)
-            : [],
+        serviceNames: serviceNames.length > 0 ? serviceNames : vulnerabilityProfile.serviceNames || [],
     };
+}
+
+function buildEmptyScanResult(asset, target = '') {
+    return {
+        command: 'nmap',
+        args: [],
+        target,
+        requestedPorts: [],
+        openPorts: [],
+        services: [],
+        hostState: {
+            hostAddress: target,
+            hostName: String(asset?.assetName || ''),
+            state: 'unknown',
+        },
+        rawOutput: '',
+    };
+}
+
+function shouldRunNmap(asset, target) {
+    return Boolean(asset?.liveScan?.enabled && target && nmapScanService.isAllowedScanTarget(target));
+}
+
+function buildScanStatusReason(asset, target, scanError = null) {
+    if (!asset?.liveScan?.enabled) {
+        return 'Live scan disabled.';
+    }
+
+    if (!target) {
+        return 'Scan target is not configured.';
+    }
+
+    if (!nmapScanService.isAllowedScanTarget(target)) {
+        return 'Scan target is outside the allowed private-network scope.';
+    }
+
+    if (scanError) {
+        return `Live scan unavailable; enrichment only (${scanError.message}).`;
+    }
+
+    return 'On-demand CVE enrichment.';
+}
+
+function shouldFallbackToEnrichment(error) {
+    const message = String(error?.message || '').toLowerCase();
+    return message.includes('nmap is not installed') || message.includes('nmap scan failed');
 }
 
 class ScanHistoryService {
@@ -92,10 +89,25 @@ class ScanHistoryService {
         const target = String(asset?.liveScan?.target || '').trim();
         const requestedPortsText = String(asset?.liveScan?.ports || '').trim();
         const startedAt = new Date();
-        const simulatedScanResult = buildSimulatedScanResult(asset);
+        const canRunNmap = shouldRunNmap(asset, target);
+        let scanResult = buildEmptyScanResult(asset, target);
+        let scanError = null;
 
-        const cveResult = await nistCveService.lookupCves(
-            buildCveProfile(asset, simulatedScanResult),
+        if (canRunNmap) {
+            try {
+                scanResult = await nmapScanService.runScan({ target, ports: requestedPortsText });
+            } catch (error) {
+                if (!shouldFallbackToEnrichment(error)) {
+                    throw error;
+                }
+
+                scanError = error;
+            }
+        }
+
+        const cveResult = await cveEnrichmentService.enrichForAsset(
+            buildCveProfile(asset, scanResult),
+            target,
             {
                 userId,
                 assetId: String(asset?._id || ''),
@@ -103,52 +115,23 @@ class ScanHistoryService {
             }
         );
 
-        if (!asset?.liveScan?.enabled || !target) {
-            const reason = !asset?.liveScan?.enabled
-                ? 'Live scan disabled. Simulated context with NIST enrichment only.'
-                : 'Scan target is not configured. Simulated context with NIST enrichment only.';
-
-            const securityContext = assetSecurityContextService.buildFallbackContext(asset, reason, cveResult);
-            const skippedHistory = await ScanHistory.create({
-                assetId: asset._id,
-                userId,
-                assetSnapshot: buildAssetSnapshot(asset),
-                status: 'Skipped',
-                target,
-                ports: requestedPortsText,
-                command: 'simulated-scan phase-1-simulated',
-                startedAt,
-                completedAt: new Date(),
-                scanDurationMs: 0,
-                nmapResult: simulatedScanResult,
-                cveResult,
-                securityContext,
-                errorMessage: '',
-                initiatedBy: 'asset-scan',
-            });
-
-            return {
-                scanHistory: skippedHistory,
-                securityContext,
-                skipped: true,
-            };
-        }
-
-        const completedAt = new Date();
-        const securityContext = assetSecurityContextService.buildFromScanResult(asset, simulatedScanResult, cveResult);
+        const ranLiveScan = canRunNmap && !scanError;
+        const securityContext = ranLiveScan
+            ? assetSecurityContextService.buildFromScanResult(asset, scanResult, cveResult)
+            : assetSecurityContextService.buildFallbackContext(asset, buildScanStatusReason(asset, target, scanError), cveResult);
 
         const scanHistory = await ScanHistory.create({
             assetId: asset._id,
             userId,
             assetSnapshot: buildAssetSnapshot(asset),
-            status: 'Completed',
+            status: ranLiveScan ? 'Completed' : 'Skipped',
             target,
             ports: requestedPortsText,
-            command: 'simulated-scan phase-1-simulated',
+            command: ranLiveScan ? 'nmap' : 'cve-enrichment',
             startedAt,
-            completedAt,
-            scanDurationMs: completedAt.getTime() - startedAt.getTime(),
-            nmapResult: simulatedScanResult,
+            completedAt: new Date(),
+            scanDurationMs: ranLiveScan ? Date.now() - startedAt.getTime() : 0,
+            nmapResult: scanResult,
             cveResult,
             securityContext,
             errorMessage: '',
@@ -158,14 +141,58 @@ class ScanHistoryService {
         return {
             scanHistory,
             securityContext,
-            skipped: false,
+            skipped: !ranLiveScan,
         };
     }
 
     async buildOnDemandSecurityContext(asset, userId, requestMeta = {}) {
-        const simulatedScanResult = buildSimulatedScanResult(asset);
-        const cveResult = await nistCveService.lookupCves(
-            buildCveProfile(asset, simulatedScanResult),
+        const target = String(asset?.liveScan?.target || '').trim();
+        const canRunNmap = shouldRunNmap(asset, target);
+
+        if (canRunNmap) {
+            try {
+                const scanResult = await nmapScanService.runScan({ target, ports: asset?.liveScan?.ports || '' });
+                const cveResult = await cveEnrichmentService.enrichForAsset(
+                    buildCveProfile(asset, scanResult),
+                    target,
+                    {
+                        userId,
+                        assetId: String(asset?._id || ''),
+                        ipAddress: requestMeta.ipAddress || '',
+                    }
+                );
+
+                return assetSecurityContextService.buildFallbackContext(
+                    asset,
+                    'On-demand live scan completed.',
+                    cveResult
+                );
+            } catch (error) {
+                if (!shouldFallbackToEnrichment(error)) {
+                    throw error;
+                }
+
+                const cveResult = await cveEnrichmentService.enrichForAsset(
+                    buildCveProfile(asset),
+                    target,
+                    {
+                        userId,
+                        assetId: String(asset?._id || ''),
+                        ipAddress: requestMeta.ipAddress || '',
+                    }
+                );
+
+                return assetSecurityContextService.buildFallbackContext(
+                    asset,
+                    buildScanStatusReason(asset, target, error),
+                    cveResult
+                );
+            }
+        }
+
+        const cveResult = await cveEnrichmentService.enrichForAsset(
+            buildCveProfile(asset),
+            target,
             {
                 userId,
                 assetId: String(asset?._id || ''),
@@ -175,7 +202,7 @@ class ScanHistoryService {
 
         return assetSecurityContextService.buildFallbackContext(
             asset,
-            'No completed scan history yet (Phase 1 simulated scan).',
+            buildScanStatusReason(asset, target),
             cveResult
         );
     }

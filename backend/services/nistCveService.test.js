@@ -26,6 +26,36 @@ describe('nistCveService', () => {
         expect(axios.get.mock.calls[0][1].params.keywordSearch).toBe('apache log4j');
     });
 
+    it('should search service aliases when the primary query has no matches', async () => {
+        axios.get
+            .mockResolvedValueOnce({ data: { vulnerabilities: [] } })
+            .mockResolvedValueOnce({
+                data: {
+                    vulnerabilities: [
+                        {
+                            cve: {
+                                id: 'CVE-2024-0001',
+                                descriptions: [{ lang: 'en', value: 'OpenSSH vulnerability' }],
+                                metrics: {
+                                    cvssMetricV31: [
+                                        {
+                                            cvssData: {
+                                                baseScore: 7.5,
+                                                baseSeverity: 'HIGH',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            });
+
+        const result = await nistCveService.lookupCves({ serviceNames: ['ssh'] }, { userId: validUserId, assetId: 'asset-1' });
+
+        expect(result.totalMatches).toBe(1);
+    });
     it('should map NVD vulnerabilities into normalized CVE matches', async () => {
         axios.get.mockResolvedValue({
             data: {
