@@ -271,10 +271,15 @@ class ScanHistoryService {
                     }
                 );
 
-                return assetSecurityContextService.buildFallbackContext(
+                return assetSecurityContextService.buildFromScanResult(
                     asset,
-                    'On-demand live scan completed.',
-                    cveResult
+                    scanResult,
+                    cveResult,
+                    {
+                        _id: '',
+                        status: 'Completed',
+                        completedAt: new Date().toISOString(),
+                    }
                 );
             } catch (error) {
                 if (!shouldFallbackToEnrichment(error)) {

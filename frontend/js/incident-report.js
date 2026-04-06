@@ -315,6 +315,7 @@ function updateAnalysisDataSources(securityContext) {
     const scanBadge = document.getElementById('badge-scan-source');
     const cveBadge = document.getElementById('badge-cve-source');
     const confidenceBadge = document.getElementById('badge-enrichment-confidence');
+    const openPortsMeta = document.getElementById('scan-open-ports-meta');
     const enrichedMeta = document.getElementById('enriched-meta');
 
     const sources = securityContext?.dataSources || {};
@@ -330,6 +331,14 @@ function updateAnalysisDataSources(securityContext) {
 
     if (confidenceBadge) {
         confidenceBadge.textContent = `Confidence: ${enrichment.confidence || securityContext?.cve?.confidence || 'Pending'}`;
+    }
+
+    if (openPortsMeta) {
+        const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
+            ? securityContext.liveScan.observedOpenPorts
+            : [];
+        const openPortsText = observedOpenPorts.length > 0 ? observedOpenPorts.join(', ') : 'None identified';
+        openPortsMeta.textContent = `Open ports: ${openPortsText}`;
     }
 
     if (enrichedMeta) {

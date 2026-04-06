@@ -136,8 +136,31 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function normalizeRecommendationText(rawText) {
+    const collapsedText = String(rawText || '').replace(/\s+/g, ' ').trim();
+    if (!collapsedText) {
+        return '';
+    }
+
+    if (/^\[[^\]]+\]\s+/.test(collapsedText)) {
+        return collapsedText;
+    }
+
+    let normalizedText = collapsedText.replace(/\s+['"]no$/i, ' no critical findings reported');
+
+    if (/['"]$/.test(normalizedText)) {
+        normalizedText = normalizedText.slice(0, -1).trim();
+    }
+
+    if (!/[.!?]$/.test(normalizedText)) {
+        normalizedText = `${normalizedText}.`;
+    }
+
+    return normalizedText;
+}
+
 function renderRecommendationWithNistTag(recommendationText) {
-    const normalizedText = String(recommendationText || '').trim();
+    const normalizedText = normalizeRecommendationText(recommendationText);
     const tagMatch = normalizedText.match(/^\[([^\]]+)\]\s*(.*)$/);
 
     if (!tagMatch) {
@@ -363,9 +386,10 @@ function displayIncidents(incidentsToDisplay) {
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
         const isSelected = selectedIncidentIds.has(incident._id);
+        const selectButtonLabel = isSelected ? 'Unselect' : 'Select';
 
         row.innerHTML = `
-            <td data-label="Select"><input type="checkbox" class="incident-select" data-incident-id="${incident._id}" ${isSelected ? 'checked' : ''} aria-label="Select ${incident.incidentId}"></td>
+            <td data-label="Select"><button type="button" class="btn btn-sm incident-select-btn ${isSelected ? 'is-selected' : ''}" data-incident-id="${incident._id}" aria-label="Select ${incident.incidentId}" aria-pressed="${isSelected ? 'true' : 'false'}">${selectButtonLabel}</button></td>
             <td data-label="Incident ID">${incident.incidentId}</td>
             <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
             <td data-label="Threat Type">${incident.threatType}</td>
@@ -381,7 +405,7 @@ function displayIncidents(incidentsToDisplay) {
         `;
 
         row.addEventListener('click', (event) => {
-            if (event.target.closest('.incident-select') || event.target.closest('button')) {
+            if (event.target.closest('.incident-select-btn') || event.target.closest('button')) {
                 return;
             }
             viewIncidentDetails(incident._id);
@@ -390,19 +414,33 @@ function displayIncidents(incidentsToDisplay) {
         tbody.appendChild(row);
     });
 
-    tbody.querySelectorAll('.incident-select').forEach((checkbox) => {
-        checkbox.addEventListener('change', (event) => {
-            const incidentId = event.target.dataset.incidentId;
-            if (event.target.checked) {
-                selectedIncidentIds.add(incidentId);
-            } else {
+    tbody.querySelectorAll('.incident-select-btn').forEach((selectButton) => {
+        selectButton.addEventListener('click', (event) => {
+            const incidentId = event.currentTarget.dataset.incidentId;
+            const isSelected = selectedIncidentIds.has(incidentId);
+
+            if (isSelected) {
                 selectedIncidentIds.delete(incidentId);
+            } else {
+                selectedIncidentIds.add(incidentId);
             }
+
+            updateIncidentSelectButtonState(event.currentTarget, !isSelected);
             updateIncidentSelectionState();
         });
     });
 
     updateIncidentSelectionState();
+}
+
+function updateIncidentSelectButtonState(selectButton, isSelected) {
+    if (!selectButton) {
+        return;
+    }
+
+    selectButton.classList.toggle('is-selected', isSelected);
+    selectButton.textContent = isSelected ? 'Unselect' : 'Select';
+    selectButton.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 }
 
 function updateIncidentSelectionState() {
@@ -413,8 +451,8 @@ function updateIncidentSelectionState() {
 
     const selectAllBtn = document.getElementById('select-all-incidents-btn');
     if (selectAllBtn) {
-        const visibleCheckboxes = Array.from(document.querySelectorAll('.incident-select'));
-        const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+        const visibleSelectButtons = Array.from(document.querySelectorAll('.incident-select-btn'));
+        const allVisibleSelected = visibleSelectButtons.length > 0 && visibleSelectButtons.every((button) => selectedIncidentIds.has(button.dataset.incidentId));
         selectAllBtn.textContent = allVisibleSelected ? 'Unselect All' : 'Select All';
     }
 
@@ -425,18 +463,19 @@ function updateIncidentSelectionState() {
 }
 
 function handleSelectAllIncidentsClick() {
-    const visibleCheckboxes = Array.from(document.querySelectorAll('.incident-select'));
-    const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+    const visibleSelectButtons = Array.from(document.querySelectorAll('.incident-select-btn'));
+    const allVisibleSelected = visibleSelectButtons.length > 0 && visibleSelectButtons.every((button) => selectedIncidentIds.has(button.dataset.incidentId));
     const shouldSelectAll = !allVisibleSelected;
 
-    visibleCheckboxes.forEach((checkbox) => {
-        checkbox.checked = shouldSelectAll;
-        const incidentId = checkbox.dataset.incidentId;
+    visibleSelectButtons.forEach((button) => {
+        const incidentId = button.dataset.incidentId;
         if (shouldSelectAll) {
             selectedIncidentIds.add(incidentId);
         } else {
             selectedIncidentIds.delete(incidentId);
         }
+
+        updateIncidentSelectButtonState(button, shouldSelectAll);
     });
 
     updateIncidentSelectionState();
@@ -521,6 +560,15 @@ function openDeleteIncidentModal(incidentId) {
     showModal('delete-modal');
 }
 function displayIncidentDetails(incident) {
+    const securityContext = incident.securityContext || {};
+    const liveScan = securityContext.liveScan || {};
+    const clientReportedLiveScan = securityContext?.clientReported?.liveScan || {};
+    const scanTarget = String(liveScan.target || incident.asset?.liveScan?.target || '').trim() || 'N/A';
+    const openPorts = Array.isArray(liveScan.observedOpenPorts) && liveScan.observedOpenPorts.length > 0
+        ? liveScan.observedOpenPorts
+        : (Array.isArray(clientReportedLiveScan.observedOpenPorts) ? clientReportedLiveScan.observedOpenPorts : []);
+    const openPortsText = openPorts.length > 0 ? openPorts.join(', ') : 'None identified';
+
     document.getElementById('detail-incident-id').textContent = incident.incidentId;
     document.getElementById('detail-status').textContent = incident.status;
     document.getElementById('detail-reporter').textContent = incident.reportedBy || 'System';
@@ -558,6 +606,9 @@ function displayIncidentDetails(incident) {
     recommendationsEl.innerHTML = (incident.recommendations || [])
         .map((rec) => renderRecommendationWithNistTag(rec))
         .join('');
+
+    document.getElementById('detail-scanned-ip').textContent = scanTarget;
+    document.getElementById('detail-open-ports').textContent = openPortsText;
 
     renderIncidentCveDetails(incident);
 
@@ -615,15 +666,58 @@ function exportIncidents() {
 
     const data = incidents
         .filter((incident) => selectedIncidentIds.has(incident._id))
-        .map((incident) => ({
-            'Incident ID': incident.incidentId,
-            Asset: incident.asset?.assetName || 'Unknown',
-            'Threat Type': incident.threatType,
-            'Risk Level': incident.riskLevel,
-            Status: incident.status,
-            Date: formatDate(incident.createdAt),
-            'Risk Score': incident.riskScore,
-        }));
+        .map((incident) => {
+            const securityContext = incident.securityContext || {};
+            const enrichment = securityContext.enrichment || {};
+            const liveScan = securityContext.liveScan || {};
+            const cveMatches = getIncidentCveMatches(incident);
+            const cveBySeverity = cveMatches.reduce((accumulator, cve) => {
+                const severity = normalizeCveSeverity(cve);
+                accumulator[severity] = (accumulator[severity] || 0) + 1;
+                return accumulator;
+            }, {});
+            const normalizedRecommendations = (incident.recommendations || [])
+                .map((rec) => normalizeRecommendationText(rec));
+
+            return {
+                'Incident ID': incident.incidentId,
+                'Database ID': incident._id || '',
+                'Asset Name': incident.asset?.assetName || 'Unknown',
+                'Asset Type': incident.asset?.assetType || '',
+                'Threat Type': incident.threatType,
+                'Threat Category': incident.threatCategory || '',
+                Confidence: incident.confidence || 0,
+                Likelihood: incident.likelihood || 0,
+                Impact: incident.impact || 0,
+                'Risk Score': incident.riskScore,
+                'Risk Level': incident.riskLevel,
+                Status: incident.status,
+                'Reported By': incident.reportedBy || 'System',
+                'Date Reported': formatDateTime(incident.createdAt),
+                'Incident Description': incident.description || '',
+                'NIST Functions': (incident.nistFunctions || []).join(' | '),
+                'NIST Controls': (incident.nistControls || []).join(' | '),
+                'CVE Total': cveMatches.length,
+                'CVE Critical': cveBySeverity.CRITICAL || 0,
+                'CVE High': cveBySeverity.HIGH || 0,
+                'CVE Medium': cveBySeverity.MEDIUM || 0,
+                'CVE Low': cveBySeverity.LOW || 0,
+                'CVE Unknown': cveBySeverity.UNKNOWN || 0,
+                'Enrichment Source': enrichment.source || securityContext?.cve?.source || 'NIST NVD API',
+                'Enrichment Confidence': enrichment.confidence || securityContext?.cve?.confidence || 'N/A',
+                'Last Enriched': enrichment.lastEnrichedAt ? formatDateTime(enrichment.lastEnrichedAt) : '',
+                'Scanned IP': String(liveScan.target || incident.asset?.liveScan?.target || '').trim(),
+                'Observed Open Ports': Array.isArray(liveScan.observedOpenPorts) && liveScan.observedOpenPorts.length > 0
+                    ? liveScan.observedOpenPorts.join(' | ')
+                    : 'None identified',
+                'CVE Query Terms': (securityContext?.cve?.query?.searchTerms || securityContext?.cve?.query?.queryCandidates || []).join(' | '),
+                'Recommendations Count': normalizedRecommendations.length,
+                Recommendations: normalizedRecommendations.join(' || '),
+                'AI Model': incident.aiModel || '',
+                'AI Version': incident.aiVersion || '',
+                'AI Analyzed At': incident.aiAnalyzedAt ? formatDateTime(incident.aiAnalyzedAt) : '',
+            };
+        });
 
     exportToCSV('selected-incidents-report.csv', data);
     showNotification('Selected incidents exported successfully', 'success');

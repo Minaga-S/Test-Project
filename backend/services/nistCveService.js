@@ -13,6 +13,7 @@ const DEFAULT_RESULTS_PER_PAGE = 10;
 const REQUEST_TIMEOUT_MS = 10000;
 const DEFAULT_CACHE_TTL_MS = Number(process.env.NVD_CACHE_TTL_MS || 15 * 60 * 1000);
 const MAX_RETRIES = Number(process.env.NVD_MAX_RETRIES || 2);
+const ENABLE_FALLBACK_TERM_SEARCH = process.env.NVD_ENABLE_FALLBACK_TERMS === 'true';
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 const enrichmentCache = new Map();
@@ -168,10 +169,79 @@ function buildSearchTerms(profile = {}) {
     ].forEach((value) => pushUnique(terms, value));
 
     if (Array.isArray(profile.serviceNames)) {
-        profile.serviceNames.forEach((serviceName) => pushUnique(terms, serviceName));
+        const orderedServiceNames = [...profile.serviceNames]
+            .map((serviceName) => normalize(serviceName).toLowerCase())
+            .filter(Boolean)
+            .sort();
+        orderedServiceNames.forEach((serviceName) => pushUnique(terms, serviceName));
     }
 
-    return terms;
+    return terms.sort();
+}
+
+function buildPrimarySearchTerms(profile = {}) {
+    const cpeUri = normalize(profile.cpeUri).toLowerCase();
+    if (cpeUri) {
+        return [cpeUri];
+    }
+
+    const preferredTerms = [];
+    [profile.vendor, profile.product, profile.productVersion, profile.osName]
+        .forEach((value) => pushUnique(preferredTerms, value));
+
+    if (preferredTerms.length >= 2) {
+        return preferredTerms;
+    }
+
+    const baseTerms = buildSearchTerms(profile);
+    if (baseTerms.length === 0) {
+        return [];
+    }
+
+    return baseTerms.slice(0, 4);
+}
+
+function buildDeterministicQueryCandidates(profile = {}) {
+    const candidates = [];
+    const cpeUri = normalize(profile.cpeUri).toLowerCase();
+    const vendor = normalize(profile.vendor).toLowerCase();
+    const product = normalize(profile.product).toLowerCase();
+    const productVersion = normalize(profile.productVersion).toLowerCase();
+    const osName = normalize(profile.osName).toLowerCase();
+
+    if (cpeUri) {
+        pushUnique(candidates, cpeUri);
+    }
+
+    if (vendor && product && productVersion) {
+        pushUnique(candidates, `${vendor} ${product} ${productVersion}`);
+    }
+
+    if (vendor && product) {
+        pushUnique(candidates, `${vendor} ${product}`);
+    }
+
+    if (product) {
+        pushUnique(candidates, product);
+    }
+
+    if (osName) {
+        pushUnique(candidates, osName);
+    }
+
+    const serviceNames = Array.isArray(profile.serviceNames)
+        ? profile.serviceNames
+            .map((serviceName) => normalize(serviceName).toLowerCase())
+            .filter(Boolean)
+            .sort()
+        : [];
+    serviceNames.slice(0, 2).forEach((serviceName) => pushUnique(candidates, serviceName));
+
+    if (candidates.length > 0) {
+        return candidates;
+    }
+
+    return buildPrimarySearchTerms(profile);
 }
 
 function buildFallbackSearchTerms(profile = {}) {
@@ -260,10 +330,10 @@ class NistCveService {
     async lookupCves(profile = {}, requestMeta = {}) {
         enforceOutboundHostPolicy(NVD_API_URL);
 
-        const searchTerms = buildSearchTerms(profile);
+        const queryCandidates = buildDeterministicQueryCandidates(profile);
         const safeMeta = buildSafeMeta(requestMeta);
 
-        if (searchTerms.length === 0) {
+        if (queryCandidates.length === 0) {
             return {
                 source: 'NIST NVD API',
                 query: {},
@@ -275,14 +345,13 @@ class NistCveService {
             };
         }
 
-        const keywordSearch = searchTerms.join(' ');
-        const cacheKey = getCacheKey(searchTerms);
+        const cacheKey = getCacheKey(queryCandidates);
         const cachedResult = getCachedResult(cacheKey);
 
         if (cachedResult) {
             await recordAuditLog('CVE_ENRICHMENT_CACHE_HIT', safeMeta, {
                 cacheHit: true,
-                searchTermsCount: searchTerms.length,
+                searchTermsCount: queryCandidates.length,
                 matches: cachedResult.totalMatches,
                 confidence: cachedResult.confidence,
                 vendor: profile.vendor,
@@ -306,27 +375,37 @@ class NistCveService {
 
         while (attempt <= MAX_RETRIES) {
             try {
-                const response = await axios.get(NVD_API_URL, {
-                    params: {
-                        keywordSearch,
-                        resultsPerPage: DEFAULT_RESULTS_PER_PAGE,
-                    },
-                    headers,
-                    timeout: REQUEST_TIMEOUT_MS,
-                });
+                let matches = [];
+                let matchedKeywordSearch = '';
 
-                const vulnerabilities = Array.isArray(response?.data?.vulnerabilities)
-                    ? response.data.vulnerabilities
-                    : [];
+                for (const queryCandidate of queryCandidates) {
+                    const response = await axios.get(NVD_API_URL, {
+                        params: {
+                            keywordSearch: queryCandidate,
+                            resultsPerPage: DEFAULT_RESULTS_PER_PAGE,
+                        },
+                        headers,
+                        timeout: REQUEST_TIMEOUT_MS,
+                    });
 
-                const matches = vulnerabilities.map(mapCve).filter((entry) => entry.cveId);
+                    const vulnerabilities = Array.isArray(response?.data?.vulnerabilities)
+                        ? response.data.vulnerabilities
+                        : [];
+                    const queryMatches = vulnerabilities.map(mapCve).filter((entry) => entry.cveId);
+
+                    if (queryMatches.length > 0) {
+                        matches = queryMatches;
+                        matchedKeywordSearch = queryCandidate;
+                        break;
+                    }
+                }
 
                 if (matches.length > 0) {
                     const result = {
                         source: 'NIST NVD API',
                         query: {
-                            keywordSearch,
-                            searchTerms,
+                            keywordSearch: matchedKeywordSearch,
+                            queryCandidates,
                         },
                         matches,
                         totalMatches: matches.length,
@@ -341,7 +420,7 @@ class NistCveService {
                         cacheHit: false,
                         durationMs: Date.now() - startedAt,
                         attempts: attempt + 1,
-                        searchTermsCount: searchTerms.length,
+                        searchTermsCount: queryCandidates.length,
                         matches: matches.length,
                         confidence: result.confidence,
                         vendor: profile.vendor,
@@ -352,7 +431,9 @@ class NistCveService {
                     return result;
                 }
 
-                const fallbackTerms = buildFallbackSearchTerms(profile).filter((term) => term !== keywordSearch);
+                const fallbackTerms = ENABLE_FALLBACK_TERM_SEARCH
+                    ? buildFallbackSearchTerms(profile).filter((term) => !queryCandidates.includes(term))
+                    : [];
                 const fallbackMatches = [];
 
                 for (const term of fallbackTerms) {
@@ -381,8 +462,7 @@ class NistCveService {
                 const result = {
                     source: 'NIST NVD API',
                     query: {
-                        keywordSearch,
-                        searchTerms,
+                        queryCandidates,
                         fallbackSearchTerms: fallbackTerms,
                     },
                     matches: fallbackMatches,
@@ -398,7 +478,7 @@ class NistCveService {
                     cacheHit: false,
                     durationMs: Date.now() - startedAt,
                     attempts: attempt + 1,
-                    searchTermsCount: searchTerms.length + fallbackTerms.length,
+                    searchTermsCount: queryCandidates.length + fallbackTerms.length,
                     matches: fallbackMatches.length,
                     confidence: result.confidence,
                     vendor: profile.vendor,
@@ -413,7 +493,7 @@ class NistCveService {
                     await recordAuditLog('CVE_ENRICHMENT_FAILURE', safeMeta, {
                         durationMs: Date.now() - startedAt,
                         attempts: attempt + 1,
-                        searchTermsCount: searchTerms.length,
+                        searchTermsCount: queryCandidates.length,
                         errorCode: error?.code || '',
                         statusCode: error?.response?.status || 0,
                         vendor: profile.vendor,
