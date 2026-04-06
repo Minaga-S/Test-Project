@@ -155,6 +155,32 @@ describe('scanHistoryService', () => {
         expect(cveEnrichmentService.enrichForAsset).toHaveBeenCalled();
     });
 
+    it('should include observed open ports when on-demand live scan succeeds', async () => {
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '192.168.1.100',
+            requestedPorts: ['22', '80'],
+            openPorts: [22, 80],
+            services: [
+                { port: 22, service: 'ssh' },
+                { port: 80, service: 'http' },
+            ],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 192.168.1.100 () Status: Up',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        const context = await scanHistoryService.buildOnDemandSecurityContext({
+            _id: 'asset-1',
+            assetName: 'Internal Database Server',
+            liveScan: { enabled: true, target: '192.168.1.100', ports: '22,80' },
+            vulnerabilityProfile: {},
+        }, 'user-1', { ipAddress: '192.168.1.22' });
+
+        expect(context.liveScan.observedOpenPorts).toEqual([22, 80]);
+    });
+
     it('should return the latest scan history from storage', async () => {
         ScanHistory.findOne.mockReturnValue({ sort: jest.fn().mockResolvedValue({ _id: 'history-1' }) });
 

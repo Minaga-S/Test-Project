@@ -11,6 +11,8 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const GEMINI_MODEL_VERSION = process.env.GEMINI_MODEL_VERSION || 'v1beta';
 const GEMINI_API_BASE_URL = `https://generativelanguage.googleapis.com/${GEMINI_MODEL_VERSION}/models`;
+const DETERMINISTIC_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE || 0);
+const JSON_REPAIR_TEMPERATURE = Number(process.env.GEMINI_REPAIR_TEMPERATURE || 0);
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 300;
 const DEFAULT_MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-1.5-flash'];
@@ -173,7 +175,7 @@ ${malformedText}
             parts: [{ text: repairPrompt }],
         }],
         generationConfig: {
-            temperature: 0,
+            temperature: JSON_REPAIR_TEMPERATURE,
             maxOutputTokens: 1400,
         },
     };
@@ -192,7 +194,7 @@ async function generateJsonWithGemini(prompt) {
             parts: [{ text: prompt }],
         }],
         generationConfig: {
-            temperature: 0.2,
+            temperature: DETERMINISTIC_TEMPERATURE,
             maxOutputTokens: 1400,
             responseMimeType: 'application/json',
         },

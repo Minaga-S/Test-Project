@@ -100,6 +100,25 @@ class IncidentController {
                         securityContext.dataSources.cve = 'NIST Enriched';
                     }
                 }
+
+                const existingObservedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
+                    ? securityContext.liveScan.observedOpenPorts
+                    : [];
+                const clientObservedOpenPorts = Array.isArray(clientSecurityContext?.liveScan?.observedOpenPorts)
+                    ? clientSecurityContext.liveScan.observedOpenPorts
+                    : [];
+
+                if (existingObservedOpenPorts.length === 0 && clientObservedOpenPorts.length > 0) {
+                    securityContext.liveScan = {
+                        ...(securityContext.liveScan || {}),
+                        ...(clientSecurityContext.liveScan || {}),
+                        observedOpenPorts: clientObservedOpenPorts,
+                    };
+
+                    if (securityContext.dataSources && typeof securityContext.dataSources === 'object') {
+                        securityContext.dataSources.scan = securityContext.dataSources.scan || 'Live Nmap Scan';
+                    }
+                }
             }
 
             const threatAnalysis = await threatService.classifyThreat(description, securityContext);

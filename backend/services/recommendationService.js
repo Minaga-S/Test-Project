@@ -39,22 +39,51 @@ class RecommendationService {
         if (!payload) return [];
 
         if (Array.isArray(payload)) {
-            return payload.map(item => String(item || '').trim()).filter(Boolean);
+            return payload
+                .map((item) => this.normalizeRecommendationText(item))
+                .filter(Boolean);
         }
 
         if (Array.isArray(payload.all)) {
-            return payload.all.map(item => String(item || '').trim()).filter(Boolean);
+            return payload.all
+                .map((item) => this.normalizeRecommendationText(item))
+                .filter(Boolean);
         }
 
         if (Array.isArray(payload.recommendations)) {
             return payload.recommendations.map(item => {
-                if (typeof item === 'string') return item.trim();
-                if (item && typeof item.text === 'string') return item.text.trim();
+                if (typeof item === 'string') return this.normalizeRecommendationText(item);
+                if (item && typeof item.text === 'string') return this.normalizeRecommendationText(item.text);
                 return '';
             }).filter(Boolean);
         }
 
         return [];
+    }
+
+    normalizeRecommendationText(rawText) {
+        const collapsedText = String(rawText || '').replace(/\s+/g, ' ').trim();
+        if (!collapsedText) {
+            return '';
+        }
+
+        if (/^\[[^\]]+\]\s+/.test(collapsedText)) {
+            return collapsedText;
+        }
+
+        // Repair common clipped AI tail where a quoted "no ..." phrase is truncated.
+        let normalizedText = collapsedText.replace(/\s+['"]no$/i, ' no critical findings reported');
+
+        if (/['"]$/.test(normalizedText)) {
+            normalizedText = normalizedText.slice(0, -1).trim();
+        }
+
+        const hasTerminalPunctuation = /[.!?]$/.test(normalizedText);
+        if (!hasTerminalPunctuation) {
+            normalizedText = `${normalizedText}.`;
+        }
+
+        return normalizedText;
     }
 
     /**
