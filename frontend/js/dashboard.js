@@ -595,3 +595,121 @@ window.addEventListener('resize', () => {
 });
 
 
+
+let selectedRecentIncidentIds = new Set();
+
+function setupRecentIncidentsBulkActionsEnhancement() {
+    const selectAllButton = document.getElementById('select-all-recent-incidents-btn');
+    if (selectAllButton) {
+        selectAllButton.addEventListener('click', () => {
+            document.querySelectorAll('.recent-incident-select').forEach((checkbox) => {
+                checkbox.checked = true;
+                selectedRecentIncidentIds.add(checkbox.dataset.incidentId);
+            });
+            updateRecentIncidentSelectionState();
+        });
+    }
+
+    const bulkDeleteBtn = document.getElementById('delete-all-recent-incidents-btn');
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', handleBulkDeleteRecentIncidents);
+    }
+}
+
+function updateRecentIncidentSelectionState() {
+    const selectedCountEl = document.getElementById('selected-recent-incidents-count');
+    if (selectedCountEl) {
+        selectedCountEl.textContent = `${selectedRecentIncidentIds.size} selected`;
+    }
+}
+
+const originalDisplayRecentIncidents = displayRecentIncidents;
+displayRecentIncidents = function displayRecentIncidentsWithSelection(incidents) {
+    const tbody = document.getElementById('recent-incidents-tbody');
+    if (!tbody) {
+        return;
+    }
+
+    const incidentList = Array.isArray(incidents) ? incidents : [];
+    const summary = document.getElementById('dashboard-recent-incidents-summary');
+
+    if (summary) {
+        summary.innerHTML = createSummaryBadge(incidentList.length === 0 ? '0 incidents' : `${incidentList.length} incidents`);
+    }
+
+    if (incidentList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No recent incidents</td></tr>';
+        updateRecentIncidentSelectionState();
+        return;
+    }
+
+    tbody.innerHTML = '';
+    incidentList.slice(0, 5).forEach((incident) => {
+        const riskLevel = incident.riskLevel || 'Low';
+        const status = incident.status || 'Open';
+        const isSelected = selectedRecentIncidentIds.has(incident._id);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td data-label="Select"><input type="checkbox" class="recent-incident-select" data-incident-id="${incident._id}" ${isSelected ? 'checked' : ''} aria-label="Select ${incident.incidentId}"></td>
+            <td data-label="Incident ID">${incident.incidentId}</td>
+            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
+            <td data-label="Threat Type">${incident.threatType || 'Unknown'}</td>
+            <td data-label="Risk Level"><span class="risk-${riskLevel.toLowerCase()}">${riskLevel}</span></td>
+            <td data-label="Status"><span class="status-badge status-${status}">${status}</span></td>
+            <td data-label="Date">${formatDate(incident.createdAt)}</td>
+            <td data-label="Action"><a href="incident-logs.html?id=${incident._id}" class="link">View</a></td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    tbody.querySelectorAll('.recent-incident-select').forEach((checkbox) => {
+        checkbox.addEventListener('change', (event) => {
+            const incidentId = event.target.dataset.incidentId;
+            if (event.target.checked) {
+                selectedRecentIncidentIds.add(incidentId);
+            } else {
+                selectedRecentIncidentIds.delete(incidentId);
+            }
+            updateRecentIncidentSelectionState();
+        });
+    });
+
+    updateRecentIncidentSelectionState();
+};
+
+async function handleBulkDeleteRecentIncidents() {
+    if (selectedRecentIncidentIds.size === 0) {
+        showNotification('Select at least one recent incident to delete', 'warning');
+        return;
+    }
+
+    const confirmed = window.confirm(`Delete ${selectedRecentIncidentIds.size} selected recent incidents?`);
+    if (!confirmed) {
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        const incidentIds = Array.from(selectedRecentIncidentIds);
+        const deleteResults = await Promise.allSettled(incidentIds.map((id) => apiClient.deleteIncident(id)));
+        const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
+        const failedCount = deleteResults.length - deletedCount;
+
+        selectedRecentIncidentIds = new Set();
+        await loadDashboardData();
+
+        if (failedCount > 0) {
+            showNotification(`Deleted ${deletedCount} incidents, ${failedCount} failed`, 'warning');
+        } else {
+            showNotification(`Deleted ${deletedCount} incidents successfully`, 'success');
+        }
+    } catch (error) {
+        console.error('Bulk delete recent incidents error:', error);
+        showNotification('Bulk delete failed', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', setupRecentIncidentsBulkActionsEnhancement);

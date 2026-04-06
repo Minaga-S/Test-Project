@@ -278,6 +278,14 @@ class APIClient {
         return this.get('/assets/asset-types');
     }
 
+    async scanAssets(assetIds) {
+        return this.post('/assets/scan', { assetIds });
+    }
+
+    async getAssetSecurityContext(assetId) {
+        return this.get(/assets//security-context);
+    }
+
     // ============== INCIDENT ENDPOINTS ==============
 
     async createIncident(incidentData) {

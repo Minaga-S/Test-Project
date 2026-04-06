@@ -2,15 +2,6 @@
  * Incident Report Handler
  */
 // NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
-/**
- * SECTION GUIDE:
- * 1) Report Boot: loads assets and binds report form events.
- * 2) Validation: checks minimum fields before submit.
- * 3) Submit + Analysis UX: shows progress while backend analyzes text.
- * 4) Result Handling: displays success modal and next actions.
- */
-
-
 
 let assets = [];
 let progressTimer = null;
@@ -20,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeIncidentReport() {
-    // Page boot flow: guard auth, load user context, then prepare form data and listeners.
     if (!apiClient.isAuthenticated()) {
         window.location.href = 'login.html';
         return;
@@ -97,18 +87,46 @@ function setSubmitButtonState(isSubmitting) {
     submitButton.textContent = isSubmitting ? 'Analyzing...' : 'Submit Report';
 }
 
+function setStepState(stepId, state) {
+    const stepEl = document.getElementById(stepId);
+    if (!stepEl) {
+        return;
+    }
+
+    stepEl.style.opacity = state === 'pending' ? '0.55' : '1';
+    stepEl.style.fontWeight = state === 'active' ? '700' : '500';
+
+    if (state === 'done') {
+        if (!stepEl.textContent.trim().startsWith('✓')) {
+            stepEl.textContent = `✓ ${stepEl.textContent.replace(/^\d+\.\s*/, '')}`;
+        }
+    } else {
+        stepEl.textContent = stepEl.textContent.replace(/^✓\s*/, '');
+    }
+}
+
+function resetAnalysisSteps() {
+    setStepState('step-scan', 'pending');
+    setStepState('step-cve', 'pending');
+    setStepState('step-ai', 'pending');
+    setStepState('step-rec', 'pending');
+}
+
 function beginAnalysisProgress() {
-    // Simulated progress keeps users informed while backend AI analysis runs.
     stopAnalysisProgress();
+    resetAnalysisSteps();
 
-    const progressFill = document.getElementById('progress-fill');
-    let currentProgress = 12;
+    const etaEl = document.getElementById('analysis-eta');
+    if (etaEl) {
+        etaEl.textContent = 'Estimated completion: about 15-45 seconds depending on scan and AI response times.';
+    }
 
-    updateAnalysisStatus('Submitting your report...', currentProgress);
+    let currentProgress = 8;
+    updateAnalysisStatus('Preparing incident analysis workflow...', currentProgress);
 
     progressTimer = window.setInterval(() => {
-        currentProgress = Math.min(currentProgress + Math.random() * 7, 92);
-        updateAnalysisStatus('AI is analyzing your incident description...', currentProgress);
+        currentProgress = Math.min(currentProgress + Math.random() * 5, 90);
+        updateAnalysisStatus('Working through analysis steps...', currentProgress);
     }, 450);
 }
 
@@ -120,13 +138,13 @@ function stopAnalysisProgress() {
 }
 
 async function handleIncidentSubmit(e) {
-    // Submit flow: validate input, show analysis modal, send request, then display result modal.
     e.preventDefault();
 
     const assetId = String(document.getElementById('affected-asset').value || '').trim();
     const description = document.getElementById('incident-description').value;
     const incidentTime = document.getElementById('when-happened').value;
     const guestAffected = document.getElementById('guest-affected').checked;
+    const paymentsAffected = document.getElementById('payments-affected').checked;
     const sensitiveDataInvolved = document.getElementById('data-involved').checked;
 
     if (!assetId) {
@@ -144,18 +162,38 @@ async function handleIncidentSubmit(e) {
     beginAnalysisProgress();
 
     try {
-        // Keep payload shape aligned with backend create-incident API contract.
+        let clientSecurityContext = null;
+
+        setStepState('step-scan', 'active');
+        updateAnalysisStatus('Running live scan (if enabled for selected asset)...', 20);
+        const securityResponse = await apiClient.getAssetSecurityContext(assetId);
+        clientSecurityContext = securityResponse?.securityContext || null;
+        setStepState('step-scan', 'done');
+
+        setStepState('step-cve', 'active');
+        updateAnalysisStatus('Checking vulnerability intelligence and CVE context...', 44);
+        setStepState('step-cve', 'done');
+
+        setStepState('step-ai', 'active');
+        updateAnalysisStatus('Performing AI threat analysis and risk scoring...', 68);
+
         const incidentData = {
             assetId,
             description,
             incidentTime,
             guestAffected,
+            paymentsAffected,
             sensitiveDataInvolved,
+            clientSecurityContext,
         };
 
         const incident = await apiClient.createIncident(incidentData);
+        setStepState('step-ai', 'done');
 
-        updateAnalysisStatus('Applying NIST framework mapping and recommendations...', 96);
+        setStepState('step-rec', 'active');
+        updateAnalysisStatus('Generating recommendations and NIST controls...', 90);
+        setStepState('step-rec', 'done');
+
         stopAnalysisProgress();
         updateAnalysisStatus('Analysis complete', 100);
 
@@ -229,7 +267,3 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
-
-
-
-

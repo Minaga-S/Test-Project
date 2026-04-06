@@ -72,7 +72,16 @@ const IncidentSchema = new mongoose.Schema({
         required: true,
     },
     guestAffected: Boolean,
+    paymentsAffected: Boolean,
     sensitiveDataInvolved: Boolean,
+    securityContext: {
+        type: Object,
+        default: {},
+    },
+    cveMatches: {
+        type: [Object],
+        default: [],
+    },
     isDeleted: {
         type: Boolean,
         default: false,

@@ -1,5 +1,5 @@
-process.env.GEMINI_API_KEY = 'test-gemini-key';
-process.env.GEMINI_MODEL = 'gemini-1.5-flash';
+process.env.GEMINI_API_KEY = 'AIzaSyDMjH9qSHLlaBZEeCyBX9c98Plu2uixS-w';
+process.env.GEMINI_MODEL = 'gemini-2.5-flash';
 process.env.GEMINI_MODEL_VERSION = 'v1beta';
 
 const axios = require('axios');

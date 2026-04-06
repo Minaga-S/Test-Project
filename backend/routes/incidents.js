@@ -17,6 +17,10 @@ const incidentIdValidation = [
 const createIncidentValidation = [
     body('assetId').isMongoId().withMessage('Asset id must be a valid ObjectId'),
     body('description').trim().isLength({ min: 20 }).withMessage('Description must be at least 20 characters'),
+    body('guestAffected').optional().isBoolean().withMessage('guestAffected must be a boolean'),
+    body('paymentsAffected').optional().isBoolean().withMessage('paymentsAffected must be a boolean'),
+    body('sensitiveDataInvolved').optional().isBoolean().withMessage('sensitiveDataInvolved must be a boolean'),
+    body('clientSecurityContext').optional().isObject().withMessage('clientSecurityContext must be an object'),
     validateRequest,
 ];
 
@@ -30,4 +34,3 @@ router.post('/:id/notes', incidentIdValidation, withController(incidentControlle
 router.delete('/:id', incidentIdValidation, withController(incidentController, 'deleteIncident'));
 
 module.exports = router;
-

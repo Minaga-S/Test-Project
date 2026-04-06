@@ -711,6 +711,24 @@
     background: #FFFFFF;
 }
 
+.filter-actions,
+.section-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-meta {
+    flex: 0 0 auto;
+    min-width: auto;
+}
+
+.filter-actions .btn,
+.section-actions .btn {
+    white-space: nowrap;
+}
+
 /* ============================================
    DETAIL SECTIONS
    ============================================ */

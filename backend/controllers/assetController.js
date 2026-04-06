@@ -3,20 +3,38 @@
  */
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
-
 const Asset = require('../models/Asset');
 const { ASSET_TYPES } = require('../utils/constants');
 const { validateAsset } = require('../utils/validators');
 const logger = require('../utils/logger');
 const auditLogService = require('../services/auditLogService');
+const assetSecurityContextService = require('../services/assetSecurityContextService');
+const scanHistoryService = require('../services/scanHistoryService');
+
+const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
+
+function sanitizeLiveScanInput(liveScanInput = {}) {
+    return {
+        enabled: liveScanInput.enabled === true || liveScanInput.enabled === 'true',
+        target: typeof liveScanInput.target === 'string' ? liveScanInput.target.trim() : '',
+        ports: typeof liveScanInput.ports === 'string' ? liveScanInput.ports.trim() : '',
+        frequency: typeof liveScanInput.frequency === 'string' ? liveScanInput.frequency : DEFAULT_SCAN_FREQUENCY,
+    };
+}
+
+function sanitizeVulnerabilityProfileInput(profileInput = {}) {
+    return {
+        osName: typeof profileInput.osName === 'string' ? profileInput.osName.trim() : '',
+        vendor: typeof profileInput.vendor === 'string' ? profileInput.vendor.trim() : '',
+        product: typeof profileInput.product === 'string' ? profileInput.product.trim() : '',
+        productVersion: typeof profileInput.productVersion === 'string' ? profileInput.productVersion.trim() : '',
+        cpeUri: typeof profileInput.cpeUri === 'string' ? profileInput.cpeUri.trim() : '',
+    };
+}
 
 class AssetController {
-    /**
-     * Create asset
-     */
     async createAsset(req, res, next) {
         try {
-            // Validate input
             const validation = validateAsset(req.body);
             if (!validation.isValid) {
                 return res.status(400).json({
@@ -34,6 +52,8 @@ class AssetController {
                 status: req.body.status || 'Active',
                 criticality: req.body.criticality || 'Medium',
                 owner: req.body.owner,
+                liveScan: sanitizeLiveScanInput(req.body.liveScan),
+                vulnerabilityProfile: sanitizeVulnerabilityProfileInput(req.body.vulnerabilityProfile),
                 userId: req.user.userId,
             });
 
@@ -55,36 +75,27 @@ class AssetController {
                 message: 'Asset created successfully',
                 asset,
             });
-
         } catch (error) {
             logger.error(`Create asset error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Get all assets
-     */
     async getAssets(req, res, next) {
         try {
-            const assets = await Asset.find({ userId: req.user.userId })
-                .sort({ createdAt: -1 });
+            const assets = await Asset.find({ userId: req.user.userId }).sort({ createdAt: -1 });
 
             res.json({
                 success: true,
                 count: assets.length,
                 assets,
             });
-
         } catch (error) {
             logger.error(`Get assets error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Get asset by ID
-     */
     async getAsset(req, res, next) {
         try {
             const asset = await Asset.findOne({
@@ -103,16 +114,12 @@ class AssetController {
                 success: true,
                 asset,
             });
-
         } catch (error) {
             logger.error(`Get asset error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Update asset
-     */
     async updateAsset(req, res, next) {
         try {
             const asset = await Asset.findOne({
@@ -127,6 +134,20 @@ class AssetController {
                 });
             }
 
+            const validation = validateAsset({
+                assetName: req.body.assetName || asset.assetName,
+                assetType: req.body.assetType || asset.assetType,
+                criticality: req.body.criticality || asset.criticality,
+                liveScan: req.body.liveScan !== undefined ? req.body.liveScan : asset.liveScan,
+            });
+            if (!validation.isValid) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Validation failed',
+                    errors: validation.errors,
+                });
+            }
+
             const before = {
                 assetName: asset.assetName,
                 assetType: asset.assetType,
@@ -134,7 +155,6 @@ class AssetController {
                 criticality: asset.criticality,
             };
 
-            // Update fields
             if (req.body.assetName) asset.assetName = req.body.assetName;
             if (req.body.assetType) asset.assetType = req.body.assetType;
             if (req.body.description !== undefined) asset.description = req.body.description;
@@ -142,6 +162,10 @@ class AssetController {
             if (req.body.status) asset.status = req.body.status;
             if (req.body.criticality) asset.criticality = req.body.criticality;
             if (req.body.owner !== undefined) asset.owner = req.body.owner;
+            if (req.body.liveScan !== undefined) asset.liveScan = sanitizeLiveScanInput(req.body.liveScan);
+            if (req.body.vulnerabilityProfile !== undefined) {
+                asset.vulnerabilityProfile = sanitizeVulnerabilityProfileInput(req.body.vulnerabilityProfile);
+            }
 
             asset.updatedAt = new Date();
             await asset.save();
@@ -168,16 +192,12 @@ class AssetController {
                 message: 'Asset updated successfully',
                 asset,
             });
-
         } catch (error) {
             logger.error(`Update asset error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Delete asset
-     */
     async deleteAsset(req, res, next) {
         try {
             const asset = await Asset.findOneAndUpdate(
@@ -215,16 +235,12 @@ class AssetController {
                 success: true,
                 message: 'Asset deleted successfully',
             });
-
         } catch (error) {
             logger.error(`Delete asset error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Search assets
-     */
     async searchAssets(req, res, next) {
         try {
             const query = req.query.query || '';
@@ -243,16 +259,12 @@ class AssetController {
                 count: assets.length,
                 assets,
             });
-
         } catch (error) {
             logger.error(`Search assets error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Get asset types
-     */
     async getAssetTypes(req, res, next) {
         try {
             res.json({
@@ -264,7 +276,105 @@ class AssetController {
             next(error);
         }
     }
+
+    async getAssetSecurityContext(req, res, next) {
+        try {
+            const asset = await Asset.findOne({
+                _id: req.params.id,
+                userId: req.user.userId,
+            });
+
+            if (!asset) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Asset not found',
+                });
+            }
+
+            const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
+            const securityContext = assetSecurityContextService.buildForAsset(asset, latestScanHistory);
+            res.json({
+                success: true,
+                securityContext,
+                latestScanHistory,
+            });
+        } catch (error) {
+            logger.error(`Get asset security context error: ${error.message}`);
+            next(error);
+        }
+    }
+
+    async getAssetScanHistory(req, res, next) {
+        try {
+            const asset = await Asset.findOne({
+                _id: req.params.id,
+                userId: req.user.userId,
+            });
+
+            if (!asset) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Asset not found',
+                });
+            }
+
+            const scanHistory = await scanHistoryService.getAssetScanHistory(asset._id, req.user.userId);
+            res.json({
+                success: true,
+                count: scanHistory.length,
+                scanHistory,
+            });
+        } catch (error) {
+            logger.error(`Get asset scan history error: ${error.message}`);
+            next(error);
+        }
+    }
+
+    async scanAssets(req, res, next) {
+        try {
+            const assetIds = Array.isArray(req.body.assetIds) ? req.body.assetIds : [];
+            if (assetIds.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'assetIds is required and must be a non-empty array',
+                });
+            }
+
+            const assets = await Asset.find({
+                _id: { $in: assetIds },
+                userId: req.user.userId,
+            });
+
+            if (assets.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No assets found for the provided ids',
+                });
+            }
+
+            const scans = [];
+            for (const asset of assets) {
+                const scanResult = await scanHistoryService.runAssetScan(asset, req.user.userId);
+                scans.push({
+                    assetId: String(asset._id),
+                    assetName: asset.assetName,
+                    status: scanResult.scanHistory.status,
+                    scanHistoryId: String(scanResult.scanHistory._id),
+                    securityContext: scanResult.securityContext,
+                });
+            }
+
+            const scannedCount = scans.filter((scan) => scan.status === 'Completed').length;
+            res.json({
+                success: true,
+                scannedCount,
+                scans,
+            });
+        } catch (error) {
+            logger.error(`Scan assets error: ${error.message}`);
+            next(error);
+        }
+    }
 }
 
 module.exports = new AssetController();
-

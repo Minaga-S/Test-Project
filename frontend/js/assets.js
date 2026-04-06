@@ -2,18 +2,11 @@
  * Asset Management Handler
  */
 // NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
-/**
- * SECTION GUIDE:
- * 1) Page Initialization: checks auth and loads initial assets.
- * 2) Event Wiring: hooks buttons/forms to handlers.
- * 3) Data Loading: fetches assets from API and renders table/cards.
- * 4) CRUD Actions: create, edit, and delete asset workflows.
- */
-
-
 
 let assets = [];
 let currentEditingAssetId = null;
+let selectedAssetIds = new Set();
+const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeAssets();
@@ -29,16 +22,34 @@ async function initializeAssets() {
     setupLogoutButton();
     setupEventListeners();
     await loadAssets();
+
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('scan') === '1') {
+        showNotification('Select assets from the table and click Scan Assets to start a live scan.', 'info');
+    }
 }
 
 function setupEventListeners() {
-    // Add asset button
     const addBtn = document.getElementById('add-asset-btn');
     if (addBtn) {
         addBtn.addEventListener('click', openAssetModal);
     }
 
-    // Modal controls
+    const scanAssetsBtn = document.getElementById('scan-assets-btn');
+    if (scanAssetsBtn) {
+        scanAssetsBtn.addEventListener('click', handleScanSelectedAssets);
+    }
+
+    const selectAllAssetsBtn = document.getElementById('select-all-assets-btn');
+    if (selectAllAssetsBtn) {
+        selectAllAssetsBtn.addEventListener('click', handleSelectAllAssetsClick);
+    }
+
+    const deleteAllAssetsBtn = document.getElementById('delete-all-assets-btn');
+    if (deleteAllAssetsBtn) {
+        deleteAllAssetsBtn.addEventListener('click', handleBulkDeleteAssets);
+    }
+
     const modalClose = document.getElementById('modal-close');
     if (modalClose) {
         modalClose.addEventListener('click', closeAssetModal);
@@ -54,13 +65,11 @@ function setupEventListeners() {
         modalOverlay.addEventListener('click', closeAssetModal);
     }
 
-    // Form submission
     const assetForm = document.getElementById('asset-form');
     if (assetForm) {
         assetForm.addEventListener('submit', handleAssetFormSubmit);
     }
 
-    // Filters
     const searchInput = document.getElementById('search-assets');
     if (searchInput) {
         searchInput.addEventListener('input', filterAssets);
@@ -76,7 +85,6 @@ function setupEventListeners() {
         filterStatus.addEventListener('change', filterAssets);
     }
 
-    // Delete modal
     const deleteConfirm = document.getElementById('delete-confirm');
     if (deleteConfirm) {
         deleteConfirm.addEventListener('click', confirmDelete);
@@ -90,7 +98,7 @@ function setupEventListeners() {
 
 async function loadAssets() {
     showLoading(true);
-    renderTableSkeleton('assets-tbody', 7, 4);
+    renderTableSkeleton('assets-tbody', 8, 4);
 
     try {
         assets = await apiClient.getAssets();
@@ -108,13 +116,16 @@ function displayAssets(assetsToDisplay) {
     tbody.innerHTML = '';
 
     if (!assetsToDisplay || assetsToDisplay.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No assets registered</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No assets registered</td></tr>';
+        updateSelectionState();
         return;
     }
 
-    assetsToDisplay.forEach(asset => {
+    assetsToDisplay.forEach((asset) => {
+        const isSelected = selectedAssetIds.has(asset._id);
         const row = document.createElement('tr');
         row.innerHTML = `
+            <td data-label="Select"><input type="checkbox" class="asset-select" data-asset-id="${asset._id}" ${isSelected ? 'checked' : ''} aria-label="Select ${asset.assetName}"></td>
             <td data-label="Asset Name">${asset.assetName}</td>
             <td data-label="Type">${asset.assetType}</td>
             <td data-label="Location">${asset.location || '-'}</td>
@@ -130,6 +141,92 @@ function displayAssets(assetsToDisplay) {
         `;
         tbody.appendChild(row);
     });
+
+    tbody.querySelectorAll('.asset-select').forEach((checkbox) => {
+        checkbox.addEventListener('change', (event) => {
+            const assetId = event.target.dataset.assetId;
+            if (event.target.checked) {
+                selectedAssetIds.add(assetId);
+            } else {
+                selectedAssetIds.delete(assetId);
+            }
+            updateSelectionState();
+        });
+    });
+
+    updateSelectionState();
+}
+
+function updateSelectionState() {
+    const selectedCountEl = document.getElementById('selected-assets-count');
+    if (selectedCountEl) {
+        selectedCountEl.textContent = `${selectedAssetIds.size} selected`;
+    }
+}
+
+function handleSelectAllAssetsClick() {
+    document.querySelectorAll('.asset-select').forEach((checkbox) => {
+        checkbox.checked = true;
+        selectedAssetIds.add(checkbox.dataset.assetId);
+    });
+
+    updateSelectionState();
+}
+
+async function handleScanSelectedAssets() {
+    if (selectedAssetIds.size === 0) {
+        showNotification('Select at least one asset to scan', 'warning');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const assetIds = Array.from(selectedAssetIds);
+        const scanResponse = await apiClient.scanAssets(assetIds);
+        const scannedCount = scanResponse?.scannedCount || assetIds.length;
+        showNotification(`Live scan request completed for ${scannedCount} assets`, 'success');
+    } catch (error) {
+        console.error('Error scanning assets:', error);
+        showNotification('Failed to run live scan', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function handleBulkDeleteAssets() {
+    if (selectedAssetIds.size === 0) {
+        showNotification('Select at least one asset to delete', 'warning');
+        return;
+    }
+
+    const confirmed = window.confirm(`Delete ${selectedAssetIds.size} selected assets?`);
+    if (!confirmed) {
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        const assetIds = Array.from(selectedAssetIds);
+        const deleteResults = await Promise.allSettled(assetIds.map((assetId) => apiClient.deleteAsset(assetId)));
+        const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
+        const failedCount = deleteResults.length - deletedCount;
+
+        selectedAssetIds = new Set();
+        updateSelectionState();
+        await loadAssets();
+
+        if (failedCount > 0) {
+            showNotification(`Deleted ${deletedCount} assets, ${failedCount} failed`, 'warning');
+        } else {
+            showNotification(`Deleted ${deletedCount} assets successfully`, 'success');
+        }
+    } catch (error) {
+        console.error('Bulk delete assets error:', error);
+        showNotification('Bulk delete failed', 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 function filterAssets() {
@@ -137,9 +234,9 @@ function filterAssets() {
     const typeFilter = document.getElementById('filter-type').value;
     const statusFilter = document.getElementById('filter-status').value;
 
-    const filtered = assets.filter(asset => {
+    const filtered = assets.filter((asset) => {
         const matchesSearch = asset.assetName.toLowerCase().includes(searchQuery) ||
-                             asset.description?.toLowerCase().includes(searchQuery);
+            asset.description?.toLowerCase().includes(searchQuery);
         const matchesType = !typeFilter || asset.assetType === typeFilter;
         const matchesStatus = !statusFilter || asset.status === statusFilter;
 
@@ -165,11 +262,10 @@ function closeAssetModal() {
 async function editAsset(assetId) {
     try {
         const asset = await apiClient.getAsset(assetId);
-        
+
         currentEditingAssetId = assetId;
         document.getElementById('modal-title').textContent = 'Edit Asset';
-        
-        // Populate form
+
         document.getElementById('asset-name').value = asset.assetName;
         document.getElementById('asset-type').value = asset.assetType;
         document.getElementById('asset-location').value = asset.location || '';
@@ -177,7 +273,21 @@ async function editAsset(assetId) {
         document.getElementById('asset-criticality').value = asset.criticality;
         document.getElementById('asset-owner').value = asset.owner || '';
         document.getElementById('asset-status').value = asset.status;
-        
+
+        const liveScan = asset.liveScan || {};
+        const vulnerabilityProfile = asset.vulnerabilityProfile || {};
+
+        document.getElementById('asset-live-scan-enabled').checked = Boolean(liveScan.enabled);
+        document.getElementById('asset-scan-target').value = liveScan.target || '';
+        document.getElementById('asset-scan-ports').value = liveScan.ports || '';
+        document.getElementById('asset-scan-frequency').value = liveScan.frequency || DEFAULT_SCAN_FREQUENCY;
+
+        document.getElementById('asset-os-name').value = vulnerabilityProfile.osName || '';
+        document.getElementById('asset-vendor').value = vulnerabilityProfile.vendor || '';
+        document.getElementById('asset-product').value = vulnerabilityProfile.product || '';
+        document.getElementById('asset-product-version').value = vulnerabilityProfile.productVersion || '';
+        document.getElementById('asset-cpe-uri').value = vulnerabilityProfile.cpeUri || '';
+
         showModal('asset-modal');
     } catch (error) {
         console.error('Error loading asset:', error);
@@ -189,15 +299,42 @@ async function handleAssetFormSubmit(e) {
     e.preventDefault();
 
     const formData = getFormData(e.target);
+    const payload = {
+        assetName: formData.assetName,
+        assetType: formData.assetType,
+        location: formData.location,
+        description: formData.description,
+        criticality: formData.criticality,
+        owner: formData.owner,
+        status: formData.status,
+        liveScan: {
+            enabled: document.getElementById('asset-live-scan-enabled').checked,
+            target: (formData.scanTarget || '').trim(),
+            ports: (formData.scanPorts || '').trim(),
+            frequency: formData.scanFrequency || DEFAULT_SCAN_FREQUENCY,
+        },
+        vulnerabilityProfile: {
+            osName: (formData.osName || '').trim(),
+            vendor: (formData.vendor || '').trim(),
+            product: (formData.product || '').trim(),
+            productVersion: (formData.productVersion || '').trim(),
+            cpeUri: (formData.cpeUri || '').trim(),
+        },
+    };
+
+    if (payload.liveScan.enabled && !payload.liveScan.target) {
+        showNotification('Scan target is required when live scan is enabled', 'error');
+        return;
+    }
 
     showLoading(true);
 
     try {
         if (currentEditingAssetId) {
-            await apiClient.updateAsset(currentEditingAssetId, formData);
+            await apiClient.updateAsset(currentEditingAssetId, payload);
             showNotification('Asset updated successfully', 'success');
         } else {
-            await apiClient.createAsset(formData);
+            await apiClient.createAsset(payload);
             showNotification('Asset created successfully', 'success');
         }
 
@@ -226,6 +363,8 @@ async function confirmDelete() {
 
     try {
         await apiClient.deleteAsset(currentEditingAssetId);
+        selectedAssetIds.delete(currentEditingAssetId);
+        updateSelectionState();
         showNotification('Asset deleted successfully', 'success');
         closeDeleteModal();
         await loadAssets();
@@ -251,4 +390,3 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
-

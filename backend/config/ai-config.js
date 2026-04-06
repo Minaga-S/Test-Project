@@ -8,7 +8,7 @@ const axios = require('axios');
 const logger = require('../utils/logger');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const GEMINI_MODEL_VERSION = process.env.GEMINI_MODEL_VERSION || 'v1beta';
 const GEMINI_API_BASE_URL = `https://generativelanguage.googleapis.com/${GEMINI_MODEL_VERSION}/models`;
 const MAX_RETRIES = 3;
@@ -269,7 +269,29 @@ async function generateJsonWithGemini(prompt) {
     throw new Error(`Unexpected Gemini failure: ${modelErrors.join(' | ')}`);
 }
 
-async function analyzeThreatWithAI(description) {
+function formatSecurityContextForPrompt(securityContext) {
+    if (!securityContext) {
+        return 'No additional scan or CVE context provided.';
+    }
+
+    const liveScan = securityContext.liveScan || {};
+    const cve = securityContext.cve || {};
+    const cveMatches = Array.isArray(cve.matches) ? cve.matches : [];
+
+    const cveSummary = cveMatches.length > 0
+        ? cveMatches.map((entry) => `${entry.cveId} (${entry.severity || 'Unknown'})`).join(', ')
+        : 'None';
+
+    return [
+        `Live scan enabled: ${Boolean(liveScan.enabled)}`,
+        `Live scan target: ${liveScan.target || 'Unknown'}`,
+        `Observed open ports: ${(liveScan.observedOpenPorts || []).join(', ') || 'None'}`,
+        `Service count: ${(liveScan.services || []).length || 0}`,
+        `CVE matches: ${cveSummary}`,
+    ].join('\n');
+}
+
+async function analyzeThreatWithAI(description, securityContext = null) {
     try {
         const prompt = `
 You are a cybersecurity analyst for hotels.
@@ -292,6 +314,9 @@ Rules:
 - Ensure likelihood and impact are integers from 1 to 4.
 - Keep recommendations practical for small hotel operations.
 - Align controls/functions with the described attack behavior.
+
+Additional Security Context:
+${formatSecurityContextForPrompt(securityContext)}
 
 Incident Description:
 "${description}"
@@ -317,6 +342,7 @@ Threat context:
 - affectedAsset: ${threatDetails.affectedAsset || 'Unknown'}
 - likelihood: ${threatDetails.likelihood || 'Unknown'}
 - impact: ${threatDetails.impact || 'Unknown'}
+- additionalContext: ${formatSecurityContextForPrompt(threatDetails.securityContext)}
 
 Requirements:
 - Include immediate containment actions and longer-term improvements.

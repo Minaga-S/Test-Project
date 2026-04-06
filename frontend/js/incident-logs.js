@@ -2,17 +2,9 @@
  * Incident Logs Handler
  */
 // NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
-/**
- * SECTION GUIDE:
- * 1) Logs Boot: validates auth and fetches incident history.
- * 2) Filtering/Search: narrows incident list by status/type/text.
- * 3) Detail View: opens selected incident context and metadata.
- * 4) Updates: applies status or note changes and refreshes list.
- */
-
-
 
 let incidents = [];
+let selectedIncidentIds = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentLogs();
@@ -56,6 +48,16 @@ function setupEventListeners() {
         exportBtn.addEventListener('click', exportIncidents);
     }
 
+    const selectAllIncidentsBtn = document.getElementById('select-all-incidents-btn');
+    if (selectAllIncidentsBtn) {
+        selectAllIncidentsBtn.addEventListener('click', handleSelectAllIncidentsClick);
+    }
+
+    const deleteAllIncidentsBtn = document.getElementById('delete-all-incidents-btn');
+    if (deleteAllIncidentsBtn) {
+        deleteAllIncidentsBtn.addEventListener('click', handleBulkDeleteIncidents);
+    }
+
     const detailClose = document.getElementById('detail-close');
     if (detailClose) {
         detailClose.addEventListener('click', closeDetailModal);
@@ -74,7 +76,7 @@ function setupEventListeners() {
 
 async function loadIncidents() {
     showLoading(true);
-    renderTableSkeleton('incidents-tbody', 7, 4);
+    renderTableSkeleton('incidents-tbody', 8, 4);
 
     try {
         incidents = await apiClient.getIncidents();
@@ -92,14 +94,18 @@ function displayIncidents(incidentsToDisplay) {
     tbody.innerHTML = '';
 
     if (!incidentsToDisplay || incidentsToDisplay.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No incidents found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No incidents found</td></tr>';
+        updateIncidentSelectionState();
         return;
     }
 
-    incidentsToDisplay.forEach(incident => {
+    incidentsToDisplay.forEach((incident) => {
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
+        const isSelected = selectedIncidentIds.has(incident._id);
+
         row.innerHTML = `
+            <td data-label="Select"><input type="checkbox" class="incident-select" data-incident-id="${incident._id}" ${isSelected ? 'checked' : ''} aria-label="Select ${incident.incidentId}"></td>
             <td data-label="Incident ID">${incident.incidentId}</td>
             <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
             <td data-label="Threat Type">${incident.threatType}</td>
@@ -112,9 +118,82 @@ function displayIncidents(incidentsToDisplay) {
                 </div>
             </td>
         `;
-        row.addEventListener('click', () => viewIncidentDetails(incident._id));
+
+        row.addEventListener('click', (event) => {
+            if (event.target.closest('.incident-select') || event.target.closest('button')) {
+                return;
+            }
+            viewIncidentDetails(incident._id);
+        });
+
         tbody.appendChild(row);
     });
+
+    tbody.querySelectorAll('.incident-select').forEach((checkbox) => {
+        checkbox.addEventListener('change', (event) => {
+            const incidentId = event.target.dataset.incidentId;
+            if (event.target.checked) {
+                selectedIncidentIds.add(incidentId);
+            } else {
+                selectedIncidentIds.delete(incidentId);
+            }
+            updateIncidentSelectionState();
+        });
+    });
+
+    updateIncidentSelectionState();
+}
+
+function updateIncidentSelectionState() {
+    const selectedCountEl = document.getElementById('selected-incidents-count');
+    if (selectedCountEl) {
+        selectedCountEl.textContent = `${selectedIncidentIds.size} selected`;
+    }
+}
+
+function handleSelectAllIncidentsClick() {
+    document.querySelectorAll('.incident-select').forEach((checkbox) => {
+        checkbox.checked = true;
+        selectedIncidentIds.add(checkbox.dataset.incidentId);
+    });
+
+    updateIncidentSelectionState();
+}
+
+async function handleBulkDeleteIncidents() {
+    if (selectedIncidentIds.size === 0) {
+        showNotification('Select at least one incident to delete', 'warning');
+        return;
+    }
+
+    const confirmed = window.confirm(`Delete ${selectedIncidentIds.size} selected incidents?`);
+    if (!confirmed) {
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        const incidentIds = Array.from(selectedIncidentIds);
+        const deleteResults = await Promise.allSettled(incidentIds.map((incidentId) => apiClient.deleteIncident(incidentId)));
+        const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
+        const failedCount = deleteResults.length - deletedCount;
+
+        selectedIncidentIds = new Set();
+        updateIncidentSelectionState();
+        await loadIncidents();
+
+        if (failedCount > 0) {
+            showNotification(`Deleted ${deletedCount} incidents, ${failedCount} failed`, 'warning');
+        } else {
+            showNotification(`Deleted ${deletedCount} incidents successfully`, 'success');
+        }
+    } catch (error) {
+        console.error('Bulk delete incidents error:', error);
+        showNotification('Bulk delete failed', 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 function filterIncidents() {
@@ -123,10 +202,10 @@ function filterIncidents() {
     const statusFilter = document.getElementById('filter-status').value;
     const riskFilter = document.getElementById('filter-risk-level').value;
 
-    const filtered = incidents.filter(incident => {
+    const filtered = incidents.filter((incident) => {
         const matchesSearch = incident.incidentId.toLowerCase().includes(searchQuery) ||
-                             incident.threatType.toLowerCase().includes(searchQuery) ||
-                             incident.asset?.assetName.toLowerCase().includes(searchQuery);
+            incident.threatType.toLowerCase().includes(searchQuery) ||
+            incident.asset?.assetName.toLowerCase().includes(searchQuery);
         const matchesThreat = !threatFilter || incident.threatType === threatFilter;
         const matchesStatus = !statusFilter || incident.status === statusFilter;
         const matchesRisk = !riskFilter || incident.riskLevel === riskFilter;
@@ -158,47 +237,42 @@ function displayIncidentDetails(incident) {
     document.getElementById('detail-reporter').textContent = incident.reportedBy || 'System';
     document.getElementById('detail-date').textContent = formatDateTime(incident.createdAt);
     document.getElementById('detail-description').textContent = incident.description;
-    
+
     document.getElementById('detail-threat-type').textContent = incident.threatType;
     document.getElementById('detail-threat-category').textContent = incident.threatCategory || 'N/A';
     document.getElementById('detail-affected-asset').textContent = incident.asset?.assetName || 'Unknown';
     document.getElementById('detail-confidence').textContent = (incident.confidence || 0) + '%';
 
-    // Risk assessment
     document.getElementById('detail-likelihood-fill').style.width = (incident.likelihood * 25) + '%';
     document.getElementById('detail-impact-fill').style.width = (incident.impact * 25) + '%';
     document.getElementById('detail-likelihood').textContent = incident.likelihood + '/4';
     document.getElementById('detail-impact').textContent = incident.impact + '/4';
-    
+
     const riskScoreEl = document.getElementById('detail-risk-score');
     animateCountUp(riskScoreEl, incident.riskScore || 0, 800);
     riskScoreEl.style.color = getRiskColor(incident.riskLevel);
-    
+
     document.getElementById('detail-risk-level').textContent = incident.riskLevel;
     document.getElementById('detail-risk-level').style.color = getRiskColor(incident.riskLevel);
 
-    // NIST mapping
     const nistFunctions = document.getElementById('detail-nist-functions');
     nistFunctions.innerHTML = (incident.nistFunctions || [])
-        .map(f => `<span class="nist-tag">${f}</span>`)
+        .map((f) => `<span class="nist-tag">${f}</span>`)
         .join('');
 
     const nistControls = document.getElementById('detail-nist-controls');
     nistControls.innerHTML = (incident.nistControls || [])
-        .map(c => `<span class="nist-tag">${c}</span>`)
+        .map((c) => `<span class="nist-tag">${c}</span>`)
         .join('');
 
-    // Recommendations
     const recommendationsEl = document.getElementById('detail-recommendations');
     recommendationsEl.innerHTML = (incident.recommendations || [])
-        .map(rec => `<div class="recommendation-item"><strong>•</strong> ${rec}</div>`)
+        .map((rec) => `<div class="recommendation-item"><strong>•</strong> ${rec}</div>`)
         .join('');
 
-    // Update form
     document.getElementById('update-status').value = incident.status;
     document.getElementById('update-notes').value = '';
 
-    // Store current incident ID
     window.currentIncidentId = incident._id;
 }
 
@@ -210,7 +284,7 @@ async function saveIncidentUpdate() {
 
     try {
         await apiClient.updateIncidentStatus(window.currentIncidentId, status);
-        
+
         if (notes) {
             await apiClient.addIncidentNote(window.currentIncidentId, notes);
         }
@@ -231,18 +305,25 @@ function closeDetailModal() {
 }
 
 function exportIncidents() {
-    const data = incidents.map(incident => ({
-        'Incident ID': incident.incidentId,
-        'Asset': incident.asset?.assetName || 'Unknown',
-        'Threat Type': incident.threatType,
-        'Risk Level': incident.riskLevel,
-        'Status': incident.status,
-        'Date': formatDate(incident.createdAt),
-        'Risk Score': incident.riskScore,
-    }));
+    if (selectedIncidentIds.size === 0) {
+        showNotification('Select at least one incident to export', 'warning');
+        return;
+    }
 
-    exportToCSV('incidents-report.csv', data);
-    showNotification('Report exported successfully', 'success');
+    const data = incidents
+        .filter((incident) => selectedIncidentIds.has(incident._id))
+        .map((incident) => ({
+            'Incident ID': incident.incidentId,
+            Asset: incident.asset?.assetName || 'Unknown',
+            'Threat Type': incident.threatType,
+            'Risk Level': incident.riskLevel,
+            Status: incident.status,
+            Date: formatDate(incident.createdAt),
+            'Risk Score': incident.riskScore,
+        }));
+
+    exportToCSV('selected-incidents-report.csv', data);
+    showNotification('Selected incidents exported successfully', 'success');
 }
 
 function setupUserInfo() {
@@ -259,4 +340,3 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
-
