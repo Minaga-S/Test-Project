@@ -68,7 +68,7 @@
                     <h1>Digital Assets</h1>
                 </div>
                 <div class="header-right">
-                    <button id="scan-assets-btn" class="btn btn-secondary btn-icon dashboard-scan-btn">
+                    <button id="scan-assets-btn" class="btn btn-warning btn-icon dashboard-scan-btn">
                         <span class="material-symbols-rounded" aria-hidden="true">radar</span>
                         <span class="button-label">Scan Assets</span>
                     </button>
@@ -109,12 +109,12 @@
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
+                    <div class="filter-group filter-meta">
+                        <span id="selected-assets-count" class="small selected-count">0 selected</span>
+                    </div>
                     <div class="filter-group filter-actions">
                         <button id="select-all-assets-btn" class="btn btn-secondary btn-sm">Select All</button>
-                        <button id="delete-all-assets-btn" class="btn btn-danger btn-sm">Delete All</button>
-                    </div>
-                    <div class="filter-group filter-meta">
-                        <span id="selected-assets-count" class="small">0 selected</span>
+                        <button id="delete-all-assets-btn" class="btn btn-danger btn-sm">Delete</button>
                     </div>
                 </section>
 
@@ -124,7 +124,7 @@
                         <table class="assets-table">
                             <thead>
                                 <tr>
-                                    <th>Select</th>
+                                    <th class="selection-col" aria-label="Select assets"></th>
                                     <th>Asset Name</th>
                                     <th>Asset Type</th>
                                     <th>Location</th>
@@ -334,12 +334,12 @@
 
     <!-- Delete Confirmation Modal -->
     <div id="delete-modal" class="modal" style="display: none;">
-        <div class="modal-overlay"></div>
+        <div class="modal-overlay" id="delete-overlay"></div>
         <div class="modal-content modal-content-small confirm-modal">
             <div class="modal-header">
                 <h2><span class="material-symbols-rounded" aria-hidden="true">delete</span> Delete Asset</h2>
             </div>
-            <p>Are you sure you want to delete this asset? This action cannot be undone.</p>
+            <p id="delete-confirmation-message">Are you sure you want to delete this asset? This action cannot be undone.</p>
             <div class="form-actions">
                 <button class="btn btn-secondary" id="delete-cancel">Cancel</button>
                 <button class="btn btn-danger" id="delete-confirm">Delete</button>

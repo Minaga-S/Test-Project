@@ -5,6 +5,7 @@
 
 let incidents = [];
 let selectedIncidentIds = new Set();
+let pendingDeleteIncidentIds = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentLogs();
@@ -20,6 +21,12 @@ async function initializeIncidentLogs() {
     setupLogoutButton();
     setupEventListeners();
     await loadIncidents();
+
+    const query = new URLSearchParams(window.location.search);
+    const incidentId = query.get('id');
+    if (incidentId) {
+        await viewIncidentDetails(incidentId);
+    }
 }
 
 function setupEventListeners() {
@@ -56,6 +63,21 @@ function setupEventListeners() {
     const deleteAllIncidentsBtn = document.getElementById('delete-all-incidents-btn');
     if (deleteAllIncidentsBtn) {
         deleteAllIncidentsBtn.addEventListener('click', handleBulkDeleteIncidents);
+    }
+
+    const deleteConfirm = document.getElementById('delete-confirm');
+    if (deleteConfirm) {
+        deleteConfirm.addEventListener('click', confirmDeleteIncidents);
+    }
+
+    const deleteCancel = document.getElementById('delete-cancel');
+    if (deleteCancel) {
+        deleteCancel.addEventListener('click', closeDeleteModal);
+    }
+
+    const deleteOverlay = document.getElementById('delete-overlay');
+    if (deleteOverlay) {
+        deleteOverlay.addEventListener('click', closeDeleteModal);
     }
 
     const detailClose = document.getElementById('detail-close');
@@ -149,12 +171,33 @@ function updateIncidentSelectionState() {
     if (selectedCountEl) {
         selectedCountEl.textContent = `${selectedIncidentIds.size} selected`;
     }
+
+    const selectAllBtn = document.getElementById('select-all-incidents-btn');
+    if (selectAllBtn) {
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.incident-select'));
+        const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+        selectAllBtn.textContent = allVisibleSelected ? 'Unselect All' : 'Select All';
+    }
+
+    const deleteAllBtn = document.getElementById('delete-all-incidents-btn');
+    if (deleteAllBtn) {
+        deleteAllBtn.textContent = 'Delete';
+    }
 }
 
 function handleSelectAllIncidentsClick() {
-    document.querySelectorAll('.incident-select').forEach((checkbox) => {
-        checkbox.checked = true;
-        selectedIncidentIds.add(checkbox.dataset.incidentId);
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.incident-select'));
+    const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+    const shouldSelectAll = !allVisibleSelected;
+
+    visibleCheckboxes.forEach((checkbox) => {
+        checkbox.checked = shouldSelectAll;
+        const incidentId = checkbox.dataset.incidentId;
+        if (shouldSelectAll) {
+            selectedIncidentIds.add(incidentId);
+        } else {
+            selectedIncidentIds.delete(incidentId);
+        }
     });
 
     updateIncidentSelectionState();
@@ -166,34 +209,9 @@ async function handleBulkDeleteIncidents() {
         return;
     }
 
-    const confirmed = window.confirm(`Delete ${selectedIncidentIds.size} selected incidents?`);
-    if (!confirmed) {
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const incidentIds = Array.from(selectedIncidentIds);
-        const deleteResults = await Promise.allSettled(incidentIds.map((incidentId) => apiClient.deleteIncident(incidentId)));
-        const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
-        const failedCount = deleteResults.length - deletedCount;
-
-        selectedIncidentIds = new Set();
-        updateIncidentSelectionState();
-        await loadIncidents();
-
-        if (failedCount > 0) {
-            showNotification(`Deleted ${deletedCount} incidents, ${failedCount} failed`, 'warning');
-        } else {
-            showNotification(`Deleted ${deletedCount} incidents successfully`, 'success');
-        }
-    } catch (error) {
-        console.error('Bulk delete incidents error:', error);
-        showNotification('Bulk delete failed', 'error');
-    } finally {
-        showLoading(false);
-    }
+    pendingDeleteIncidentIds = Array.from(selectedIncidentIds);
+    setDeleteConfirmationMessage(`Delete ${pendingDeleteIncidentIds.length} selected incidents? This action cannot be undone.`);
+    showModal('delete-modal');
 }
 
 function filterIncidents() {
@@ -226,6 +244,33 @@ async function viewIncidentDetails(incidentId) {
     } catch (error) {
         console.error('Error loading incident details:', error);
         showNotification('Error loading incident details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function confirmDeleteIncidents() {
+    showLoading(true);
+
+    try {
+        const incidentIds = Array.from(pendingDeleteIncidentIds);
+        const deleteResults = await Promise.allSettled(incidentIds.map((incidentId) => apiClient.deleteIncident(incidentId)));
+        const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
+        const failedCount = deleteResults.length - deletedCount;
+
+        pendingDeleteIncidentIds.forEach((incidentId) => selectedIncidentIds.delete(incidentId));
+        updateIncidentSelectionState();
+        closeDeleteModal();
+        await loadIncidents();
+
+        if (failedCount > 0) {
+            showNotification(`Deleted ${deletedCount} incidents, ${failedCount} failed`, 'warning');
+        } else {
+            showNotification(`Deleted ${deletedCount} incidents successfully`, 'success');
+        }
+    } catch (error) {
+        console.error('Bulk delete incidents error:', error);
+        showNotification('Bulk delete failed', 'error');
     } finally {
         showLoading(false);
     }
@@ -302,6 +347,18 @@ async function saveIncidentUpdate() {
 
 function closeDetailModal() {
     hideModal('detail-modal');
+}
+
+function closeDeleteModal() {
+    hideModal('delete-modal');
+    pendingDeleteIncidentIds = [];
+}
+
+function setDeleteConfirmationMessage(message) {
+    const messageEl = document.getElementById('delete-confirmation-message');
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
 }
 
 function exportIncidents() {
