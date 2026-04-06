@@ -695,8 +695,9 @@
 
     .incidents-table td[data-label="Select"],
     .assets-table td[data-label="Select"] {
-        justify-content: center;
-        text-align: center;
+        justify-content: flex-start;
+        text-align: left;
+        padding-left: 0.42rem;
     }
 
     .incidents-table td::before,

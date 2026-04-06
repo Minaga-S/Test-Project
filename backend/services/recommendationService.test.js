@@ -43,4 +43,14 @@ describe('recommendationService', () => {
 
         expect(result.every((item) => /\[[A-Z]{2}\.[A-Z]{2} \|/.test(item))).toBe(true);
     });
+
+    it('should repair clipped recommendation text before applying NIST tags', async () => {
+        generateRecommendations.mockResolvedValue([
+            "Immediately isolate the server (192.168.204.128) from the network to contain potential threats and investigate its purpose, given the severe vulnerabilities and 'no",
+        ]);
+
+        const result = await recommendationService.generateRecommendations('Phishing', {});
+
+        expect(result[0]).toContain('no critical findings reported.');
+    });
 });

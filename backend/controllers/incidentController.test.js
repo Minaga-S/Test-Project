@@ -151,4 +151,26 @@ describe('incidentController.createIncident', () => {
 
         expect(response.json.mock.calls[0][0].incident.cveMatches).toEqual(persistedMatches);
     });
+
+    it('should keep client-reported open ports when persisted security context has none', async () => {
+        assetSecurityContextService.buildForAsset.mockReturnValue({
+            cve: { matches: [] },
+            liveScan: { observedOpenPorts: [] },
+            dataSources: { scan: 'Live scan pending', cve: 'NIST Pending' },
+            enrichment: {},
+        });
+
+        const clientSecurityContext = {
+            liveScan: {
+                target: '192.168.204.128',
+                observedOpenPorts: [21, 22, 23, 80],
+            },
+        };
+
+        const response = createResponse();
+
+        await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
+
+        expect(response.json.mock.calls[0][0].incident.securityContext.liveScan.observedOpenPorts).toEqual([21, 22, 23, 80]);
+    });
 });

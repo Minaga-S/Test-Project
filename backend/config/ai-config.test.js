@@ -141,4 +141,20 @@ describe('ai-config (Gemini)', () => {
 
         expect(recommendations).toEqual(['Step 1', 'Step 2']);
     });
+
+    it('should use deterministic temperature by default for analysis requests', async () => {
+        axios.post.mockResolvedValue({
+            data: {
+                candidates: [{
+                    content: {
+                        parts: [{ text: '{"threatType":"Malware","likelihood":3,"impact":3}' }],
+                    },
+                }],
+            },
+        });
+
+        await analyzeThreatWithAI('POS machine is showing popups and running slow.');
+
+        expect(axios.post.mock.calls[0][1].generationConfig.temperature).toBe(0);
+    });
 });

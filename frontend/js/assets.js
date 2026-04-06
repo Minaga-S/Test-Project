@@ -66,6 +66,31 @@ function setAssetModalMode(isEditMode) {
 function applyScanPreviewToForm(previewPayload = {}) {
     const inferredProfile = previewPayload?.inferredProfile || {};
     const cveQuery = previewPayload?.cveResult?.query || {};
+    const securityContext = previewPayload?.securityContext || {};
+    const liveScan = securityContext?.liveScan || {};
+    const scanResult = previewPayload?.scanResult || {};
+
+    const openPorts = Array.isArray(liveScan.observedOpenPorts) && liveScan.observedOpenPorts.length > 0
+        ? liveScan.observedOpenPorts
+        : (Array.isArray(scanResult.openPorts) ? scanResult.openPorts : []);
+    const openPortsText = openPorts.length > 0 ? openPorts.join(', ') : 'None identified';
+
+    const services = Array.isArray(liveScan.services) && liveScan.services.length > 0
+        ? liveScan.services
+        : (Array.isArray(scanResult.services) ? scanResult.services : []);
+    const servicesText = services.length > 0
+        ? services.map((service) => `${service.port}/${service.protocol || 'tcp'}:${service.service || 'unknown'}`).join(', ')
+        : 'None identified';
+
+    const previewOpenPortsEl = document.getElementById('asset-preview-open-ports');
+    if (previewOpenPortsEl) {
+        previewOpenPortsEl.value = openPortsText;
+    }
+
+    const previewServicesEl = document.getElementById('asset-preview-services');
+    if (previewServicesEl) {
+        previewServicesEl.value = servicesText;
+    }
 
     document.getElementById('asset-live-scan-enabled').checked = true;
 
@@ -87,6 +112,18 @@ function applyScanPreviewToForm(previewPayload = {}) {
 
     if (!document.getElementById('asset-cpe-uri').value) {
         document.getElementById('asset-cpe-uri').value = inferredProfile.cpeUri || cveQuery.cpeUri || '';
+    }
+}
+
+function resetScanPreviewFields() {
+    const previewOpenPortsEl = document.getElementById('asset-preview-open-ports');
+    if (previewOpenPortsEl) {
+        previewOpenPortsEl.value = '';
+    }
+
+    const previewServicesEl = document.getElementById('asset-preview-services');
+    if (previewServicesEl) {
+        previewServicesEl.value = '';
     }
 }
 
@@ -263,9 +300,11 @@ function displayAssets(assetsToDisplay) {
 
     assetsToDisplay.forEach((asset) => {
         const isSelected = selectedAssetIds.has(asset._id);
+        const selectButtonLabel = isSelected ? 'Unselect' : 'Select';
         const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
         row.innerHTML = `
-            <td data-label="Select"><input type="checkbox" class="asset-select" data-asset-id="${asset._id}" ${isSelected ? 'checked' : ''} aria-label="Select ${asset.assetName}"></td>
+            <td data-label="Select"><button type="button" class="btn btn-sm asset-select-btn ${isSelected ? 'is-selected' : ''}" data-asset-id="${asset._id}" aria-label="Select ${asset.assetName}" aria-pressed="${isSelected ? 'true' : 'false'}">${selectButtonLabel}</button></td>
             <td data-label="Asset Name">${asset.assetName}</td>
             <td data-label="Type">${asset.assetType}</td>
             <td data-label="Location">${asset.location || '-'}</td>
@@ -279,22 +318,45 @@ function displayAssets(assetsToDisplay) {
                 </div>
             </td>
         `;
+
+        row.addEventListener('click', (event) => {
+            if (event.target.closest('.asset-select-btn') || event.target.closest('button')) {
+                return;
+            }
+
+            editAsset(asset._id);
+        });
+
         tbody.appendChild(row);
     });
 
-    tbody.querySelectorAll('.asset-select').forEach((checkbox) => {
-        checkbox.addEventListener('change', (event) => {
-            const assetId = event.target.dataset.assetId;
-            if (event.target.checked) {
-                selectedAssetIds.add(assetId);
-            } else {
+    tbody.querySelectorAll('.asset-select-btn').forEach((selectButton) => {
+        selectButton.addEventListener('click', (event) => {
+            const assetId = event.currentTarget.dataset.assetId;
+            const isSelected = selectedAssetIds.has(assetId);
+
+            if (isSelected) {
                 selectedAssetIds.delete(assetId);
+            } else {
+                selectedAssetIds.add(assetId);
             }
+
+            updateAssetSelectButtonState(event.currentTarget, !isSelected);
             updateSelectionState();
         });
     });
 
     updateSelectionState();
+}
+
+function updateAssetSelectButtonState(selectButton, isSelected) {
+    if (!selectButton) {
+        return;
+    }
+
+    selectButton.classList.toggle('is-selected', isSelected);
+    selectButton.textContent = isSelected ? 'Unselect' : 'Select';
+    selectButton.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 }
 
 function updateSelectionState() {
@@ -305,25 +367,26 @@ function updateSelectionState() {
 
     const selectAllBtn = document.getElementById('select-all-assets-btn');
     if (selectAllBtn) {
-        const visibleCheckboxes = Array.from(document.querySelectorAll('.asset-select'));
-        const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+        const visibleSelectButtons = Array.from(document.querySelectorAll('.asset-select-btn'));
+        const allVisibleSelected = visibleSelectButtons.length > 0 && visibleSelectButtons.every((button) => selectedAssetIds.has(button.dataset.assetId));
         selectAllBtn.textContent = allVisibleSelected ? 'Unselect All' : 'Select All';
     }
 }
 
 function handleSelectAllAssetsClick() {
-    const visibleCheckboxes = Array.from(document.querySelectorAll('.asset-select'));
-    const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+    const visibleSelectButtons = Array.from(document.querySelectorAll('.asset-select-btn'));
+    const allVisibleSelected = visibleSelectButtons.length > 0 && visibleSelectButtons.every((button) => selectedAssetIds.has(button.dataset.assetId));
     const shouldSelectAll = !allVisibleSelected;
 
-    visibleCheckboxes.forEach((checkbox) => {
-        checkbox.checked = shouldSelectAll;
-        const assetId = checkbox.dataset.assetId;
+    visibleSelectButtons.forEach((button) => {
+        const assetId = button.dataset.assetId;
         if (shouldSelectAll) {
             selectedAssetIds.add(assetId);
         } else {
             selectedAssetIds.delete(assetId);
         }
+
+        updateAssetSelectButtonState(button, shouldSelectAll);
     });
 
     updateSelectionState();
@@ -362,6 +425,7 @@ function openAssetModal() {
     currentEditingAssetId = null;
     document.getElementById('modal-title').textContent = 'Add New Asset';
     document.getElementById('asset-form').reset();
+    resetScanPreviewFields();
     setAssetModalMode(false);
     showModal('asset-modal');
 }
@@ -370,6 +434,7 @@ function closeAssetModal() {
     hideModal('asset-modal');
     document.getElementById('asset-form').reset();
     currentEditingAssetId = null;
+    resetScanPreviewFields();
     setAssetModalMode(false);
 }
 
@@ -401,6 +466,16 @@ async function editAsset(assetId) {
         document.getElementById('asset-product').value = vulnerabilityProfile.product || '';
         document.getElementById('asset-product-version').value = vulnerabilityProfile.productVersion || '';
         document.getElementById('asset-cpe-uri').value = vulnerabilityProfile.cpeUri || '';
+
+        const previewOpenPortsEl = document.getElementById('asset-preview-open-ports');
+        if (previewOpenPortsEl) {
+            previewOpenPortsEl.value = 'Run live scan to refresh';
+        }
+
+        const previewServicesEl = document.getElementById('asset-preview-services');
+        if (previewServicesEl) {
+            previewServicesEl.value = 'Run live scan to refresh';
+        }
 
             setAssetModalMode(true);
         showModal('asset-modal');

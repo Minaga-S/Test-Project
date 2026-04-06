@@ -20,6 +20,8 @@ const RANSOMWARE_SEVERE_INDICATORS = [
     'cannot process',
 ];
 
+const DETERMINISTIC_RISK_SCORING = process.env.DETERMINISTIC_RISK_SCORING !== 'false';
+
 class ThreatClassificationService {
     /**
      * Classify threat based on description and security context
@@ -37,7 +39,7 @@ class ThreatClassificationService {
             const threatIntelligence = await nistThreatIntelService.classifyThreatFromCVEs(cveList, description);
 
             // Blend AI analysis with threat intelligence
-            const baseClassification = this.blendAnalysis(aiAnalysis, threatIntelligence, securityContext);
+            const baseClassification = this.blendAnalysis(aiAnalysis, threatIntelligence, securityContext, cveList);
 
             // Guardrail: keep severe ransomware descriptions from being scored too low.
             const classification = this.applyRansomwareSeverityGuardrail(description, baseClassification);
@@ -67,21 +69,84 @@ class ThreatClassificationService {
         }));
     }
 
+    getSeverityCounts(cveList = []) {
+        return cveList.reduce((accumulator, cve) => {
+            const severity = String(cve?.severity || 'UNKNOWN').toUpperCase();
+            if (!accumulator[severity]) {
+                accumulator[severity] = 0;
+            }
+
+            accumulator[severity] += 1;
+            return accumulator;
+        }, {
+            CRITICAL: 0,
+            HIGH: 0,
+            MEDIUM: 0,
+            LOW: 0,
+            UNKNOWN: 0,
+        });
+    }
+
+    deriveRiskFromCveSeverity(cveList = [], defaultLikelihood = 2, defaultImpact = 2) {
+        const severityCounts = this.getSeverityCounts(cveList);
+
+        if (severityCounts.CRITICAL > 0) {
+            return {
+                likelihood: 4,
+                impact: 4,
+            };
+        }
+
+        if (severityCounts.HIGH >= 10) {
+            return {
+                likelihood: 4,
+                impact: Math.max(defaultImpact, 3),
+            };
+        }
+
+        if (severityCounts.HIGH > 0) {
+            return {
+                likelihood: Math.max(defaultLikelihood, 3),
+                impact: Math.max(defaultImpact, 3),
+            };
+        }
+
+        if (severityCounts.MEDIUM > 0) {
+            return {
+                likelihood: Math.max(defaultLikelihood, 3),
+                impact: Math.max(defaultImpact, 2),
+            };
+        }
+
+        return {
+            likelihood: Math.max(1, Math.min(4, defaultLikelihood || 2)),
+            impact: Math.max(1, Math.min(4, defaultImpact || 2)),
+        };
+    }
+
     /**
      * Blend AI analysis with threat intelligence
      */
-    blendAnalysis(aiAnalysis, threatIntel, securityContext) {
+    blendAnalysis(aiAnalysis, threatIntel, securityContext, cveList = []) {
         const threatType = aiAnalysis.threatType || threatIntel.threatType || 'Unknown';
         const nistMapping = nistThreatIntelService.getNISTMapping(threatType);
         const threatCharacteristics = nistThreatIntelService.getThreatCharacteristics(threatType);
+        const fallbackLikelihood = aiAnalysis.likelihood || threatCharacteristics.likelihood || 2;
+        const fallbackImpact = aiAnalysis.impact || threatCharacteristics.impact || 2;
+        const deterministicRisk = DETERMINISTIC_RISK_SCORING
+            ? this.deriveRiskFromCveSeverity(cveList, fallbackLikelihood, fallbackImpact)
+            : {
+                likelihood: Math.max(1, Math.min(4, fallbackLikelihood)),
+                impact: Math.max(1, Math.min(4, fallbackImpact)),
+            };
 
         return {
             threatType,
             threatCategory: aiAnalysis.threatCategory || threatIntel.threatType, 
             affectedAsset: aiAnalysis.affectedAsset || threatCharacteristics.assets?.[0] || 'General',
             confidence: Math.max(aiAnalysis.confidence || 0, threatIntel.confidence || 0),
-            likelihood: Math.max(1, Math.min(4, aiAnalysis.likelihood || threatCharacteristics.likelihood || 2)),
-            impact: Math.max(1, Math.min(4, aiAnalysis.impact || threatCharacteristics.impact || 2)),
+            likelihood: deterministicRisk.likelihood,
+            impact: deterministicRisk.impact,
             nistFunctions: aiAnalysis.nistFunctions || nistMapping.functions || [],
             nistControls: aiAnalysis.nistControls || nistMapping.controls || [],
             mitigationSteps: aiAnalysis.mitigationSteps || [],

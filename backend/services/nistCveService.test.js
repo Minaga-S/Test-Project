@@ -26,7 +26,49 @@ describe('nistCveService', () => {
         expect(axios.get.mock.calls[0][1].params.keywordSearch).toBe('apache log4j');
     });
 
-    it('should search service aliases when the primary query has no matches', async () => {
+    it('should query NVD using service name terms when profile identifiers are missing', async () => {
+        axios.get.mockResolvedValue({
+            data: {
+                vulnerabilities: [
+                    {
+                        cve: {
+                            id: 'CVE-2024-0001',
+                            descriptions: [{ lang: 'en', value: 'OpenSSH vulnerability' }],
+                            metrics: {
+                                cvssMetricV31: [
+                                    {
+                                        cvssData: {
+                                            baseScore: 7.5,
+                                            baseSeverity: 'HIGH',
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+
+        const result = await nistCveService.lookupCves({ serviceNames: ['ssh'] }, { userId: validUserId, assetId: 'asset-1' });
+
+        expect(result.totalMatches).toBe(1);
+    });
+
+    it('should prefer cpeUri as the deterministic keyword search term', async () => {
+        axios.get.mockResolvedValue({ data: { vulnerabilities: [] } });
+
+        await nistCveService.lookupCves({
+            cpeUri: 'cpe:2.3:a:apache:log4j:2.17.0:*:*:*:*:*:*:*',
+            vendor: 'Apache',
+            product: 'Log4j',
+            productVersion: '2.17.0',
+        }, { userId: validUserId, assetId: 'asset-1' });
+
+        expect(axios.get.mock.calls[0][1].params.keywordSearch).toBe('cpe:2.3:a:apache:log4j:2.17.0:*:*:*:*:*:*:*');
+    });
+
+    it('should fall back to deterministic vendor and product terms when cpeUri returns no matches', async () => {
         axios.get
             .mockResolvedValueOnce({ data: { vulnerabilities: [] } })
             .mockResolvedValueOnce({
@@ -34,13 +76,13 @@ describe('nistCveService', () => {
                     vulnerabilities: [
                         {
                             cve: {
-                                id: 'CVE-2024-0001',
-                                descriptions: [{ lang: 'en', value: 'OpenSSH vulnerability' }],
+                                id: 'CVE-2025-1000',
+                                descriptions: [{ lang: 'en', value: 'Deterministic fallback match' }],
                                 metrics: {
                                     cvssMetricV31: [
                                         {
                                             cvssData: {
-                                                baseScore: 7.5,
+                                                baseScore: 8.1,
                                                 baseSeverity: 'HIGH',
                                             },
                                         },
@@ -52,7 +94,11 @@ describe('nistCveService', () => {
                 },
             });
 
-        const result = await nistCveService.lookupCves({ serviceNames: ['ssh'] }, { userId: validUserId, assetId: 'asset-1' });
+        const result = await nistCveService.lookupCves({
+            cpeUri: 'cpe:2.3:a:apache:log4j:2.17.0:*:*:*:*:*:*:*',
+            vendor: 'Apache',
+            product: 'Log4j',
+        }, { userId: validUserId, assetId: 'asset-1' });
 
         expect(result.totalMatches).toBe(1);
     });
