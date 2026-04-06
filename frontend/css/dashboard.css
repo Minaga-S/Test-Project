@@ -564,7 +564,8 @@
    INCIDENTS SECTION
    ============================================ */
 
-.incidents-section {
+.incidents-section,
+.assets-section {
     background: rgba(255, 255, 255, 0.98);
     padding: 1.5rem;
     border-radius: var(--border-radius);

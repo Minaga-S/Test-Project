@@ -10,7 +10,7 @@ const router = express.Router();
 
 const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
 const CPE_URI_PATTERN = /^cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}$/i;
-const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 ._\-/]{0,80}$/;
+const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 .,_\-/]{0,80}$/;
 const PROFILE_VERSION_PATTERN = /^[a-zA-Z0-9 ._\-]{0,40}$/;
 
 const withController = (controller, methodName) => (req, res, next) => controller[methodName](req, res, next);
@@ -47,8 +47,20 @@ const scanAssetsValidation = [
     validateRequest,
 ];
 
+const scanPreviewValidation = [
+    body('liveScan.target').isString().trim().notEmpty().withMessage('liveScan.target is required for scan preview'),
+    body('liveScan.ports').optional().isString().trim(),
+    body('vulnerabilityProfile.osName').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('OS name contains invalid characters'),
+    body('vulnerabilityProfile.vendor').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Vendor contains invalid characters'),
+    body('vulnerabilityProfile.product').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Product contains invalid characters'),
+    body('vulnerabilityProfile.productVersion').optional().trim().matches(PROFILE_VERSION_PATTERN).withMessage('Product version contains invalid characters'),
+    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value) => value === '' || CPE_URI_PATTERN.test(value)).withMessage('CPE URI must use cpe:2.3 format'),
+    validateRequest,
+];
+
 router.post('/', createAssetValidation, withController(assetController, 'createAsset'));
 router.post('/scan', enrichmentLimiter, scanAssetsValidation, withController(assetController, 'scanAssets'));
+router.post('/scan-preview', enrichmentLimiter, scanPreviewValidation, withController(assetController, 'scanAssetPreview'));
 router.get('/', withController(assetController, 'getAssets'));
 router.get('/asset-types', withController(assetController, 'getAssetTypes'));
 router.get('/search', withController(assetController, 'searchAssets'));

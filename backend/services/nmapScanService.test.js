@@ -1,4 +1,4 @@
-﻿const childProcess = require('child_process');
+const childProcess = require('child_process');
 const nmapScanService = require('./nmapScanService');
 
 jest.mock('child_process', () => ({
@@ -36,6 +36,24 @@ describe('nmapScanService', () => {
         await expect(nmapScanService.runScan({ target: '8.8.8.8', ports: '22' })).rejects.toThrow('Nmap scans are restricted to localhost and private-network targets');
 
         expect(childProcess.execFile).not.toHaveBeenCalled();
+    });
+
+    it('should reject target outside requester subnet for private requester IP', async () => {
+        await expect(nmapScanService.runScan({
+            target: '10.0.0.10',
+            ports: '22',
+            requestIp: '10.0.1.25',
+        })).rejects.toThrow('Scan target must be on the same private subnet as the requester');
+    });
+
+    it('should allow target in same requester subnet', async () => {
+        await nmapScanService.runScan({
+            target: '10.0.0.10',
+            ports: '22',
+            requestIp: '10.0.0.8',
+        });
+
+        expect(childProcess.execFile).toHaveBeenCalledTimes(1);
     });
 
     it('should throw when scan target is missing', async () => {

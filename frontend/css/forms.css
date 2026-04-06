@@ -428,3 +428,29 @@ select:disabled {
 #incident-description {
     min-height: 180px;
 }
+.asset-edit-scan-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid #E8EAEF;
+    border-radius: var(--border-radius);
+    background: rgba(250, 251, 255, 0.96);
+}
+
+/* Match standard modal button sizing on desktop and mobile */
+.asset-workflow-actions .btn {
+    flex: 1;
+}
+/* Remove list markers only for report page example bullets in the info box */
+.report-section .info-box .examples-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.report-section .info-box .examples-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 0;
+}

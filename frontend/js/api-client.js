@@ -282,6 +282,10 @@ class APIClient {
         return this.post('/assets/scan', { assetIds });
     }
 
+    async previewAssetScan(payload) {
+        return this.post('/assets/scan-preview', payload);
+    }
+
     async getAssetSecurityContext(assetId) {
         return this.get(`/assets/${assetId}/security-context`);
     }

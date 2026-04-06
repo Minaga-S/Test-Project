@@ -68,10 +68,6 @@
                     <h1>Digital Assets</h1>
                 </div>
                 <div class="header-right">
-                    <button id="scan-assets-btn" class="btn btn-warning btn-icon dashboard-scan-btn">
-                        <span class="material-symbols-rounded" aria-hidden="true">radar</span>
-                        <span class="button-label">Scan Assets</span>
-                    </button>
                     <button id="add-asset-btn" class="btn btn-primary btn-icon">
                         <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
                         <span>Add New Asset</span>
@@ -166,7 +162,7 @@
                     >
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-type">Asset Type *</label>
                     <select id="asset-type" name="assetType" required>
                         <option value="">Select Type</option>
@@ -179,7 +175,7 @@
                     </select>
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-location">Location</label>
                     <input 
                         type="text" 
@@ -189,7 +185,7 @@
                     >
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-description">Description</label>
                     <textarea 
                         id="asset-description" 
@@ -199,7 +195,7 @@
                     ></textarea>
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-criticality">Criticality Level</label>
                     <select id="asset-criticality" name="criticality">
                         <option value="Low">Low</option>
@@ -209,7 +205,7 @@
                     </select>
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-owner">Owner/Responsible Person</label>
                     <input 
                         type="text" 
@@ -219,7 +215,7 @@
                     >
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-status">Status</label>
                     <select id="asset-status" name="status">
                         <option value="Active" selected>Active</option>
@@ -227,19 +223,7 @@
                     </select>
                 </div>
 
-                <div class="form-group checkbox">
-                    <input
-                        type="checkbox"
-                        id="asset-live-scan-enabled"
-                        name="liveScanEnabled"
-                    >
-                    <label for="asset-live-scan-enabled">
-                        Enable live scan for this asset
-                        <small>Turn on to allow future on-demand and scheduled Nmap scans.</small>
-                    </label>
-                </div>
-
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-scan-target">Scan Target (IP or Hostname)</label>
                     <input
                         type="text"
@@ -249,7 +233,7 @@
                     >
                 </div>
 
-                <div class="form-group">
+                    <div class="form-group">
                     <label for="asset-scan-ports">Scan Ports</label>
                     <input
                         type="text"
@@ -260,64 +244,86 @@
                     <small>Optional comma-separated port list. Leave empty for default profile.</small>
                 </div>
 
-                <div class="form-group">
-                    <label for="asset-scan-frequency">Scan Frequency</label>
-                    <select id="asset-scan-frequency" name="scanFrequency">
-                        <option value="OnDemand" selected>On Demand</option>
-                        <option value="Daily">Daily</option>
-                        <option value="Weekly">Weekly</option>
-                    </select>
+                    <div class="form-group">
+                    <label>Discovery Workflow</label>
+                    <div class="form-actions asset-workflow-actions">
+                        <button type="button" id="asset-run-live-scan-btn" class="btn btn-warning">Run Live Scan</button>
+                        <button type="button" id="asset-enter-manual-btn" class="btn btn-secondary">Add Manually</button>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="asset-os-name">Operating System</label>
-                    <input
-                        type="text"
-                        id="asset-os-name"
-                        name="osName"
-                        placeholder="e.g., Windows Server"
-                    >
-                </div>
+                <div id="asset-edit-scan-panel" class="asset-edit-scan-panel" style="display: none;">
+                    <div class="form-group checkbox">
+                        <input
+                            type="checkbox"
+                            id="asset-live-scan-enabled"
+                            name="liveScanEnabled"
+                        >
+                        <label for="asset-live-scan-enabled">
+                            Enable live scan for this asset
+                            <small>Turn on to allow future on-demand and scheduled Nmap scans.</small>
+                        </label>
+                    </div>
 
-                <div class="form-group">
-                    <label for="asset-vendor">Software Vendor</label>
-                    <input
-                        type="text"
-                        id="asset-vendor"
-                        name="vendor"
-                        placeholder="e.g., Microsoft"
-                    >
-                </div>
+                    <div class="form-group">
+                        <label for="asset-scan-frequency">Scan Frequency</label>
+                        <select id="asset-scan-frequency" name="scanFrequency">
+                            <option value="OnDemand" selected>On Demand</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                        </select>
+                    </div>
 
-                <div class="form-group">
-                    <label for="asset-product">Software/Product Name</label>
-                    <input
-                        type="text"
-                        id="asset-product"
-                        name="product"
-                        placeholder="e.g., IIS"
-                    >
-                </div>
+                    <div class="form-group">
+                        <label for="asset-os-name">Operating System</label>
+                        <input
+                            type="text"
+                            id="asset-os-name"
+                            name="osName"
+                            placeholder="e.g., Windows Server"
+                        >
+                    </div>
 
-                <div class="form-group">
-                    <label for="asset-product-version">Product Version</label>
-                    <input
-                        type="text"
-                        id="asset-product-version"
-                        name="productVersion"
-                        placeholder="e.g., 10.0"
-                    >
-                </div>
+                    <div class="form-group">
+                        <label for="asset-vendor">Software Vendor</label>
+                        <input
+                            type="text"
+                            id="asset-vendor"
+                            name="vendor"
+                            placeholder="e.g., Microsoft"
+                        >
+                    </div>
 
-                <div class="form-group">
-                    <label for="asset-cpe-uri">CPE URI</label>
-                    <input
-                        type="text"
-                        id="asset-cpe-uri"
-                        name="cpeUri"
-                        placeholder="e.g., cpe:2.3:o:microsoft:windows_server_2019:*:*:*:*:*:*:*:*"
-                    >
-                    <small>Optional CPE helps precise CVE matching with NIST data.</small>
+                    <div class="form-group">
+                        <label for="asset-product">Software/Product Name</label>
+                        <input
+                            type="text"
+                            id="asset-product"
+                            name="product"
+                            placeholder="e.g., IIS"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="asset-product-version">Product Version</label>
+                        <input
+                            type="text"
+                            id="asset-product-version"
+                            name="productVersion"
+                            placeholder="e.g., 10.0"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="asset-cpe-uri">CPE URI</label>
+                        <input
+                            type="text"
+                            id="asset-cpe-uri"
+                            name="cpeUri"
+                            placeholder="e.g., cpe:2.3:o:microsoft:windows_server_2019:*:*:*:*:*:*:*:*"
+                        >
+                        <small>Optional CPE helps precise CVE matching with NIST data.</small>
+                    </div>
                 </div>
 
                 <div class="form-actions">

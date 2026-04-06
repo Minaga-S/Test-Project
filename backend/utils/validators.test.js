@@ -104,6 +104,19 @@ describe('validateAsset', () => {
         expect(result.errors.cpeUri).toBe('CPE URI must use cpe:2.3 format');
     });
 
+
+    it('should pass when vulnerability product contains commas', () => {
+        const result = validateAsset({
+            assetName: 'Core Server',
+            assetType: 'Server',
+            criticality: 'High',
+            vulnerabilityProfile: {
+                product: 'ftp, ssh, telnet',
+            },
+        });
+
+        expect(result.errors.product).toBeUndefined();
+    });
     it('should pass for valid live scan details', () => {
         const result = validateAsset({
             assetName: 'Core Server',
