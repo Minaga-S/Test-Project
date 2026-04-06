@@ -6,6 +6,7 @@
 let assets = [];
 let currentEditingAssetId = null;
 let selectedAssetIds = new Set();
+let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -94,6 +95,11 @@ function setupEventListeners() {
     if (deleteCancel) {
         deleteCancel.addEventListener('click', closeDeleteModal);
     }
+
+    const deleteOverlay = document.getElementById('delete-overlay');
+    if (deleteOverlay) {
+        deleteOverlay.addEventListener('click', closeDeleteModal);
+    }
 }
 
 async function loadAssets() {
@@ -162,12 +168,28 @@ function updateSelectionState() {
     if (selectedCountEl) {
         selectedCountEl.textContent = `${selectedAssetIds.size} selected`;
     }
+
+    const selectAllBtn = document.getElementById('select-all-assets-btn');
+    if (selectAllBtn) {
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.asset-select'));
+        const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+        selectAllBtn.textContent = allVisibleSelected ? 'Unselect All' : 'Select All';
+    }
 }
 
 function handleSelectAllAssetsClick() {
-    document.querySelectorAll('.asset-select').forEach((checkbox) => {
-        checkbox.checked = true;
-        selectedAssetIds.add(checkbox.dataset.assetId);
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.asset-select'));
+    const allVisibleSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every((checkbox) => checkbox.checked);
+    const shouldSelectAll = !allVisibleSelected;
+
+    visibleCheckboxes.forEach((checkbox) => {
+        checkbox.checked = shouldSelectAll;
+        const assetId = checkbox.dataset.assetId;
+        if (shouldSelectAll) {
+            selectedAssetIds.add(assetId);
+        } else {
+            selectedAssetIds.delete(assetId);
+        }
     });
 
     updateSelectionState();
@@ -199,34 +221,10 @@ async function handleBulkDeleteAssets() {
         return;
     }
 
-    const confirmed = window.confirm(`Delete ${selectedAssetIds.size} selected assets?`);
-    if (!confirmed) {
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const assetIds = Array.from(selectedAssetIds);
-        const deleteResults = await Promise.allSettled(assetIds.map((assetId) => apiClient.deleteAsset(assetId)));
-        const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
-        const failedCount = deleteResults.length - deletedCount;
-
-        selectedAssetIds = new Set();
-        updateSelectionState();
-        await loadAssets();
-
-        if (failedCount > 0) {
-            showNotification(`Deleted ${deletedCount} assets, ${failedCount} failed`, 'warning');
-        } else {
-            showNotification(`Deleted ${deletedCount} assets successfully`, 'success');
-        }
-    } catch (error) {
-        console.error('Bulk delete assets error:', error);
-        showNotification('Bulk delete failed', 'error');
-    } finally {
-        showLoading(false);
-    }
+    currentEditingAssetId = null;
+    pendingDeleteAssetIds = Array.from(selectedAssetIds);
+    setDeleteConfirmationMessage(`Delete ${pendingDeleteAssetIds.length} selected assets? This action cannot be undone.`);
+    showModal('delete-modal');
 }
 
 function filterAssets() {
@@ -350,22 +348,41 @@ async function handleAssetFormSubmit(e) {
 
 function openDeleteModal(assetId) {
     currentEditingAssetId = assetId;
+    pendingDeleteAssetIds = [];
+    setDeleteConfirmationMessage('Are you sure you want to delete this asset? This action cannot be undone.');
     showModal('delete-modal');
 }
 
 function closeDeleteModal() {
     hideModal('delete-modal');
     currentEditingAssetId = null;
+    pendingDeleteAssetIds = [];
 }
 
 async function confirmDelete() {
     showLoading(true);
 
     try {
-        await apiClient.deleteAsset(currentEditingAssetId);
-        selectedAssetIds.delete(currentEditingAssetId);
-        updateSelectionState();
-        showNotification('Asset deleted successfully', 'success');
+        if (pendingDeleteAssetIds.length > 0) {
+            const deleteResults = await Promise.allSettled(pendingDeleteAssetIds.map((assetId) => apiClient.deleteAsset(assetId)));
+            const deletedCount = deleteResults.filter((result) => result.status === 'fulfilled').length;
+            const failedCount = deleteResults.length - deletedCount;
+
+            pendingDeleteAssetIds.forEach((assetId) => selectedAssetIds.delete(assetId));
+            updateSelectionState();
+
+            if (failedCount > 0) {
+                showNotification(`Deleted ${deletedCount} assets, ${failedCount} failed`, 'warning');
+            } else {
+                showNotification(`Deleted ${deletedCount} assets successfully`, 'success');
+            }
+        } else if (currentEditingAssetId) {
+            await apiClient.deleteAsset(currentEditingAssetId);
+            selectedAssetIds.delete(currentEditingAssetId);
+            updateSelectionState();
+            showNotification('Asset deleted successfully', 'success');
+        }
+
         closeDeleteModal();
         await loadAssets();
     } catch (error) {
@@ -388,5 +405,12 @@ function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.type = 'button';
+    }
+}
+
+function setDeleteConfirmationMessage(message) {
+    const messageEl = document.getElementById('delete-confirmation-message');
+    if (messageEl) {
+        messageEl.textContent = message;
     }
 }
