@@ -1,6 +1,7 @@
-const ScanHistory = require('../models/ScanHistory');
+﻿const ScanHistory = require('../models/ScanHistory');
 const assetSecurityContextService = require('./assetSecurityContextService');
-const nistCveService = require('./nistCveService');
+const cveEnrichmentService = require('./cveEnrichmentService');
+const nmapScanService = require('./nmapScanService');
 const scanHistoryService = require('./scanHistoryService');
 
 jest.mock('../models/ScanHistory', () => ({
@@ -9,8 +10,13 @@ jest.mock('../models/ScanHistory', () => ({
     find: jest.fn(),
 }));
 
-jest.mock('./nistCveService', () => ({
-    lookupCves: jest.fn(),
+jest.mock('./cveEnrichmentService', () => ({
+    enrichForAsset: jest.fn(),
+}));
+
+jest.mock('./nmapScanService', () => ({
+    runScan: jest.fn(),
+    isAllowedScanTarget: jest.fn(),
 }));
 
 jest.mock('./assetSecurityContextService', () => ({
@@ -33,10 +39,12 @@ describe('scanHistoryService', () => {
 
     it('should create skipped scan history when target is missing', async () => {
         ScanHistory.create.mockResolvedValue({ status: 'Skipped' });
-        nistCveService.lookupCves.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(false);
 
         const result = await scanHistoryService.runAssetScan({
             _id: 'asset-1',
+            assetName: 'Internal Database Server',
             liveScan: { enabled: true, target: '', ports: '22' },
             vulnerabilityProfile: {},
         }, 'user-1');
@@ -44,29 +52,74 @@ describe('scanHistoryService', () => {
         expect(result.skipped).toBe(true);
     });
 
-    it('should persist a completed simulated scan history when live scan is enabled', async () => {
+    it('should run Nmap when live scan is enabled for a private target', async () => {
         ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
-        nistCveService.lookupCves.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22', '443'],
+            openPorts: [22, 443],
+            services: [
+                { port: 22, service: 'ssh' },
+                { port: 443, service: 'https' },
+            ],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
-        const result = await scanHistoryService.runAssetScan({
+        await scanHistoryService.runAssetScan({
             _id: 'asset-1',
-            liveScan: { enabled: true, target: '10.0.0.10', ports: '22' },
-            vulnerabilityProfile: { vendor: 'Apache' },
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22,443' },
+            vulnerabilityProfile: { vendor: 'nginx' },
         }, 'user-1');
 
-        expect(result.scanHistory.status).toBe('Completed');
+        expect(nmapScanService.runScan).toHaveBeenCalledWith({ target: '10.0.0.10', ports: '22,443' });
     });
 
-    it('should build on-demand security context with NIST enrichment', async () => {
-        nistCveService.lookupCves.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+    it('should pass scanned services to CVE enrichment', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22', '443'],
+            openPorts: [22, 443],
+            services: [
+                { port: 22, service: 'ssh' },
+                { port: 443, service: 'https' },
+            ],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
-        const result = await scanHistoryService.buildOnDemandSecurityContext({
+        await scanHistoryService.runAssetScan({
             _id: 'asset-1',
-            liveScan: { enabled: false, target: '', ports: '' },
-            vulnerabilityProfile: { vendor: 'Apache' },
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22,443' },
+            vulnerabilityProfile: { vendor: 'nginx' },
         }, 'user-1');
 
-        expect(result.source).toBe('asset-profile');
+        expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0].serviceNames).toEqual(['ssh', 'https']);
+    });
+
+    it('should fall back to enrichment when Nmap is unavailable', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Skipped' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockRejectedValue(new Error('Nmap is not installed or not available on PATH'));
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.buildOnDemandSecurityContext({
+            _id: 'asset-1',
+            assetName: 'Internal Database Server',
+            liveScan: { enabled: true, target: '192.168.1.100', ports: '5432' },
+            vulnerabilityProfile: { vendor: 'PostgreSQL', product: 'PostgreSQL' },
+        }, 'user-1');
+
+        expect(cveEnrichmentService.enrichForAsset).toHaveBeenCalled();
     });
 
     it('should return the latest scan history from storage', async () => {

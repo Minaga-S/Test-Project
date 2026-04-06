@@ -1,4 +1,4 @@
-# Hotel Cybersecurity Governance System
+﻿# Hotel Cybersecurity Governance System
 
 ## Executive Summary
 
@@ -11,7 +11,7 @@ This system is built to bridge the gap between day-to-day hotel operations and s
 This website is a cybersecurity operations and governance portal for hotels. It provides:
 
 - a centralized interface for reporting and tracking incidents,
-- an asset-oriented view of the organization’s digital exposure,
+- an asset-oriented view of the organizationâ€™s digital exposure,
 - risk scoring and prioritization,
 - governance-aligned recommendations mapped to recognized security practices.
 
@@ -135,7 +135,7 @@ The repository includes a GitHub Actions workflow at `.github/workflows/deploy-f
 
 ### Backend Deployment
 
-The backend is designed to run as a Node.js web service (for example on Render). A production deployment requires:
+The backend is designed to run as a Node.js web service (for example on Render). For Nmap support, deploy with Docker so the image includes the `nmap` binary. A production deployment requires:
 
 - `MONGODB_URI`
 - `JWT_SECRET`
@@ -145,6 +145,9 @@ The backend is designed to run as a Node.js web service (for example on Render).
 - `GEMINI_API_KEY` (if AI endpoints are used)
 - `GEMINI_MODEL`
 - `GEMINI_MODEL_VERSION`
+- `NMAP_SCAN_TIMEOUT_MS` (optional scan timeout override)
+
+Nmap scans are restricted to localhost and private network targets only. Public IPs and public hostnames are rejected by the backend.
 
 ### Production API Endpoint
 
@@ -172,4 +175,8 @@ If database seeding is enabled, default test users are:
 - alerting and notification workflows,
 - automated compliance reporting exports,
 - extended analytics for trend forecasting.
+
+
+
+
 

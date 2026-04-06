@@ -3,14 +3,14 @@
  */
 // NOTE: Service layer: contains core business logic used by controllers.
 
-
 const { generateRecommendations } = require('../config/ai-config');
-const { THREAT_KNOWLEDGE_BASE } = require('../utils/constants');
+const nistThreatIntelService = require('./nistThreatIntelService');
 const logger = require('../utils/logger');
 
 class RecommendationService {
     /**
-     * Generate recommendations for a threat
+     * Generate recommendations for a threat using AI and threat intelligence.
+     * Every recommendation is normalized into NIST-aligned wording.
      */
     async generateRecommendations(threatType, threatDetails) {
         try {
@@ -18,73 +18,103 @@ class RecommendationService {
 
             if (Array.isArray(aiRecommendations) && aiRecommendations.length > 0) {
                 logger.info(`AI recommendations generated for threat: ${threatType}`);
-                return this.toRecommendationArray(aiRecommendations);
+                const normalizedRecommendations = this.toRecommendationArray(aiRecommendations);
+                return this.alignRecommendationsToNist(threatType, normalizedRecommendations);
             }
 
-            logger.info(`Using knowledge base recommendations for threat: ${threatType}`);
-            const fallbackRecommendations = this.getKnowledgeBaseRecommendations(threatType);
-            return this.toRecommendationArray(fallbackRecommendations);
+            logger.info(`Using threat intelligence recommendations for threat: ${threatType}`);
+            const fallbackRecommendations = this.getThreatIntelRecommendations(threatType);
+            return this.alignRecommendationsToNist(threatType, this.toRecommendationArray(fallbackRecommendations));
         } catch (error) {
             logger.error(`Recommendation generation error: ${error.message}`);
-            const fallbackRecommendations = this.getKnowledgeBaseRecommendations(threatType);
-            return this.toRecommendationArray(fallbackRecommendations);
+            const fallbackRecommendations = this.getThreatIntelRecommendations(threatType);
+            return this.alignRecommendationsToNist(threatType, this.toRecommendationArray(fallbackRecommendations));
         }
     }
 
     /**
-     * Always normalize recommendation payloads into string arrays.
+     * Normalize recommendation payloads into string arrays.
      */
     toRecommendationArray(payload) {
-        if (!payload) {
-            return [];
-        }
+        if (!payload) return [];
 
         if (Array.isArray(payload)) {
-            return payload
-                .map((item) => String(item || '').trim())
-                .filter(Boolean);
+            return payload.map(item => String(item || '').trim()).filter(Boolean);
         }
 
         if (Array.isArray(payload.all)) {
-            return payload.all
-                .map((item) => String(item || '').trim())
-                .filter(Boolean);
+            return payload.all.map(item => String(item || '').trim()).filter(Boolean);
         }
 
         if (Array.isArray(payload.recommendations)) {
-            return payload.recommendations
-                .map((item) => {
-                    if (typeof item === 'string') {
-                        return item.trim();
-                    }
-
-                    if (item && typeof item.text === 'string') {
-                        return item.text.trim();
-                    }
-
-                    return '';
-                })
-                .filter(Boolean);
+            return payload.recommendations.map(item => {
+                if (typeof item === 'string') return item.trim();
+                if (item && typeof item.text === 'string') return item.text.trim();
+                return '';
+            }).filter(Boolean);
         }
 
         return [];
     }
 
     /**
-     * Get recommendations from knowledge base
+     * Enforce NIST alignment by attaching a control/function context to each recommendation.
      */
-    getKnowledgeBaseRecommendations(threatType) {
-        const threatEntry = THREAT_KNOWLEDGE_BASE.find((t) => t.threatType === threatType);
+    alignRecommendationsToNist(threatType, recommendations) {
+        const mapping = nistThreatIntelService.getNISTMapping(threatType) || {};
+        const controls = Array.isArray(mapping.controls) && mapping.controls.length > 0
+            ? mapping.controls
+            : ['PR.AC'];
+        const functions = Array.isArray(mapping.functions) && mapping.functions.length > 0
+            ? mapping.functions
+            : ['Protect'];
 
-        if (!threatEntry) {
-            return this.getGenericRecommendations();
+        return recommendations
+            .map((recommendation, index) => this.toNistAlignedRecommendation(
+                recommendation,
+                controls[index % controls.length],
+                functions[index % functions.length]
+            ))
+            .filter(Boolean);
+    }
+
+    toNistAlignedRecommendation(recommendation, controlCode, functionName) {
+        const text = String(recommendation || '').trim();
+        if (!text) {
+            return '';
         }
 
-        return threatEntry.mitigationSteps;
+        if (/[A-Z]{2}\.[A-Z]{2}/.test(text)) {
+            return text;
+        }
+
+        return `[${controlCode} | ${functionName}] ${text}`;
     }
 
     /**
-     * Get generic recommendations
+     * Get recommendations from threat intelligence service.
+     */
+    getThreatIntelRecommendations(threatType) {
+        const mapping = nistThreatIntelService.getNISTMapping(threatType);
+        const controls = Array.isArray(mapping.controls) && mapping.controls.length > 0
+            ? mapping.controls
+            : ['PR.AC', 'DE.CM', 'RS.RP'];
+        const functions = Array.isArray(mapping.functions) && mapping.functions.length > 0
+            ? mapping.functions
+            : ['Protect', 'Detect', 'Respond'];
+
+        return [
+            `[${controls[0]} | ${functions[0]}] Enforce least-privilege and strong authentication on affected systems`,
+            `[${controls[1 % controls.length]} | ${functions[1 % functions.length]}] Enable continuous monitoring for threat-specific indicators and anomalies`,
+            `[${controls[2 % controls.length]} | ${functions[2 % functions.length]}] Patch or harden exposed services identified in the incident context`,
+            `[${controls[0]} | ${functions[0]}] Validate backup integrity and recovery plans for impacted operations`,
+            `[${controls[1 % controls.length]} | ${functions[1 % functions.length]}] Document and rehearse incident response tasks mapped to this threat`,
+            `[${controls[2 % controls.length]} | ${functions[2 % functions.length]}] Deliver targeted staff awareness guidance to prevent recurrence`
+        ];
+    }
+
+    /**
+     * Get generic recommendations as last resort.
      */
     getGenericRecommendations() {
         return [
@@ -99,7 +129,7 @@ class RecommendationService {
     }
 
     /**
-     * Get recommendation priority level
+     * Get recommendation priority level.
      */
     getRecommendationPriority(riskScore) {
         if (riskScore >= 13) return 'Critical - Implement immediately';
@@ -109,7 +139,7 @@ class RecommendationService {
     }
 
     /**
-     * Get action items
+     * Get action items with due dates.
      */
     getActionItems(recommendations, riskScore) {
         return {
@@ -125,7 +155,7 @@ class RecommendationService {
     }
 
     /**
-     * Calculate due date based on priority
+     * Calculate due date based on risk priority.
      */
     calculateDueDate(riskScore, index) {
         const baseDate = new Date();
@@ -143,4 +173,3 @@ class RecommendationService {
 }
 
 module.exports = new RecommendationService();
-

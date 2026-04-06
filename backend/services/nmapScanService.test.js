@@ -1,4 +1,4 @@
-const childProcess = require('child_process');
+﻿const childProcess = require('child_process');
 const nmapScanService = require('./nmapScanService');
 
 jest.mock('child_process', () => ({
@@ -20,10 +20,22 @@ describe('nmapScanService', () => {
         expect(childProcess.execFile.mock.calls[0][1].includes('-p')).toBe(true);
     });
 
+    it('should not include OS fingerprinting flags in the scan command', async () => {
+        await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
+
+        expect(childProcess.execFile.mock.calls[0][1].includes('-O')).toBe(false);
+    });
+
     it('should parse open services from grepable output', async () => {
         const result = await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
 
         expect(result.services.length).toBe(2);
+    });
+
+    it('should reject public targets before invoking Nmap', async () => {
+        await expect(nmapScanService.runScan({ target: '8.8.8.8', ports: '22' })).rejects.toThrow('Nmap scans are restricted to localhost and private-network targets');
+
+        expect(childProcess.execFile).not.toHaveBeenCalled();
     });
 
     it('should throw when scan target is missing', async () => {

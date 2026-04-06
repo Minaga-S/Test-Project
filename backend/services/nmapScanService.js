@@ -1,13 +1,22 @@
-/**
+﻿/**
  * Nmap Scan Service
  */
-// NOTE: Runs Nmap and normalizes grepable output into structured scan results.
+// NOTE: Runs Nmap only against localhost/private-network targets and normalizes grepable output.
 
 const { execFile } = require('child_process');
 const util = require('util');
 
 const execFileAsync = util.promisify(execFile);
 const DEFAULT_NMAP_TIMEOUT_MS = Number(process.env.NMAP_SCAN_TIMEOUT_MS) || 60000;
+const ALLOWED_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+const PRIVATE_IPV4_RANGES = [
+    [10, 0, 0, 0, 8],
+    [127, 0, 0, 0, 8],
+    [169, 254, 0, 0, 16],
+    [172, 16, 0, 0, 12],
+    [192, 168, 0, 0, 16],
+    [100, 64, 0, 0, 10],
+];
 
 function normalizePorts(portsInput) {
     if (Array.isArray(portsInput)) {
@@ -27,6 +36,72 @@ function normalizePorts(portsInput) {
         .map((port) => Number(port.trim()))
         .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535)
         .join(',');
+}
+
+function parseIpv4Address(value) {
+    const octets = String(value || '').trim().split('.').map(Number);
+    if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+        return null;
+    }
+
+    return octets;
+}
+
+function isPrivateIpv4Address(value) {
+    const octets = parseIpv4Address(value);
+    if (!octets) {
+        return false;
+    }
+
+    return PRIVATE_IPV4_RANGES.some(([first, second, third, fourth, prefixLength]) => {
+        if (prefixLength === 8) {
+            return octets[0] === first;
+        }
+
+        if (prefixLength === 10) {
+            return octets[0] === first && octets[1] >= 64 && octets[1] <= 127;
+        }
+
+        if (prefixLength === 12) {
+            return octets[0] === first && octets[1] >= 16 && octets[1] <= 31;
+        }
+
+        if (prefixLength === 16) {
+            return octets[0] === first && octets[1] === second;
+        }
+
+        return octets[0] === first && octets[1] === second && octets[2] === third && octets[3] === fourth;
+    });
+}
+
+function isLocalHostname(target) {
+    const normalizedTarget = String(target || '').trim().toLowerCase();
+    if (ALLOWED_HOSTNAMES.has(normalizedTarget)) {
+        return true;
+    }
+
+    return normalizedTarget.endsWith('.local')
+        || normalizedTarget.endsWith('.internal')
+        || normalizedTarget.endsWith('.lan');
+}
+
+function isAllowedScanTarget(target) {
+    const normalizedTarget = String(target || '').trim();
+    if (!normalizedTarget) {
+        return false;
+    }
+
+    if (ALLOWED_HOSTNAMES.has(normalizedTarget.toLowerCase()) || isLocalHostname(normalizedTarget)) {
+        return true;
+    }
+
+    return isPrivateIpv4Address(normalizedTarget);
+}
+
+function assertAllowedTarget(target) {
+    if (!isAllowedScanTarget(target)) {
+        throw new Error('Nmap scans are restricted to localhost and private-network targets');
+    }
 }
 
 function parsePortsLine(output) {
@@ -68,7 +143,7 @@ function parseHostState(output) {
 }
 
 function buildCommandArgs(target, portsInput) {
-    const args = ['-Pn', '-sV', '-O', '--open'];
+    const args = ['-Pn', '-sV', '--version-light', '--open'];
     const normalizedPorts = normalizePorts(portsInput);
 
     if (normalizedPorts) {
@@ -79,11 +154,18 @@ function buildCommandArgs(target, portsInput) {
     return args;
 }
 
+function buildUnavailableErrorMessage(normalizedTarget, error) {
+    const deploymentHint = process.env.RENDER ? ' Deploy with the backend Dockerfile so Nmap is installed in the image.' : ' Install Nmap locally and ensure it is on PATH.';
+    return new Error(`Nmap scan failed for ${normalizedTarget}: ${error.message}.${deploymentHint}`);
+}
+
 async function runScan({ target, ports } = {}) {
     const normalizedTarget = String(target || '').trim();
     if (!normalizedTarget) {
         throw new Error('Nmap scan target is required');
     }
+
+    assertAllowedTarget(normalizedTarget);
 
     const args = buildCommandArgs(normalizedTarget, ports);
 
@@ -108,7 +190,7 @@ async function runScan({ target, ports } = {}) {
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
-            throw new Error('Nmap is not installed or not available on PATH');
+            throw buildUnavailableErrorMessage(normalizedTarget, error);
         }
 
         throw new Error(`Nmap scan failed for ${normalizedTarget}: ${error.message}`);
@@ -121,4 +203,7 @@ module.exports = {
     normalizePorts,
     parsePortsLine,
     parseHostState,
+    isAllowedScanTarget,
+    isPrivateIpv4Address,
+    isLocalHostname,
 };
