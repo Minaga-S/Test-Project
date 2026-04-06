@@ -118,26 +118,20 @@
                             >
                         </div>
 
-                        <div class="form-group checkbox">
-                            <input
-                                type="checkbox"
-                                id="guest-affected"
-                                name="guestAffected"
-                            >
-                            <label for="guest-affected">
-                                Does this affect guests or guest services?
-                            </label>
-                        </div>
-
-                        <div class="form-group checkbox">
-                            <input
-                                type="checkbox"
-                                id="data-involved"
-                                name="sensitiveDataInvolved"
-                            >
-                            <label for="data-involved">
-                                Does this involve customer or payment data?
-                            </label>
+                        <div class="form-group">
+                            <label>Operational Impact</label>
+                            <div class="form-group checkbox">
+                                <input type="checkbox" id="guest-affected" name="guestAffected">
+                                <label for="guest-affected">Guest-facing operations are affected</label>
+                            </div>
+                            <div class="form-group checkbox">
+                                <input type="checkbox" id="payments-affected" name="paymentsAffected">
+                                <label for="payments-affected">Payment processing is affected</label>
+                            </div>
+                            <div class="form-group checkbox">
+                                <input type="checkbox" id="data-involved" name="sensitiveDataInvolved">
+                                <label for="data-involved">Customer or payment data may be exposed</label>
+                            </div>
                         </div>
 
                         <div class="form-actions">
@@ -165,10 +159,17 @@
             </div>
             <div class="analysis-progress">
                 <div class="spinner"></div>
-                <p id="analysis-status">AI is analyzing your incident description...</p>
+                <p id="analysis-status">Preparing incident analysis workflow...</p>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progress-fill"></div>
                 </div>
+                <p id="analysis-eta" class="small">Estimated completion: about 15-45 seconds depending on scan and AI response times.</p>
+                <ul id="analysis-steps" class="examples-list">
+                    <li id="step-scan">1. Running live scan (if enabled for the selected asset)</li>
+                    <li id="step-cve">2. Checking CVE intelligence from known vulnerability data</li>
+                    <li id="step-ai">3. Performing AI threat analysis and risk scoring</li>
+                    <li id="step-rec">4. Generating response recommendations and NIST mapping</li>
+                </ul>
             </div>
         </div>
     </div>

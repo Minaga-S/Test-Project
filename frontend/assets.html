@@ -68,6 +68,10 @@
                     <h1>Digital Assets</h1>
                 </div>
                 <div class="header-right">
+                    <button id="scan-assets-btn" class="btn btn-secondary btn-icon dashboard-scan-btn">
+                        <span class="material-symbols-rounded" aria-hidden="true">radar</span>
+                        <span class="button-label">Scan Assets</span>
+                    </button>
                     <button id="add-asset-btn" class="btn btn-primary btn-icon">
                         <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
                         <span>Add New Asset</span>
@@ -105,6 +109,13 @@
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
+                    <div class="filter-group filter-actions">
+                        <button id="select-all-assets-btn" class="btn btn-secondary btn-sm">Select All</button>
+                        <button id="delete-all-assets-btn" class="btn btn-danger btn-sm">Delete All</button>
+                    </div>
+                    <div class="filter-group filter-meta">
+                        <span id="selected-assets-count" class="small">0 selected</span>
+                    </div>
                 </section>
 
                 <!-- Assets Table -->
@@ -113,6 +124,7 @@
                         <table class="assets-table">
                             <thead>
                                 <tr>
+                                    <th>Select</th>
                                     <th>Asset Name</th>
                                     <th>Asset Type</th>
                                     <th>Location</th>
@@ -124,7 +136,7 @@
                             </thead>
                             <tbody id="assets-tbody">
                                 <tr>
-                                    <td colspan="7" class="text-center">Loading assets...</td>
+                                    <td colspan="8" class="text-center">Loading assets...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -215,6 +227,99 @@
                     </select>
                 </div>
 
+                <div class="form-group checkbox">
+                    <input
+                        type="checkbox"
+                        id="asset-live-scan-enabled"
+                        name="liveScanEnabled"
+                    >
+                    <label for="asset-live-scan-enabled">
+                        Enable live scan for this asset
+                        <small>Turn on to allow future on-demand and scheduled Nmap scans.</small>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-scan-target">Scan Target (IP or Hostname)</label>
+                    <input
+                        type="text"
+                        id="asset-scan-target"
+                        name="scanTarget"
+                        placeholder="e.g., 10.0.1.25 or pos-01.hotel.local"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-scan-ports">Scan Ports</label>
+                    <input
+                        type="text"
+                        id="asset-scan-ports"
+                        name="scanPorts"
+                        placeholder="e.g., 22,80,443,3389"
+                    >
+                    <small>Optional comma-separated port list. Leave empty for default profile.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-scan-frequency">Scan Frequency</label>
+                    <select id="asset-scan-frequency" name="scanFrequency">
+                        <option value="OnDemand" selected>On Demand</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-os-name">Operating System</label>
+                    <input
+                        type="text"
+                        id="asset-os-name"
+                        name="osName"
+                        placeholder="e.g., Windows Server"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-vendor">Software Vendor</label>
+                    <input
+                        type="text"
+                        id="asset-vendor"
+                        name="vendor"
+                        placeholder="e.g., Microsoft"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-product">Software/Product Name</label>
+                    <input
+                        type="text"
+                        id="asset-product"
+                        name="product"
+                        placeholder="e.g., IIS"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-product-version">Product Version</label>
+                    <input
+                        type="text"
+                        id="asset-product-version"
+                        name="productVersion"
+                        placeholder="e.g., 10.0"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="asset-cpe-uri">CPE URI</label>
+                    <input
+                        type="text"
+                        id="asset-cpe-uri"
+                        name="cpeUri"
+                        placeholder="e.g., cpe:2.3:o:microsoft:windows_server_2019:*:*:*:*:*:*:*:*"
+                    >
+                    <small>Optional CPE helps precise CVE matching with NIST data.</small>
+                </div>
+
                 <div class="form-actions">
                     <button type="button" id="cancel-btn" class="btn btn-secondary">
                         Cancel
@@ -252,4 +357,6 @@
     <script src="js/assets.js"></script>
 </body>
 </html>
+
+
 

@@ -3,6 +3,8 @@
 const mongoose = require('mongoose');
 const { ASSET_TYPES } = require('../utils/constants');
 
+const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
+
 const AssetSchema = new mongoose.Schema({
     assetName: {
         type: String,
@@ -38,6 +40,54 @@ const AssetSchema = new mongoose.Schema({
         type: String,
         default: '',
         trim: true,
+    },
+    liveScan: {
+        enabled: {
+            type: Boolean,
+            default: false,
+        },
+        target: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        ports: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        frequency: {
+            type: String,
+            enum: LIVE_SCAN_FREQUENCIES,
+            default: 'OnDemand',
+        },
+    },
+    vulnerabilityProfile: {
+        osName: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        vendor: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        product: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        productVersion: {
+            type: String,
+            default: '',
+            trim: true,
+        },
+        cpeUri: {
+            type: String,
+            default: '',
+            trim: true,
+        },
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -80,4 +130,3 @@ AssetSchema.pre('countDocuments', function(next) {
 });
 
 module.exports = mongoose.model('Asset', AssetSchema);
-

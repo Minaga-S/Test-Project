@@ -70,7 +70,7 @@
                 <div class="header-right">
                     <button id="export-btn" class="btn btn-secondary btn-icon">
                         <span class="material-symbols-rounded" aria-hidden="true">download</span>
-                        <span>Export Report</span>
+                        <span>Export Selected</span>
                     </button>
                 </div>
             </header>
@@ -115,6 +115,13 @@
                             <option value="Critical">Critical</option>
                         </select>
                     </div>
+                    <div class="filter-group filter-actions">
+                        <button id="select-all-incidents-btn" class="btn btn-secondary btn-sm">Select All</button>
+                        <button id="delete-all-incidents-btn" class="btn btn-danger btn-sm">Delete All</button>
+                    </div>
+                    <div class="filter-group filter-meta">
+                        <span id="selected-incidents-count" class="small">0 selected</span>
+                    </div>
                 </section>
 
                 <!-- Incidents Table -->
@@ -123,6 +130,7 @@
                         <table class="incidents-table">
                             <thead>
                                 <tr>
+                                    <th>Select</th>
                                     <th>Incident ID</th>
                                     <th>Asset</th>
                                     <th>Threat Type</th>
@@ -134,7 +142,7 @@
                             </thead>
                             <tbody id="incidents-tbody">
                                 <tr>
-                                    <td colspan="7" class="text-center">Loading incidents...</td>
+                                    <td colspan="8" class="text-center">Loading incidents...</td>
                                 </tr>
                             </tbody>
                         </table>

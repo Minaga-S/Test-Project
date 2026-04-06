@@ -14,19 +14,43 @@ const objectIdValidation = [
     validateRequest,
 ];
 
+const assetBodyValidation = [
+    body('assetName').optional().trim().notEmpty().withMessage('Asset name is required'),
+    body('assetType').optional().trim().notEmpty().withMessage('Asset type is required'),
+    body('liveScan.enabled').optional().isBoolean().withMessage('Live scan enabled must be a boolean'),
+    body('liveScan.target').optional().isString().trim(),
+    body('liveScan.ports').optional().isString().trim(),
+    body('liveScan.frequency').optional().isIn(['OnDemand', 'Daily', 'Weekly']).withMessage('Invalid live scan frequency'),
+    body('vulnerabilityProfile.osName').optional().isString().trim(),
+    body('vulnerabilityProfile.vendor').optional().isString().trim(),
+    body('vulnerabilityProfile.product').optional().isString().trim(),
+    body('vulnerabilityProfile.productVersion').optional().isString().trim(),
+    body('vulnerabilityProfile.cpeUri').optional().isString().trim(),
+    validateRequest,
+];
+
 const createAssetValidation = [
     body('assetName').trim().notEmpty().withMessage('Asset name is required'),
     body('assetType').trim().notEmpty().withMessage('Asset type is required'),
+    ...assetBodyValidation,
+];
+
+const scanAssetsValidation = [
+    body('assetIds').isArray({ min: 1 }).withMessage('assetIds must be a non-empty array'),
+    body('assetIds.*').isMongoId().withMessage('Each asset id must be a valid ObjectId'),
     validateRequest,
 ];
 
 router.post('/', createAssetValidation, withController(assetController, 'createAsset'));
+router.post('/scan', scanAssetsValidation, withController(assetController, 'scanAssets'));
 router.get('/', withController(assetController, 'getAssets'));
 router.get('/asset-types', withController(assetController, 'getAssetTypes'));
 router.get('/search', withController(assetController, 'searchAssets'));
+router.get('/:id/security-context', objectIdValidation, withController(assetController, 'getAssetSecurityContext'));
+router.get('/:id/scan-history', objectIdValidation, withController(assetController, 'getAssetScanHistory'));
+
 router.get('/:id', objectIdValidation, withController(assetController, 'getAsset'));
-router.put('/:id', objectIdValidation, withController(assetController, 'updateAsset'));
+router.put('/:id', objectIdValidation, assetBodyValidation, withController(assetController, 'updateAsset'));
 router.delete('/:id', objectIdValidation, withController(assetController, 'deleteAsset'));
 
 module.exports = router;
-
