@@ -67,10 +67,6 @@
                     <h1>Dashboard</h1>
                 </div>
                 <div class="header-right">
-                    <a href="assets.html?scan=1" class="btn btn-warning btn-icon dashboard-scan-btn">
-                        <span class="material-symbols-rounded" aria-hidden="true">radar</span>
-                        <span class="button-label">Scan Assets</span>
-                    </a>
                     <div class="live-badge">
                         <span class="live-badge-dot"></span>
                         <span id="last-updated-text">Updated now</span>
@@ -192,19 +188,13 @@
                         <section class="incidents-section">
                             <div class="section-header">
                                 <h2>Recent Incidents</h2>
-                                <div class="row-actions section-actions">
-                                    <button id="select-all-recent-incidents-btn" class="btn btn-sm btn-secondary">Select All</button>
-                                    <button id="delete-all-recent-incidents-btn" class="btn btn-sm btn-danger">Delete All</button>
-                                    <span id="selected-recent-incidents-count" class="small">0 selected</span>
-                                    <a href="incident-logs.html" class="link">View All</a>
-                                </div>
+                                <a href="incident-logs.html" class="link">View All</a>
                             </div>
 
                             <div class="table-responsive">
                                 <table class="incidents-table">
                                     <thead>
                                         <tr>
-                                            <th>Select</th>
                                             <th>Incident ID</th>
                                             <th>Asset</th>
                                             <th>Threat Type</th>
@@ -216,7 +206,7 @@
                                     </thead>
                                     <tbody id="recent-incidents-tbody">
                                         <tr>
-                                            <td colspan="8" class="text-center">Loading incidents...</td>
+                                            <td colspan="7" class="text-center">Loading incidents...</td>
                                         </tr>
                                     </tbody>
                                 </table>

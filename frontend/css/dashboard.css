@@ -699,6 +699,22 @@
     min-width: 190px;
 }
 
+.assets-page .filter-group.filter-meta,
+.incident-logs-page .filter-group.filter-meta {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: auto;
+    margin-right: auto;
+}
+
+.assets-page .filter-group.filter-actions,
+.incident-logs-page .filter-group.filter-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: auto;
+    margin-left: auto;
+}
+
 .assets-page .search-input,
 .assets-page .filter-select,
 .incident-logs-page .search-input,
@@ -719,14 +735,46 @@
     flex-wrap: wrap;
 }
 
+.filter-actions {
+    margin-left: auto;
+}
+
 .filter-meta {
     flex: 0 0 auto;
     min-width: auto;
+    margin-right: auto;
+}
+
+.selected-count {
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.selection-col {
+    width: 3.5rem;
+    text-align: center;
 }
 
 .filter-actions .btn,
 .section-actions .btn {
     white-space: nowrap;
+}
+
+.assets-table th.selection-col,
+.incidents-table th.selection-col {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+}
+
+.assets-table td[data-label="Select"],
+.incidents-table td[data-label="Select"] {
+    text-align: center;
+}
+
+.assets-table td[data-label="Select"] input,
+.incidents-table td[data-label="Select"] input {
+    display: inline-block;
+    margin: 0 auto;
 }
 
 /* ============================================
