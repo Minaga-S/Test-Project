@@ -3,27 +3,32 @@
  */
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
-
 const Incident = require('../models/Incident');
 const Asset = require('../models/Asset');
 const threatService = require('../services/threatClassificationService');
 const riskService = require('../services/riskCalculationService');
 const recommendationService = require('../services/recommendationService');
 const nistService = require('../services/nistMappingService');
+const assetSecurityContextService = require('../services/assetSecurityContextService');
+const scanHistoryService = require('../services/scanHistoryService');
 const auditLogService = require('../services/auditLogService');
 const { validateIncident } = require('../utils/validators');
 const { generateIncidentId } = require('../utils/constants');
 const logger = require('../utils/logger');
 
 class IncidentController {
-    /**
-     * Create incident
-     */
     async createIncident(req, res, next) {
         try {
-            const { assetId, description, incidentTime, guestAffected, sensitiveDataInvolved } = req.body;
+            const {
+                assetId,
+                description,
+                incidentTime,
+                guestAffected,
+                paymentsAffected,
+                sensitiveDataInvolved,
+                clientSecurityContext,
+            } = req.body;
 
-            // Validate input
             const validation = validateIncident({ assetId, description });
             if (!validation.isValid) {
                 return res.status(400).json({
@@ -33,7 +38,6 @@ class IncidentController {
                 });
             }
 
-            // Check if asset exists
             const asset = await Asset.findOne({
                 _id: assetId,
                 userId: req.user.userId,
@@ -46,19 +50,18 @@ class IncidentController {
                 });
             }
 
-            // Step 1: Classify the text into a likely threat type with likelihood and impact estimates.
-            // Analyze threat
-            const threatAnalysis = await threatService.classifyThreat(description);
+            const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
+            const securityContext = assetSecurityContextService.buildForAsset(asset, latestScanHistory);
+            if (clientSecurityContext && typeof clientSecurityContext === 'object') {
+                securityContext.clientReported = clientSecurityContext;
+            }
 
-            // Step 2: Convert likelihood and impact into a numeric risk score and level.
-            // Calculate risk
+            const threatAnalysis = await threatService.classifyThreat(description, securityContext);
             const riskAssessment = riskService.calculateRisk(
                 threatAnalysis.likelihood,
                 threatAnalysis.impact
             );
 
-            // Step 3: Attach relevant NIST controls so remediation guidance is standards-aligned.
-            // Get NIST mappings
             const nistMapping = nistService.getNISTMapping(threatAnalysis.threatType);
 
             const parsedIncidentTime = incidentTime ? new Date(incidentTime) : null;
@@ -69,18 +72,14 @@ class IncidentController {
                 });
             }
 
-            // Step 4: Generate concrete response actions for the team to follow.
-            // Generate recommendations
             const recommendations = await recommendationService.generateRecommendations(
                 threatAnalysis.threatType,
-                threatAnalysis
+                { ...threatAnalysis, securityContext }
             );
 
             const aiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
             const aiVersion = process.env.GEMINI_MODEL_VERSION || 'v1beta';
 
-            // Step 5: Save a full snapshot so audit, reporting, and dashboards can use the same record.
-            // Create incident
             const incident = new Incident({
                 incidentId: generateIncidentId(),
                 description,
@@ -107,7 +106,10 @@ class IncidentController {
                 recommendations,
                 userId: req.user.userId,
                 guestAffected: guestAffected || false,
+                paymentsAffected: paymentsAffected || false,
                 sensitiveDataInvolved: sensitiveDataInvolved || false,
+                securityContext,
+                cveMatches: securityContext?.cve?.matches || [],
             });
 
             await incident.save();
@@ -136,38 +138,30 @@ class IncidentController {
                     risk: riskAssessment,
                     nist: nistMapping,
                     recommendations,
+                    securityContext,
                 },
             });
-
         } catch (error) {
             logger.error(`Create incident error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Get all incidents
-     */
     async getIncidents(req, res, next) {
         try {
-            const incidents = await Incident.find({ userId: req.user.userId })
-                .sort({ createdAt: -1 });
+            const incidents = await Incident.find({ userId: req.user.userId }).sort({ createdAt: -1 });
 
             res.json({
                 success: true,
                 count: incidents.length,
                 incidents,
             });
-
         } catch (error) {
             logger.error(`Get incidents error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Get incident by ID
-     */
     async getIncident(req, res, next) {
         try {
             const incident = await Incident.findOne({
@@ -186,16 +180,12 @@ class IncidentController {
                 success: true,
                 incident,
             });
-
         } catch (error) {
             logger.error(`Get incident error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Update incident
-     */
     async updateIncident(req, res, next) {
         try {
             const incident = await Incident.findOne({
@@ -220,6 +210,7 @@ class IncidentController {
             const allowedFields = [
                 'description',
                 'guestAffected',
+                'paymentsAffected',
                 'sensitiveDataInvolved',
                 'status',
                 'likelihood',
@@ -255,16 +246,12 @@ class IncidentController {
                 message: 'Incident updated successfully',
                 incident,
             });
-
         } catch (error) {
             logger.error(`Update incident error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Update incident status
-     */
     async updateIncidentStatus(req, res, next) {
         try {
             const { status } = req.body;
@@ -311,16 +298,12 @@ class IncidentController {
                 message: 'Incident status updated',
                 incident,
             });
-
         } catch (error) {
             logger.error(`Update incident status error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Add note to incident
-     */
     async addNote(req, res, next) {
         try {
             const { note } = req.body;
@@ -364,16 +347,12 @@ class IncidentController {
                 message: 'Note added successfully',
                 incident,
             });
-
         } catch (error) {
             logger.error(`Add note error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Search incidents
-     */
     async searchIncidents(req, res, next) {
         try {
             const query = req.query.query || '';
@@ -392,16 +371,12 @@ class IncidentController {
                 count: incidents.length,
                 incidents,
             });
-
         } catch (error) {
             logger.error(`Search incidents error: ${error.message}`);
             next(error);
         }
     }
 
-    /**
-     * Delete incident
-     */
     async deleteIncident(req, res, next) {
         try {
             const incident = await Incident.findOneAndUpdate(
@@ -439,7 +414,6 @@ class IncidentController {
                 success: true,
                 message: 'Incident deleted successfully',
             });
-
         } catch (error) {
             logger.error(`Delete incident error: ${error.message}`);
             next(error);
@@ -448,12 +422,3 @@ class IncidentController {
 }
 
 module.exports = new IncidentController();
-
-
-
-
-
-
-
-
-

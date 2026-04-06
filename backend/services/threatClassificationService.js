@@ -25,9 +25,9 @@ class ThreatClassificationService {
     /**
      * Classify threat based on description
      */
-    async classifyThreat(description) {
+    async classifyThreat(description, securityContext = null) {
         try {
-            const aiAnalysis = await analyzeThreatWithAI(description);
+            const aiAnalysis = await analyzeThreatWithAI(description, securityContext);
             const baseClassification = this.enrichThreatData(aiAnalysis);
 
             // Guardrail: keep severe ransomware descriptions from being scored too low.

@@ -284,6 +284,21 @@
         justify-content: center;
     }
 
+    .dashboard-scan-btn .button-label {
+        display: none;
+    }
+
+    .filter-actions,
+    .section-actions {
+        width: 100%;
+    }
+
+    .filter-actions .btn,
+    .section-actions .btn {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
     .dashboard-page .top-header {
         position: relative;
         padding-right: 1rem;
