@@ -14,10 +14,8 @@ const PROD_API_BASE_URL = 'https://test-project-x7d2.onrender.com/api';
 const LOCAL_API_BASE_URL = 'http://localhost:5000/api';
 const SESSION_ACTIVITY_KEY = 'sessionLastActivityAt';
 const SESSION_STARTED_KEY = 'sessionStartedAt';
-const SESSION_REMEMBER_KEY = 'sessionRememberPreference';
 const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
-const REMEMBER_ABSOLUTE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
 
 function resolveApiBaseUrl() {
     const overrideUrl = localStorage.getItem('apiBaseUrlOverride');
@@ -41,14 +39,6 @@ class APIClient {
         this.initializeSessionTracking();
     }
 
-    setRememberSessionPreference(rememberSession) {
-        localStorage.setItem(SESSION_REMEMBER_KEY, rememberSession ? 'true' : 'false');
-    }
-
-    getRememberSessionPreference() {
-        return localStorage.getItem(SESSION_REMEMBER_KEY) === 'true';
-    }
-
     setToken(token) {
         this.token = token;
         localStorage.setItem('accessToken', token);
@@ -70,12 +60,7 @@ class APIClient {
         localStorage.removeItem('user');
         localStorage.removeItem(SESSION_ACTIVITY_KEY);
         localStorage.removeItem(SESSION_STARTED_KEY);
-        localStorage.removeItem(SESSION_REMEMBER_KEY);
         this.token = null;
-    }
-
-    getSessionAbsoluteTimeoutMs() {
-        return this.getRememberSessionPreference() ? REMEMBER_ABSOLUTE_TIMEOUT_MS : DEFAULT_ABSOLUTE_TIMEOUT_MS;
     }
 
     isSessionValid() {
@@ -93,7 +78,7 @@ class APIClient {
         }
 
         const isInactiveExpired = (now - lastActivityAt) > DEFAULT_INACTIVITY_TIMEOUT_MS;
-        const isAbsoluteExpired = (now - startedAt) > this.getSessionAbsoluteTimeoutMs();
+        const isAbsoluteExpired = (now - startedAt) > DEFAULT_ABSOLUTE_TIMEOUT_MS;
 
         return !isInactiveExpired && !isAbsoluteExpired;
     }
@@ -237,7 +222,6 @@ class APIClient {
     }
 
     async register(email, password, fullName, department) {
-        this.setRememberSessionPreference(false);
         return this.post('/auth/register', {
             email,
             password,
@@ -246,9 +230,7 @@ class APIClient {
         });
     }
 
-    async login(email, password, rememberSession = false) {
-        this.setRememberSessionPreference(rememberSession);
-
+    async login(email, password) {
         const response = await this.post('/auth/login', {
             email,
             password,
