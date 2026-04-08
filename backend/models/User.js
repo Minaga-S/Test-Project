@@ -62,6 +62,22 @@ const UserSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    recoveryCodeHashes: {
+        type: [String],
+        default: [],
+    },
+    passwordResetFailedAttempts: {
+        type: Number,
+        default: 0,
+    },
+    passwordResetLockUntil: {
+        type: Date,
+        default: null,
+    },
+    passwordChangedAt: {
+        type: Date,
+        default: Date.now,
+    },
     hasLoggedInOnce: {
         type: Boolean,
         default: false,
@@ -93,6 +109,7 @@ UserSchema.pre('save', async function(next) {
     try {
         const salt = await bcryptjs.genSalt(10);
         this.password = await bcryptjs.hash(this.password, salt);
+        this.passwordChangedAt = new Date();
         next();
     } catch (error) {
         next(error);
@@ -110,9 +127,8 @@ UserSchema.methods.toJSON = function() {
     delete user.password;
     delete user.twoFactorSecret;
     delete user.twoFactorTempSecret;
+    delete user.recoveryCodeHashes;
     return user;
 };
 
 module.exports = mongoose.model('User', UserSchema);
-
-

@@ -18,6 +18,17 @@ describe('totpService', () => {
         expect(otpAuthUrl.startsWith('otpauth://totp/')).toBe(true);
     });
 
+    it('should use accountName when provided for otpauth URI', () => {
+        const otpAuthUrl = totpService.buildOtpAuthUrl({
+            appName: 'HCGS',
+            email: 'user@example.com',
+            accountName: 'user@example.com - ABC123',
+            secret: totpService.generateSecret(),
+        });
+
+        expect(otpAuthUrl.includes('user%40example.com%20-%20ABC123')).toBe(true);
+    });
+
     it('should verify a valid token', () => {
         const secret = totpService.generateSecret();
         const token = authenticator.generate(secret);
@@ -34,6 +45,7 @@ describe('totpService', () => {
 
         expect(result).toBe(true);
     });
+
     it('should reject an invalid token', () => {
         const secret = totpService.generateSecret();
         const result = totpService.verifyToken(secret, '123456');
@@ -53,3 +65,6 @@ describe('totpService', () => {
         expect(qrCode.startsWith('data:image/png;base64,')).toBe(true);
     });
 });
+
+
+
