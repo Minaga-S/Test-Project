@@ -12,7 +12,6 @@
 
 let pendingTwoFactorChallengeToken = '';
 
-
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
 });
@@ -28,6 +27,8 @@ function initializeAuth() {
     const toggleLoginBtn = document.getElementById('toggle-login');
     const twoFactorLoginForm = document.getElementById('two-factor-login-form');
     const twoFactorSetupForm = document.getElementById('two-factor-setup-form');
+    const forgotPasswordStartForm = document.getElementById('forgot-password-start-form');
+    const passwordResetWithTwoFactorForm = document.getElementById('password-reset-with-2fa-form');
 
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
@@ -43,6 +44,14 @@ function initializeAuth() {
 
     if (twoFactorSetupForm) {
         twoFactorSetupForm.addEventListener('submit', handleTwoFactorEnableSubmit);
+    }
+
+    if (forgotPasswordStartForm) {
+        forgotPasswordStartForm.addEventListener('submit', handleForgotPasswordStart);
+    }
+
+    if (passwordResetWithTwoFactorForm) {
+        passwordResetWithTwoFactorForm.addEventListener('submit', handleResetPasswordWithTwoFactor);
     }
 
     if (toggleSignupBtn) {
@@ -62,8 +71,105 @@ function initializeAuth() {
     setupPasswordToggles();
     setupDepartmentSelects();
     setupTwoFactorModalActions();
+    setupRecoveryCodeCopyButtons();
+    setupForgotPasswordActions();
+    setupRememberMeCheckbox();
     setupTwoFactorCodeFormatting();
     setupPasswordGuidance();
+    setupResetPasswordGuidance();
+}
+
+function setupRecoveryCodeCopyButtons() {
+    const copyButton = document.getElementById('two-factor-recovery-copy-btn');
+    if (!copyButton) {
+        return;
+    }
+
+    copyButton.addEventListener('click', async () => {
+        const isCopied = await copyRecoveryCodesFromList('two-factor-recovery-codes-list');
+        if (isCopied) {
+            showNotification('Recovery codes copied to clipboard.', 'success');
+        }
+    });
+}
+
+async function copyRecoveryCodesFromList(listId) {
+    const recoveryCodesList = document.getElementById(listId);
+    if (!recoveryCodesList) {
+        return false;
+    }
+
+    const recoveryCodes = Array.from(recoveryCodesList.querySelectorAll('li'))
+        .map((item) => item.textContent.trim())
+        .filter((code) => code.length > 0);
+
+    if (recoveryCodes.length === 0) {
+        showNotification('No recovery codes available to copy yet.', 'info');
+        return false;
+    }
+
+    const textToCopy = recoveryCodes.join('\n');
+
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(textToCopy);
+            return true;
+        }
+
+        const fallbackTextarea = document.createElement('textarea');
+        fallbackTextarea.value = textToCopy;
+        fallbackTextarea.setAttribute('readonly', '');
+        fallbackTextarea.style.position = 'fixed';
+        fallbackTextarea.style.left = '-9999px';
+        document.body.appendChild(fallbackTextarea);
+        fallbackTextarea.select();
+
+        const isCopied = document.execCommand('copy');
+        document.body.removeChild(fallbackTextarea);
+
+        if (!isCopied) {
+            throw new Error('Clipboard copy command failed');
+        }
+
+        return true;
+    } catch (error) {
+        showNotification('Could not copy recovery codes. Please copy them manually.', 'error');
+        return false;
+    }
+}
+
+function setupRememberMeCheckbox() {
+    const rememberCheckbox = document.getElementById('remember');
+    if (!rememberCheckbox || !apiClient || typeof apiClient.getRememberSessionPreference !== 'function') {
+        return;
+    }
+
+    rememberCheckbox.checked = Boolean(apiClient.getRememberSessionPreference());
+}
+
+function setupForgotPasswordActions() {
+    const openLink = document.getElementById('open-forgot-password-link');
+    const cancelButton = document.getElementById('cancel-forgot-password-btn');
+    const backButton = document.getElementById('back-forgot-password-btn');
+
+    if (openLink) {
+        openLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            openForgotPasswordModal();
+        });
+    }
+
+    if (cancelButton) {
+        cancelButton.addEventListener('click', () => {
+            closeForgotPasswordModal();
+        });
+    }
+
+    if (backButton) {
+        backButton.addEventListener('click', () => {
+            showForgotPasswordStep('start');
+        });
+    }
 }
 
 function setupDepartmentSelects() {
@@ -109,10 +215,37 @@ function setupPasswordGuidance() {
     updateGuidance();
 }
 
+function setupResetPasswordGuidance() {
+    const resetPasswordInput = document.getElementById('reset-new-password');
+    const resetEmailInput = document.getElementById('reset-password-email');
+    const forgotEmailInput = document.getElementById('forgot-password-email');
+
+    if (!resetPasswordInput) {
+        return;
+    }
+
+    const updateGuidance = () => {
+        const resetEmailValue = resetEmailInput ? resetEmailInput.value : '';
+        const forgotEmailValue = forgotEmailInput ? forgotEmailInput.value : '';
+        const emailValue = resetEmailValue || forgotEmailValue;
+        renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', resetPasswordInput.value, emailValue);
+    };
+
+    resetPasswordInput.addEventListener('input', updateGuidance);
+
+    if (resetEmailInput) {
+        resetEmailInput.addEventListener('input', updateGuidance);
+    }
+
+    if (forgotEmailInput) {
+        forgotEmailInput.addEventListener('input', updateGuidance);
+    }
+
+    updateGuidance();
+}
+
 function evaluatePasswordCriteria(password, email) {
     const value = String(password || '');
-    const lowerValue = value.toLowerCase();
-    const emailLocalPart = String(email || '').split('@')[0].toLowerCase();
 
     const checks = {
         length: value.length >= 12,
@@ -121,8 +254,7 @@ function evaluatePasswordCriteria(password, email) {
         number: /\d/.test(value),
         symbol: /[^A-Za-z0-9]/.test(value),
         space: !/\s/.test(value),
-        common: !/(password|123456|qwerty|letmein|admin|welcome)/i.test(value),
-        emailPart: emailLocalPart.length < 3 || !lowerValue.includes(emailLocalPart),
+        common: !/(password|123456|qwerty)/i.test(value),
     };
 
     const score = Object.values(checks).filter(Boolean).length;
@@ -130,22 +262,27 @@ function evaluatePasswordCriteria(password, email) {
     return {
         checks,
         score,
-        isStrong: score >= 7 && checks.emailPart,
+        isStrong: score >= 7,
     };
 }
 
 function renderPasswordGuidance(password, email) {
+    renderPasswordGuidanceByPrefix('', 'signup-password-strength', password, email);
+}
+
+function renderPasswordGuidanceByPrefix(rulePrefix, strengthId, password, email) {
     const { checks, score } = evaluatePasswordCriteria(password, email);
-    const strengthEl = document.getElementById('signup-password-strength');
+    const strengthEl = document.getElementById(strengthId);
+    const idPrefix = rulePrefix ? `${rulePrefix}-` : '';
 
     const mapping = [
-        ['rule-length', checks.length],
-        ['rule-upper', checks.upper],
-        ['rule-lower', checks.lower],
-        ['rule-number', checks.number],
-        ['rule-symbol', checks.symbol],
-        ['rule-space', checks.space],
-        ['rule-common', checks.common],
+        [`${idPrefix}rule-length`, checks.length],
+        [`${idPrefix}rule-upper`, checks.upper],
+        [`${idPrefix}rule-lower`, checks.lower],
+        [`${idPrefix}rule-number`, checks.number],
+        [`${idPrefix}rule-symbol`, checks.symbol],
+        [`${idPrefix}rule-space`, checks.space],
+        [`${idPrefix}rule-common`, checks.common],
     ];
 
     mapping.forEach(([id, isMet]) => {
@@ -212,6 +349,7 @@ function setupTwoFactorModalActions() {
 function setupTwoFactorCodeFormatting() {
     attachTwoFactorFormatter('two-factor-login-code', 'two-factor-login-error');
     attachTwoFactorFormatter('two-factor-setup-code', 'two-factor-setup-error');
+    attachTwoFactorFormatter('reset-authenticator-code', 'password-reset-error');
 }
 
 function attachTwoFactorFormatter(inputId, errorId) {
@@ -278,6 +416,7 @@ async function handleLogin(e) {
 
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
+    const rememberSession = Boolean(document.getElementById('remember')?.checked);
 
     clearFormError('email');
     clearFormError('password');
@@ -296,7 +435,7 @@ async function handleLogin(e) {
     showLoading(true);
 
     try {
-        const response = await apiClient.login(email, password);
+        const response = await apiClient.login(email, password, rememberSession);
         showLoading(false);
 
         if (response.requiresTwoFactor) {
@@ -304,6 +443,7 @@ async function handleLogin(e) {
             openTwoFactorLoginModal();
             return;
         }
+
 
         if (response.token && response.promptToEnableTwoFactor) {
             openEnableTwoFactorPromptModal();
@@ -369,10 +509,31 @@ async function openTwoFactorSetupModal() {
     const qrImage = document.getElementById('two-factor-qr-image');
     const manualKey = document.getElementById('two-factor-manual-key');
     const errorEl = document.getElementById('two-factor-setup-error');
+    const codeInput = document.getElementById('two-factor-setup-code');
+    const recoveryPanel = document.getElementById('two-factor-recovery-codes-panel');
+    const recoveryList = document.getElementById('two-factor-recovery-codes-list');
+    const cancelButton = document.getElementById('cancel-two-factor-setup-btn');
+    const submitButton = document.querySelector('#two-factor-setup-form button[type="submit"]');
 
     errorEl.textContent = '';
     qrImage.src = '';
     manualKey.textContent = '';
+    codeInput.value = '';
+    codeInput.disabled = false;
+    codeInput.required = true;
+
+    if (recoveryPanel && recoveryList) {
+        recoveryPanel.style.display = 'none';
+        recoveryList.innerHTML = '';
+    }
+
+    if (cancelButton) {
+        cancelButton.textContent = 'Skip for Now';
+    }
+
+    if (submitButton) {
+        submitButton.style.display = '';
+    }
 
     showLoading(true);
 
@@ -406,14 +567,55 @@ async function handleTwoFactorEnableSubmit(e) {
     showLoading(true);
 
     try {
-        await apiClient.post('/auth/2fa/enable', { code });
+        const response = await apiClient.post('/auth/2fa/enable', { code });
+        const recoveryCodes = Array.isArray(response.recoveryCodes) ? response.recoveryCodes : [];
         showLoading(false);
-        closeTwoFactorSetupModal();
-        showNotification('2FA enabled successfully.', 'success');
-        window.location.href = 'dashboard.html';
+
+        if (recoveryCodes.length === 0) {
+            closeTwoFactorSetupModal();
+            showNotification('2FA enabled successfully.', 'success');
+            window.location.href = 'dashboard.html';
+            return;
+        }
+
+        renderRecoveryCodesInSetupModal(recoveryCodes);
+        showNotification('2FA enabled. Save your recovery codes before continuing.', 'success');
     } catch (error) {
         showLoading(false);
         errorEl.textContent = error.message || 'Could not enable 2FA.';
+    }
+}
+
+function renderRecoveryCodesInSetupModal(codes) {
+    const codeInput = document.getElementById('two-factor-setup-code');
+    const recoveryPanel = document.getElementById('two-factor-recovery-codes-panel');
+    const recoveryList = document.getElementById('two-factor-recovery-codes-list');
+    const cancelButton = document.getElementById('cancel-two-factor-setup-btn');
+    const submitButton = document.querySelector('#two-factor-setup-form button[type="submit"]');
+
+    if (!recoveryPanel || !recoveryList) {
+        showNotification('2FA enabled successfully.', 'success');
+        window.location.href = 'dashboard.html';
+        return;
+    }
+
+    recoveryList.innerHTML = '';
+    codes.forEach((code) => {
+        const listItem = document.createElement('li');
+        listItem.textContent = code;
+        recoveryList.appendChild(listItem);
+    });
+
+    recoveryPanel.style.display = 'block';
+    codeInput.disabled = true;
+    codeInput.required = false;
+
+    if (submitButton) {
+        submitButton.style.display = 'none';
+    }
+
+    if (cancelButton) {
+        cancelButton.textContent = 'Continue to Dashboard';
     }
 }
 
@@ -496,6 +698,130 @@ function closeTwoFactorSetupModal() {
     }
 }
 
+function openForgotPasswordModal() {
+    const modal = document.getElementById('forgot-password-modal');
+    if (!modal) {
+        return;
+    }
+
+    modal.style.display = 'flex';
+    showForgotPasswordStep('start');
+}
+
+function closeForgotPasswordModal() {
+    const modal = document.getElementById('forgot-password-modal');
+    if (!modal) {
+        return;
+    }
+
+    modal.style.display = 'none';
+    document.getElementById('forgot-password-start-form')?.reset();
+    document.getElementById('password-reset-with-2fa-form')?.reset();
+    document.getElementById('forgot-password-start-error').textContent = '';
+    document.getElementById('password-reset-error').textContent = '';
+    renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', '', '');
+}
+
+function showForgotPasswordStep(step) {
+    const startForm = document.getElementById('forgot-password-start-form');
+    const resetForm = document.getElementById('password-reset-with-2fa-form');
+
+    if (!startForm || !resetForm) {
+        return;
+    }
+
+    if (step === 'start') {
+        startForm.style.display = 'block';
+        resetForm.style.display = 'none';
+        return;
+    }
+
+    startForm.style.display = 'none';
+    resetForm.style.display = 'block';
+
+    const resetPasswordInput = document.getElementById('reset-new-password');
+    const resetEmailInput = document.getElementById('reset-password-email');
+    const emailValue = resetEmailInput ? resetEmailInput.value : '';
+    const passwordValue = resetPasswordInput ? resetPasswordInput.value : '';
+    renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', passwordValue, emailValue);
+}
+
+async function handleForgotPasswordStart(event) {
+    event.preventDefault();
+
+    const emailInput = document.getElementById('forgot-password-email');
+    const errorEl = document.getElementById('forgot-password-start-error');
+    const hiddenEmailInput = document.getElementById('reset-password-email');
+    const email = String(emailInput?.value || '').trim();
+
+    errorEl.textContent = '';
+
+    if (!validateEmail(email)) {
+        errorEl.textContent = 'Enter a valid email address.';
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        await apiClient.forgotPassword(email);
+        hiddenEmailInput.value = email;
+        showLoading(false);
+        showForgotPasswordStep('reset');
+        renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', document.getElementById('reset-new-password')?.value || '', email);
+        showNotification('Verification step ready. Use your authenticator or recovery code to reset password.', 'info');
+    } catch (error) {
+        showLoading(false);
+        errorEl.textContent = error.message || 'Unable to continue password reset.';
+    }
+}
+
+async function handleResetPasswordWithTwoFactor(event) {
+    event.preventDefault();
+
+    const email = String(document.getElementById('reset-password-email').value || '').trim();
+    const newPassword = String(document.getElementById('reset-new-password').value || '');
+    const confirmPassword = String(document.getElementById('reset-confirm-password').value || '');
+    const totpCode = normalizeTwoFactorCode(document.getElementById('reset-authenticator-code').value);
+    const recoveryCode = String(document.getElementById('reset-recovery-code').value || '').trim();
+    const errorEl = document.getElementById('password-reset-error');
+
+    errorEl.textContent = '';
+
+    if (newPassword !== confirmPassword) {
+        errorEl.textContent = 'New password and confirmation must match.';
+        return;
+    }
+
+    const passwordEvaluation = evaluatePasswordCriteria(newPassword, email);
+    if (!passwordEvaluation.isStrong) {
+        errorEl.textContent = 'Use a stronger password that meets all requirements.';
+        return;
+    }
+
+    if (!/^\d{6}$/.test(totpCode) && !recoveryCode) {
+        errorEl.textContent = 'Provide either a 6-digit authenticator code or a recovery code.';
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        await apiClient.resetPassword({
+            email,
+            newPassword,
+            totpCode,
+            recoveryCode,
+        });
+        showLoading(false);
+        showNotification('Password reset completed. Please sign in again.', 'success');
+        closeForgotPasswordModal();
+    } catch (error) {
+        showLoading(false);
+        errorEl.textContent = error.message || 'Password reset failed. Please verify your code and try again.';
+    }
+}
+
 async function handleSignup(e) {
     e.preventDefault();
 
@@ -540,6 +866,7 @@ async function handleSignup(e) {
         const registerResponse = await apiClient.register(email, password, fullName, department);
         apiClient.setToken(registerResponse.token);
         localStorage.setItem('user', JSON.stringify(registerResponse.user));
+        showLoading(false);
 
         showNotification('Account created successfully!', 'success');
         document.getElementById('signup-form').reset();
@@ -557,3 +884,14 @@ function logout() {
     apiClient.logout();
     window.location.href = 'login.html';
 }
+
+
+
+
+
+
+
+
+
+
+

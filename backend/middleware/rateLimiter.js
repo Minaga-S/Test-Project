@@ -34,6 +34,17 @@ const authLimiter = rateLimit({
     },
 });
 
+const passwordResetLimiter = rateLimit({
+    windowMs: WINDOW_MS,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many password reset attempts. Please try again shortly.',
+    },
+});
+
 const enrichmentLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 30,
@@ -49,5 +60,6 @@ const enrichmentLimiter = rateLimit({
 module.exports = {
     apiLimiter,
     authLimiter,
+    passwordResetLimiter,
     enrichmentLimiter,
 };

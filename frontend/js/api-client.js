@@ -10,10 +10,14 @@
  * 4) Endpoint Methods: exposes app-specific calls used by page scripts.
  */
 
-
-
 const PROD_API_BASE_URL = 'https://test-project-x7d2.onrender.com/api';
 const LOCAL_API_BASE_URL = 'http://localhost:5000/api';
+const SESSION_ACTIVITY_KEY = 'sessionLastActivityAt';
+const SESSION_STARTED_KEY = 'sessionStartedAt';
+const SESSION_REMEMBER_KEY = 'sessionRememberPreference';
+const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+const DEFAULT_ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+const REMEMBER_ABSOLUTE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
 
 function resolveApiBaseUrl() {
     const overrideUrl = localStorage.getItem('apiBaseUrlOverride');
@@ -33,43 +37,113 @@ class APIClient {
     constructor() {
         this.token = localStorage.getItem('accessToken');
         this.baseURL = API_BASE_URL;
+        this.isSessionTrackingInitialized = false;
+        this.initializeSessionTracking();
     }
 
-    /**
-     * Set authentication token
-     */
+    setRememberSessionPreference(rememberSession) {
+        localStorage.setItem(SESSION_REMEMBER_KEY, rememberSession ? 'true' : 'false');
+    }
+
+    getRememberSessionPreference() {
+        return localStorage.getItem(SESSION_REMEMBER_KEY) === 'true';
+    }
+
     setToken(token) {
         this.token = token;
         localStorage.setItem('accessToken', token);
+
+        const now = String(Date.now());
+        if (!localStorage.getItem(SESSION_STARTED_KEY)) {
+            localStorage.setItem(SESSION_STARTED_KEY, now);
+        }
+
+        localStorage.setItem(SESSION_ACTIVITY_KEY, now);
     }
 
-    /**
-     * Get authentication token
-     */
     getToken() {
         return localStorage.getItem('accessToken');
     }
 
-    /**
-     * Clear authentication
-     */
     clearAuth() {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
+        localStorage.removeItem(SESSION_ACTIVITY_KEY);
+        localStorage.removeItem(SESSION_STARTED_KEY);
+        localStorage.removeItem(SESSION_REMEMBER_KEY);
         this.token = null;
     }
 
-    /**
-     * Check if user is authenticated
-     */
-    isAuthenticated() {
-        return !!this.getToken();
+    getSessionAbsoluteTimeoutMs() {
+        return this.getRememberSessionPreference() ? REMEMBER_ABSOLUTE_TIMEOUT_MS : DEFAULT_ABSOLUTE_TIMEOUT_MS;
     }
 
-    /**
-     * Make HTTP request
-     */
+    isSessionValid() {
+        const token = this.getToken();
+        if (!token) {
+            return false;
+        }
+
+        const startedAt = Number.parseInt(localStorage.getItem(SESSION_STARTED_KEY) || '0', 10);
+        const lastActivityAt = Number.parseInt(localStorage.getItem(SESSION_ACTIVITY_KEY) || '0', 10);
+        const now = Date.now();
+
+        if (!startedAt || !lastActivityAt) {
+            return true;
+        }
+
+        const isInactiveExpired = (now - lastActivityAt) > DEFAULT_INACTIVITY_TIMEOUT_MS;
+        const isAbsoluteExpired = (now - startedAt) > this.getSessionAbsoluteTimeoutMs();
+
+        return !isInactiveExpired && !isAbsoluteExpired;
+    }
+
+    markActivity() {
+        if (this.getToken()) {
+            localStorage.setItem(SESSION_ACTIVITY_KEY, String(Date.now()));
+        }
+    }
+
+    initializeSessionTracking() {
+        if (this.isSessionTrackingInitialized) {
+            return;
+        }
+
+        ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+            window.addEventListener(eventName, () => this.markActivity(), { passive: true });
+        });
+
+        this.isSessionTrackingInitialized = true;
+    }
+
+    handleSessionExpiry() {
+        this.clearAuth();
+        if (!window.location.pathname.endsWith('login.html')) {
+            window.location.href = 'login.html';
+        }
+    }
+
+    isAuthenticated() {
+        const isValid = this.isSessionValid();
+        if (!isValid && this.getToken()) {
+            this.handleSessionExpiry();
+        }
+
+        return isValid;
+    }
+
     async request(endpoint, options = {}) {
+        const isAuthFreeEndpoint = endpoint.startsWith('/auth/login')
+            || endpoint.startsWith('/auth/register')
+            || endpoint.startsWith('/auth/forgot-password')
+            || endpoint.startsWith('/auth/reset-password')
+            || endpoint.startsWith('/auth/refresh');
+
+        if (!isAuthFreeEndpoint && this.getToken() && !this.isSessionValid()) {
+            this.handleSessionExpiry();
+            return null;
+        }
+
         const url = `${this.baseURL}${endpoint}`;
         const method = options.method || 'GET';
         const hasBody = options.body !== undefined && options.body !== null;
@@ -102,8 +176,7 @@ class APIClient {
 
             const hasAuthorizationHeader = Boolean(headers.Authorization);
             if (response.status === 401 && hasAuthorizationHeader) {
-                this.clearAuth();
-                window.location.href = 'login.html';
+                this.handleSessionExpiry();
                 return null;
             }
 
@@ -139,6 +212,7 @@ class APIClient {
                 throw new Error(detailedMessage);
             }
 
+            this.markActivity();
             return await response.json();
         } catch (error) {
             console.error('API Error:', error);
@@ -146,37 +220,24 @@ class APIClient {
         }
     }
 
-    /**
-     * GET request
-     */
     get(endpoint, options = {}) {
         return this.request(endpoint, { ...options, method: 'GET' });
     }
 
-    /**
-     * POST request
-     */
     post(endpoint, body, options = {}) {
         return this.request(endpoint, { ...options, method: 'POST', body });
     }
 
-    /**
-     * PUT request
-     */
     put(endpoint, body, options = {}) {
         return this.request(endpoint, { ...options, method: 'PUT', body });
     }
 
-    /**
-     * DELETE request
-     */
     delete(endpoint, options = {}) {
         return this.request(endpoint, { ...options, method: 'DELETE' });
     }
 
-    // ============== AUTH ENDPOINTS ==============
-
     async register(email, password, fullName, department) {
+        this.setRememberSessionPreference(false);
         return this.post('/auth/register', {
             email,
             password,
@@ -185,7 +246,9 @@ class APIClient {
         });
     }
 
-    async login(email, password) {
+    async login(email, password, rememberSession = false) {
+        this.setRememberSessionPreference(rememberSession);
+
         const response = await this.post('/auth/login', {
             email,
             password,
@@ -197,6 +260,14 @@ class APIClient {
         }
 
         return response;
+    }
+
+    async forgotPassword(email) {
+        return this.post('/auth/forgot-password', { email });
+    }
+
+    async resetPassword(payload) {
+        return this.post('/auth/reset-password', payload);
     }
 
     async verifyTwoFactorLogin(challengeToken, code) {
@@ -245,8 +316,6 @@ class APIClient {
         return this.post('/auth/2fa/disable', { code });
     }
 
-    // ============== ASSET ENDPOINTS ==============
-
     async createAsset(assetData) {
         const response = await this.post('/assets', assetData);
         return response?.asset || response;
@@ -287,10 +356,8 @@ class APIClient {
     }
 
     async getAssetSecurityContext(assetId) {
-        return this.get(/assets//security-context);
+        return this.get(`/assets/${assetId}/security-context`);
     }
-
-    // ============== PUSH NOTIFICATIONS ==============
 
     async getPushPublicKey() {
         const response = await this.get('/notifications/public-key');
@@ -313,8 +380,6 @@ class APIClient {
     async sendPushTest() {
         return this.post('/notifications/test', {});
     }
-
-    // ============== INCIDENT ENDPOINTS ==============
 
     async createIncident(incidentData) {
         const response = await this.post('/incidents', incidentData);
@@ -351,8 +416,6 @@ class APIClient {
         return this.post(`/incidents/${id}/notes`, { note });
     }
 
-    // ============== THREAT ENDPOINTS ==============
-
     async analyzeThreat(description) {
         return this.post('/threats/analyze', {
             description,
@@ -372,8 +435,6 @@ class APIClient {
             description,
         });
     }
-
-    // ============== RISK ENDPOINTS ==============
 
     async calculateRisk(likelihood, impact) {
         return this.post('/risk/calculate', {
@@ -398,8 +459,6 @@ class APIClient {
         return this.get('/risk/by-asset');
     }
 
-    // ============== NIST CSF ENDPOINTS ==============
-
     async getNISTFunctions() {
         return this.get('/nist/functions');
     }
@@ -415,8 +474,6 @@ class APIClient {
     async getNISTRecommendations(threatType) {
         return this.get(`/nist/recommendations/${threatType}`);
     }
-
-    // ============== DASHBOARD ENDPOINTS ==============
 
     async getDashboardMetrics() {
         return this.get('/dashboard/metrics');
@@ -443,17 +500,4 @@ class APIClient {
     }
 }
 
-// Create singleton instance
 const apiClient = new APIClient();
-
-
-
-
-
-
-
-
-
-
-
-

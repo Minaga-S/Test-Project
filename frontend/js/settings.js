@@ -14,6 +14,8 @@ const USER_TABS = ['profile', 'password', 'security', 'notifications'];
 const PUSH_SERVICE_WORKER_PATH = '/service-worker.js';
 
 let isTwoFactorEnabled = false;
+let shouldShowTwoFactorRecoveryCodes = false;
+let isTwoFactorSetupInProgress = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeSettings();
@@ -31,8 +33,111 @@ async function initializeSettings() {
     setupFormHandlers();
     setupDepartmentSelects();
     setupTwoFactorCodeFormatting();
+    setupPasswordToggles();
+    setupPasswordGuidance();
     setupPushNotificationHandlers();
     await loadUserSettings();
+}
+
+function setupPasswordToggles() {
+    const toggleButtons = document.querySelectorAll('.password-toggle');
+
+    toggleButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const targetId = button.getAttribute('data-password-target');
+            const input = document.getElementById(targetId);
+            if (!input) {
+                return;
+            }
+
+            const isMasked = input.type === 'password';
+            input.type = isMasked ? 'text' : 'password';
+            button.setAttribute('aria-label', isMasked ? 'Hide password' : 'Show password');
+
+            const icon = button.querySelector('.material-symbols-rounded');
+            if (icon) {
+                icon.textContent = isMasked ? 'visibility_off' : 'visibility';
+            }
+        });
+    });
+}
+
+function setupPasswordGuidance() {
+    const newPasswordInput = document.getElementById('new-password');
+
+    if (!newPasswordInput) {
+        return;
+    }
+
+    const updateGuidance = () => {
+        renderPasswordGuidance(newPasswordInput.value);
+    };
+
+    newPasswordInput.addEventListener('input', updateGuidance);
+    updateGuidance();
+}
+
+function evaluatePasswordCriteria(password) {
+    const value = String(password || '');
+
+    const checks = {
+        length: value.length >= 12,
+        upper: /[A-Z]/.test(value),
+        lower: /[a-z]/.test(value),
+        number: /\d/.test(value),
+        symbol: /[^A-Za-z0-9]/.test(value),
+        space: !/\s/.test(value),
+        common: !/(password|123456|qwerty)/i.test(value),
+    };
+
+    const score = Object.values(checks).filter(Boolean).length;
+
+    return {
+        checks,
+        score,
+        isStrong: score >= 7,
+    };
+}
+
+function renderPasswordGuidance(password) {
+    const { checks, score } = evaluatePasswordCriteria(password);
+    const strengthEl = document.getElementById('settings-password-strength');
+
+    const mapping = [
+        ['settings-rule-length', checks.length],
+        ['settings-rule-upper', checks.upper],
+        ['settings-rule-lower', checks.lower],
+        ['settings-rule-number', checks.number],
+        ['settings-rule-symbol', checks.symbol],
+        ['settings-rule-space', checks.space],
+        ['settings-rule-common', checks.common],
+    ];
+
+    mapping.forEach(([id, isMet]) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.toggle('is-met', isMet);
+        }
+    });
+
+    if (!strengthEl) {
+        return;
+    }
+
+    if (score <= 3) {
+        strengthEl.textContent = 'Strength: Weak';
+        strengthEl.className = 'password-strength strength-weak';
+        return;
+    }
+
+    if (score <= 6) {
+        strengthEl.textContent = 'Strength: Fair';
+        strengthEl.className = 'password-strength strength-fair';
+        return;
+    }
+
+    strengthEl.textContent = 'Strength: Strong';
+    strengthEl.className = 'password-strength strength-strong';
 }
 
 function setupDepartmentSelects() {
@@ -117,6 +222,16 @@ function setupFormHandlers() {
         startTwoFactorSetupButton.addEventListener('click', startTwoFactorSetupFromSettings);
     }
 
+    const copyRecoveryCodesButton = document.getElementById('settings-two-factor-recovery-copy-btn');
+    if (copyRecoveryCodesButton) {
+        copyRecoveryCodesButton.addEventListener('click', async () => {
+            const isCopied = await copyRecoveryCodesFromList('settings-two-factor-recovery-codes-list');
+            if (isCopied) {
+                showNotification('Recovery codes copied to clipboard.', 'success');
+            }
+        });
+    }
+
     const enablePushButton = document.getElementById('enable-browser-push-btn');
     if (enablePushButton) {
         enablePushButton.addEventListener('click', handleEnableBrowserNotifications);
@@ -131,6 +246,12 @@ function setupFormHandlers() {
     if (testPushButton) {
         testPushButton.addEventListener('click', handleTestBrowserNotifications);
     }
+}
+
+function getInitialSettingsTab() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = String(params.get('tab') || '').trim().toLowerCase();
+    return USER_TABS.includes(requestedTab) ? requestedTab : 'profile';
 }
 
 function setupTabHandlers() {
@@ -165,8 +286,6 @@ function activateTab(tabName) {
 }
 
 async function loadUserSettings() {
-    showLoading(true);
-
     try {
         const profileResponse = await apiClient.getProfile();
         const user = profileResponse?.user || profileResponse || {};
@@ -189,13 +308,11 @@ async function loadUserSettings() {
         isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
         renderTwoFactorStatus();
 
-        activateTab('profile');
+        activateTab(getInitialSettingsTab());
         await loadPushNotificationState();
     } catch (error) {
         console.error('Error loading settings:', error);
         showNotification('Error loading settings', 'error');
-    } finally {
-        showLoading(false);
     }
 }
 
@@ -204,22 +321,28 @@ function renderTwoFactorStatus() {
     const startSetupButton = document.getElementById('start-two-factor-setup-btn');
     const setupPanel = document.getElementById('two-factor-setup-panel');
     const disableForm = document.getElementById('two-factor-disable-form');
+    const recommendation = document.getElementById('security-recommendation');
 
     if (!statusText || !startSetupButton || !setupPanel || !disableForm) {
         return;
     }
 
-    setupPanel.style.display = 'none';
+    if (recommendation) {
+        recommendation.classList.toggle('is-hidden', isTwoFactorEnabled);
+    }
+
+    setupPanel.style.display = shouldShowTwoFactorRecoveryCodes ? 'block' : 'none';
 
     if (isTwoFactorEnabled) {
         statusText.textContent = '2FA is currently enabled for your account.';
         statusText.className = 'two-factor-status-enabled';
         startSetupButton.style.display = 'none';
         disableForm.style.display = 'flex';
+        isTwoFactorSetupInProgress = false;
     } else {
         statusText.textContent = '2FA is currently disabled for your account.';
         statusText.className = 'two-factor-status-disabled';
-        startSetupButton.style.display = 'inline-flex';
+        startSetupButton.style.display = isTwoFactorSetupInProgress ? 'none' : 'inline-flex';
         disableForm.style.display = 'none';
     }
 }
@@ -229,13 +352,40 @@ async function startTwoFactorSetupFromSettings() {
     const setupError = document.getElementById('settings-two-factor-setup-error');
     const qrImage = document.getElementById('settings-two-factor-qr-image');
     const manualKey = document.getElementById('settings-two-factor-manual-key');
+    const recoveryPanel = document.getElementById('settings-two-factor-recovery-codes-panel');
+    const recoveryCodesList = document.getElementById('settings-two-factor-recovery-codes-list');
+    const submitButton = document.querySelector('#two-factor-setup-panel button[type="submit"]');
+    const codeInput = document.getElementById('settings-two-factor-code');
 
     if (isTwoFactorEnabled) {
         showNotification('2FA is already enabled.', 'info');
         return;
     }
 
+    isTwoFactorSetupInProgress = true;
+    const startSetupButton = document.getElementById('start-two-factor-setup-btn');
+    if (startSetupButton) {
+        startSetupButton.style.display = 'none';
+    }
+
     setupError.textContent = '';
+    if (recoveryPanel && recoveryCodesList) {
+        recoveryPanel.style.display = 'none';
+        recoveryCodesList.innerHTML = '';
+    }
+
+    shouldShowTwoFactorRecoveryCodes = false;
+
+    if (submitButton) {
+        submitButton.style.display = '';
+    }
+
+    if (codeInput) {
+        codeInput.disabled = false;
+        codeInput.required = true;
+        codeInput.value = '';
+    }
+
     showLoading(true);
 
     try {
@@ -245,13 +395,16 @@ async function startTwoFactorSetupFromSettings() {
         setupPanel.style.display = 'block';
         setupPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-        const codeInput = document.getElementById('settings-two-factor-code');
         if (codeInput) {
             codeInput.focus();
         }
 
         showNotification('2FA setup generated. Scan the QR code below.', 'success');
     } catch (error) {
+        isTwoFactorSetupInProgress = false;
+        if (startSetupButton) {
+            startSetupButton.style.display = 'inline-flex';
+        }
         setupError.textContent = error.message || 'Could not start 2FA setup.';
     } finally {
         showLoading(false);
@@ -261,7 +414,11 @@ async function startTwoFactorSetupFromSettings() {
 async function handleTwoFactorEnableFromSettings(e) {
     e.preventDefault();
 
-    const code = normalizeTwoFactorCode(document.getElementById('settings-two-factor-code').value);
+    const codeInput = document.getElementById('settings-two-factor-code');
+    const recoveryPanel = document.getElementById('settings-two-factor-recovery-codes-panel');
+    const recoveryCodesList = document.getElementById('settings-two-factor-recovery-codes-list');
+    const submitButton = document.querySelector('#two-factor-setup-panel button[type="submit"]');
+    const code = normalizeTwoFactorCode(codeInput.value);
     clearTwoFactorFieldError('settings-two-factor-code', 'settings-two-factor-setup-error');
 
     if (!/^\d{6}$/.test(code)) {
@@ -272,15 +429,93 @@ async function handleTwoFactorEnableFromSettings(e) {
     showLoading(true);
 
     try {
-        await apiClient.post('/auth/2fa/enable', { code });
+        const enableResponse = await apiClient.post('/auth/2fa/enable', { code });
+        if (Array.isArray(enableResponse.recoveryCodes) && enableResponse.recoveryCodes.length > 0) {
+            shouldShowTwoFactorRecoveryCodes = true;
+            renderRecoveryCodesInSettingsPanel(enableResponse.recoveryCodes, recoveryPanel, recoveryCodesList, codeInput, submitButton);
+            showNotification('2FA enabled. Save your recovery codes before continuing.', 'success');
+        } else {
+            shouldShowTwoFactorRecoveryCodes = false;
+            showNotification('2FA enabled successfully.', 'success');
+        }
+
         isTwoFactorEnabled = true;
+        isTwoFactorSetupInProgress = false;
         await refreshUserProfile();
         renderTwoFactorStatus();
-        showNotification('2FA enabled successfully.', 'success');
     } catch (error) {
         setTwoFactorFieldError('settings-two-factor-code', 'settings-two-factor-setup-error', error.message || 'Could not enable 2FA.');
     } finally {
         showLoading(false);
+    }
+}
+
+function renderRecoveryCodesInSettingsPanel(recoveryCodes, recoveryPanel, recoveryCodesList, codeInput, submitButton) {
+    if (!recoveryPanel || !recoveryCodesList) {
+        return;
+    }
+
+    recoveryCodesList.innerHTML = '';
+    recoveryCodes.forEach((recoveryCode) => {
+        const listItem = document.createElement('li');
+        listItem.textContent = recoveryCode;
+        recoveryCodesList.appendChild(listItem);
+    });
+
+    recoveryPanel.style.display = 'block';
+
+    if (codeInput) {
+        codeInput.disabled = true;
+        codeInput.required = false;
+    }
+
+    if (submitButton) {
+        submitButton.style.display = 'none';
+    }
+}
+
+async function copyRecoveryCodesFromList(listId) {
+    const recoveryCodesList = document.getElementById(listId);
+    if (!recoveryCodesList) {
+        return false;
+    }
+
+    const recoveryCodes = Array.from(recoveryCodesList.querySelectorAll('li'))
+        .map((item) => item.textContent.trim())
+        .filter((code) => code.length > 0);
+
+    if (recoveryCodes.length === 0) {
+        showNotification('No recovery codes available to copy yet.', 'info');
+        return false;
+    }
+
+    const textToCopy = recoveryCodes.join('\n');
+
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(textToCopy);
+            return true;
+        }
+
+        const fallbackTextarea = document.createElement('textarea');
+        fallbackTextarea.value = textToCopy;
+        fallbackTextarea.setAttribute('readonly', '');
+        fallbackTextarea.style.position = 'fixed';
+        fallbackTextarea.style.left = '-9999px';
+        document.body.appendChild(fallbackTextarea);
+        fallbackTextarea.select();
+
+        const isCopied = document.execCommand('copy');
+        document.body.removeChild(fallbackTextarea);
+
+        if (!isCopied) {
+            throw new Error('Clipboard copy command failed');
+        }
+
+        return true;
+    } catch (error) {
+        showNotification('Could not copy recovery codes. Please copy them manually.', 'error');
+        return false;
     }
 }
 
@@ -300,6 +535,8 @@ async function handleTwoFactorDisableFromSettings(e) {
     try {
         await apiClient.post('/auth/2fa/disable', { code });
         isTwoFactorEnabled = false;
+        isTwoFactorSetupInProgress = false;
+        shouldShowTwoFactorRecoveryCodes = false;
         document.getElementById('two-factor-disable-form').reset();
         await refreshUserProfile();
         renderTwoFactorStatus();
@@ -362,8 +599,9 @@ async function handlePasswordChange(e) {
         return;
     }
 
-    if (!validatePassword(newPassword)) {
-        document.getElementById('password-error').textContent = 'Password must be at least 8 characters';
+    const passwordEvaluation = evaluatePasswordCriteria(newPassword);
+    if (!passwordEvaluation.isStrong) {
+        document.getElementById('password-error').textContent = 'Use a stronger password that meets all requirements.';
         return;
     }
 
@@ -376,6 +614,7 @@ async function handlePasswordChange(e) {
         document.getElementById('password-form').reset();
         document.getElementById('password-success').textContent = '';
         document.getElementById('password-error').textContent = '';
+        renderPasswordGuidance('');
     } catch (error) {
         console.error('Error changing password:', error);
         document.getElementById('password-error').textContent = error.message || 'Error changing password';
@@ -607,3 +846,6 @@ async function handleTestBrowserNotifications() {
         showNotification(error.message || 'Could not send a test notification.', 'error');
     }
 }
+
+
+

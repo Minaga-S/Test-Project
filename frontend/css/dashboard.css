@@ -145,6 +145,34 @@
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
+.summary-badge.summary-badge-skeleton {
+    min-width: 88px;
+    min-height: 1.5rem;
+    color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    background: linear-gradient(110deg, rgba(232, 234, 239, 0.8) 8%, rgba(248, 250, 252, 1) 18%, rgba(232, 234, 239, 0.8) 33%);
+    background-size: 200% 100%;
+    animation: shimmer-loading 1.2s linear infinite;
+}
+
+.skeleton-text-row {
+    display: inline-block;
+    height: 0.9rem;
+    border-radius: 8px;
+    background: linear-gradient(110deg, rgba(232, 234, 239, 0.8) 8%, rgba(248, 250, 252, 1) 18%, rgba(232, 234, 239, 0.8) 33%);
+    background-size: 200% 100%;
+    animation: shimmer-loading 1.2s linear infinite;
+}
+
+.skeleton-text-row.w-sm {
+    width: 72px;
+}
+
+.skeleton-text-row.w-md {
+    width: 112px;
+}
+
 .summary-badge.severity-critical,
 .summary-badge.severity-high,
 .summary-badge.severity-medium,
@@ -943,6 +971,43 @@
 
 .settings-page .settings-tab-content.tab-active {
     display: block;
+}
+
+.settings-page .security-recommendation {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(64, 112, 255, 0.22);
+    background: linear-gradient(135deg, rgba(64, 112, 255, 0.1), rgba(91, 141, 238, 0.08));
+    color: var(--secondary-color);
+    font-size: var(--font-size-sm);
+    line-height: 1.45;
+}
+
+.settings-page .security-recommendation .material-symbols-rounded {
+    font-size: 1.1rem;
+    color: #365FDD;
+    margin-top: 2px;
+}
+
+.settings-page .security-recommendation strong {
+    font-weight: 800;
+}
+
+.settings-page .security-recommendation.is-hidden {
+    display: none;
+}
+
+.settings-page .two-factor-enable-submit-btn {
+    display: block;
+    width: min(100%, 320px);
+    min-height: 44px;
+    margin: var(--space-2) auto 0;
+    text-align: center;
 }
 
 .detail-item label {

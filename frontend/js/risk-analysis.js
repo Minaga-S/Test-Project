@@ -94,7 +94,6 @@ async function ensureChartJsLoaded() {
 
 async function loadRiskData() {
     // Load all risk widgets together so the page stays consistent and finishes faster.
-    showLoading(true);
     renderTableSkeleton('risk-breakdown-tbody', 8, 4);
 
     try {
@@ -132,8 +131,6 @@ async function loadRiskData() {
     } catch (error) {
         console.error('Error loading risk data:', error);
         showNotification('Error loading risk analysis', 'error');
-    } finally {
-        showLoading(false);
     }
 }
 

@@ -370,6 +370,39 @@
     flex: 1;
 }
 
+.push-notification-panel {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-background);
+}
+
+.push-notification-panel h3,
+.push-notification-panel p {
+    margin: 0;
+}
+
+.push-notification-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.push-notification-actions .btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+#browser-push-status {
+    display: block;
+}
+
 /* ============================================
    INPUT VARIANTS
    ============================================ */
@@ -499,6 +532,10 @@ select:disabled {
     .form-actions .btn {
         width: 100%;
     }
+
+    .push-notification-actions {
+        grid-template-columns: 1fr;
+    }
 }
 .success-modal-content {
     max-width: 460px;
@@ -588,4 +625,63 @@ select:disabled {
     align-items: center;
     gap: 0.5rem;
     padding-left: 0;
+}
+
+
+.two-factor-recovery-panel {
+    margin-top: 0.25rem;
+}
+
+.two-factor-recovery-title {
+    margin: 0;
+    font-weight: 700;
+    color: var(--secondary-color);
+}
+
+.two-factor-recovery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.two-factor-recovery-copy {
+    margin: 0.35rem 0 0.55rem;
+    color: var(--gray-color);
+    font-size: var(--font-size-sm);
+}
+
+.confirm-modal .two-factor-recovery-copy {
+    text-align: left;
+}
+
+.two-factor-recovery-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: var(--radius-full);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.two-factor-recovery-copy-btn .material-symbols-rounded {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.two-factor-recovery-codes {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.3rem;
+}
+
+.two-factor-recovery-codes li {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.02em;
 }

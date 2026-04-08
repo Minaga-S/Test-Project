@@ -4,7 +4,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/auth');
-const { authLimiter } = require('../middleware/rateLimiter');
+const { authLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 const { validateRequest } = require('../middleware/validateRequest');
 const { DEPARTMENTS } = require('../utils/constants');
 
@@ -43,6 +43,29 @@ const changePasswordValidation = [
     validateRequest,
 ];
 
+const forgotPasswordValidation = [
+    body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
+    validateRequest,
+];
+
+const resetPasswordValidation = [
+    body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
+    body('newPassword').isLength({ min: 12 }).withMessage('New password must be at least 12 characters'),
+    body('totpCode').optional({ nullable: true }).isString(),
+    body('recoveryCode').optional({ nullable: true }).isString(),
+    body().custom((value) => {
+        const hasTotpCode = Boolean(value?.totpCode && String(value.totpCode).trim());
+        const hasRecoveryCode = Boolean(value?.recoveryCode && String(value.recoveryCode).trim());
+
+        if (!hasTotpCode && !hasRecoveryCode) {
+            throw new Error('A 2FA code or recovery code is required');
+        }
+
+        return true;
+    }),
+    validateRequest,
+];
+
 const twoFactorCodeValidation = [
     body('code').matches(/^\d{6}$/).withMessage('2FA code must be 6 digits'),
     validateRequest,
@@ -57,6 +80,8 @@ const verifyTwoFactorLoginValidation = [
 router.post('/register', authLimiter, registerValidation, withController(authController, 'register'));
 router.post('/login', authLimiter, loginValidation, withController(authController, 'login'));
 router.post('/refresh', authLimiter, refreshValidation, withController(authController, 'refreshToken'));
+router.post('/forgot-password', passwordResetLimiter, forgotPasswordValidation, withController(authController, 'forgotPassword'));
+router.post('/reset-password', passwordResetLimiter, resetPasswordValidation, withController(authController, 'resetPassword'));
 router.post('/2fa/verify-login', authLimiter, verifyTwoFactorLoginValidation, withController(authController, 'verifyTwoFactorLogin'));
 router.post('/2fa/setup', authMiddleware, withController(authController, 'setupTwoFactor'));
 router.post('/2fa/enable', authMiddleware, twoFactorCodeValidation, withController(authController, 'enableTwoFactor'));
