@@ -370,22 +370,194 @@ function normalizeIconography() {
 
 function injectHeaderBreadcrumbs() {
     const headerLeft = document.querySelector('.top-header .header-left');
-    const activeNavText = document.querySelector('.sidebar .nav-item.active span:not(.icon)')?.textContent?.trim();
+    const activeNavItem = document.querySelector('.sidebar .nav-item.active');
+    const activeNavText = activeNavItem?.querySelector('span:not(.icon)')?.textContent?.trim();
+    const activeNavHref = String(activeNavItem?.getAttribute('href') || '').trim();
+    const pageBreadcrumbLabel = String(document.body.dataset.breadcrumbLabel || '').trim();
+    const pageBreadcrumbParent = String(document.body.dataset.breadcrumbParent || '').trim();
+    const pageBreadcrumbParentHref = String(document.body.dataset.breadcrumbParentHref || '').trim();
+    const currentLabel = pageBreadcrumbLabel || activeNavText;
 
-    if (!headerLeft || !activeNavText || headerLeft.querySelector('.header-breadcrumb')) {
+    if (!headerLeft || !currentLabel || headerLeft.querySelector('.header-breadcrumb')) {
         return;
     }
 
     const breadcrumb = document.createElement('nav');
     breadcrumb.className = 'header-breadcrumb';
     breadcrumb.setAttribute('aria-label', 'Breadcrumb');
-    breadcrumb.innerHTML = `
-        <a href="dashboard.html">Dashboard</a>
-        <span class="separator">/</span>
-        <span aria-current="page">${activeNavText}</span>
-    `;
+
+    const isDashboardPage = currentLabel.toLowerCase() === 'dashboard';
+
+    const appendSeparator = () => {
+        const separator = document.createElement('span');
+        separator.className = 'separator';
+        separator.textContent = '/';
+        breadcrumb.appendChild(separator);
+    };
+
+    const appendLink = (label, href, isCurrent = false) => {
+        const link = document.createElement('a');
+        link.textContent = label;
+        if (href) {
+            link.href = href;
+        }
+        if (isCurrent) {
+            link.setAttribute('aria-current', 'page');
+        }
+        breadcrumb.appendChild(link);
+    };
+
+    const appendCurrentLabel = (label) => {
+        const current = document.createElement('span');
+        current.textContent = label;
+        current.setAttribute('aria-current', 'page');
+        breadcrumb.appendChild(current);
+    };
+
+    if (isDashboardPage) {
+        appendLink('Dashboard', 'dashboard.html', true);
+        headerLeft.appendChild(breadcrumb);
+        return;
+    }
+
+    appendLink('Dashboard', 'dashboard.html');
+
+    const defaultParentLabel = activeNavText && activeNavText.toLowerCase() !== 'dashboard' && activeNavText !== currentLabel
+        ? activeNavText
+        : '';
+    const parentLabel = pageBreadcrumbParent || defaultParentLabel;
+    const parentHref = pageBreadcrumbParentHref || activeNavHref;
+
+    if (parentLabel) {
+        appendSeparator();
+        if (parentHref) {
+            appendLink(parentLabel, parentHref);
+        } else {
+            const parentSpan = document.createElement('span');
+            parentSpan.textContent = parentLabel;
+            breadcrumb.appendChild(parentSpan);
+        }
+    }
+
+    appendSeparator();
+    appendCurrentLabel(currentLabel);
 
     headerLeft.appendChild(breadcrumb);
+}
+
+function setupSmoothDetailsAnimations() {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+        return;
+    }
+
+    if (document.body.dataset.smoothDetailsBound === 'true') {
+        return;
+    }
+
+    document.addEventListener('click', (event) => {
+        const summary = event.target.closest('details > summary');
+        if (!summary) {
+            return;
+        }
+
+        const detailsEl = summary.parentElement;
+        if (!detailsEl || detailsEl.tagName.toLowerCase() !== 'details') {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (detailsEl.dataset.isAnimating === 'true') {
+            return;
+        }
+
+        const isOpening = !detailsEl.open;
+        const contentElement = Array.from(detailsEl.children).find((child) => child.tagName.toLowerCase() !== 'summary');
+
+        if (!contentElement) {
+            detailsEl.open = isOpening;
+            return;
+        }
+
+        const startHeight = detailsEl.offsetHeight;
+
+        if (isOpening) {
+            detailsEl.open = true;
+        }
+
+        const endHeight = isOpening
+            ? summary.offsetHeight + contentElement.scrollHeight
+            : summary.offsetHeight;
+
+        detailsEl.dataset.isAnimating = 'true';
+        detailsEl.style.overflow = 'hidden';
+        detailsEl.style.height = `${startHeight}px`;
+        detailsEl.style.transition = 'height var(--duration-normal) var(--ease-standard)';
+
+        requestAnimationFrame(() => {
+            detailsEl.style.height = `${endHeight}px`;
+        });
+
+        const finishAnimation = () => {
+            if (!isOpening) {
+                detailsEl.open = false;
+            }
+
+            detailsEl.style.height = '';
+            detailsEl.style.overflow = '';
+            detailsEl.style.transition = '';
+            delete detailsEl.dataset.isAnimating;
+        };
+
+        detailsEl.addEventListener('transitionend', finishAnimation, { once: true });
+    });
+
+    document.body.dataset.smoothDetailsBound = 'true';
+}
+
+function setupSmoothPanelTransitions() {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const toggles = Array.from(document.querySelectorAll('.collapsible-toggle[data-target]'));
+
+    toggles.forEach((toggle) => {
+        if (toggle.dataset.smoothToggleBound === 'true') {
+            return;
+        }
+
+        toggle.addEventListener('click', () => {
+            const panel = toggle.closest('.collapsible-panel');
+            const targetId = String(toggle.dataset.target || '').trim();
+            const content = targetId ? document.getElementById(targetId) : panel?.querySelector('.collapsible-content');
+            if (!panel || !content) {
+                return;
+            }
+
+            const willExpand = panel.classList.contains('collapsed');
+            if (prefersReducedMotion) {
+                content.style.maxHeight = willExpand ? `${content.scrollHeight}px` : '0px';
+                return;
+            }
+
+            const currentHeight = content.getBoundingClientRect().height;
+            const targetHeight = willExpand ? content.scrollHeight : 0;
+
+            content.style.maxHeight = `${currentHeight}px`;
+            requestAnimationFrame(() => {
+                content.style.maxHeight = `${targetHeight}px`;
+            });
+
+            const clearExpandedInlineStyle = () => {
+                if (willExpand) {
+                    content.style.maxHeight = '';
+                }
+            };
+
+            content.addEventListener('transitionend', clearExpandedInlineStyle, { once: true });
+        });
+
+        toggle.dataset.smoothToggleBound = 'true';
+    });
 }
 
 function setupSidebarToggle() {
@@ -532,6 +704,8 @@ function setupMobileHaptics() {
 document.addEventListener('DOMContentLoaded', () => {
     normalizeIconography();
     injectHeaderBreadcrumbs();
+    setupSmoothDetailsAnimations();
+    setupSmoothPanelTransitions();
     setupSidebarToggle();
     setupPageTransitions();
     setupMobileHaptics();

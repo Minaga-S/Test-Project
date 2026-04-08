@@ -7,10 +7,11 @@
     <title>FAQ - Hotel Cybersecurity Governance</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/help-pages.css">
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="icon" type="image/svg+xml" href="assets/pwa-icon.svg">
 </head>
-<body>
+<body data-help-page="faq" data-breadcrumb-label="FAQ" data-breadcrumb-parent="Settings" data-breadcrumb-parent-href="settings.html">
     <!-- NOTE: This page combines static layout with data loaded by its matching script in frontend/js/. -->
     <div class="dashboard-container">
         <aside class="sidebar">
@@ -40,34 +41,90 @@
         <main class="main-content">
             <header class="top-header">
                 <div class="header-left">
-                    <h1>Settings</h1>
+                    <h1>Help Center FAQ</h1>
                 </div>
             </header>
 
-            <section class="detail-section">
-                <h3>How do I report an incident?</h3>
-                <p>Go to Report Issue, fill in the form, and submit. Minimum description length is required for analysis.</p>
+            <section class="detail-section help-toolbar" aria-label="FAQ tools">
+                <label class="help-search" for="help-search-input">
+                    <span class="material-symbols-rounded" aria-hidden="true">search</span>
+                    <input
+                        id="help-search-input"
+                        type="search"
+                        placeholder="Search questions, workflows, or keywords"
+                        autocomplete="off"
+                    >
+                </label>
+                <div class="help-filters" role="group" aria-label="FAQ categories">
+                    <button type="button" class="help-filter-btn is-active" data-help-filter="all">All</button>
+                    <button type="button" class="help-filter-btn" data-help-filter="incidents">Incidents</button>
+                    <button type="button" class="help-filter-btn" data-help-filter="risk">Risk</button>
+                    <button type="button" class="help-filter-btn" data-help-filter="account">Account</button>
+                    <button type="button" class="help-filter-btn" data-help-filter="reports">Reports</button>
+                </div>
             </section>
 
             <section class="detail-section">
-                <h3>Why is my risk level high?</h3>
-                <p>Risk is calculated from likelihood and impact. High-impact assets and severe threat types increase the score.</p>
+                <div class="help-meta" aria-live="polite">
+                    <p id="help-results-count">Showing 0 items</p>
+                    <p>Tip: press <kbd>/</kbd> to jump to search.</p>
+                </div>
             </section>
 
-            <section class="detail-section">
-                <h3>Can I export data?</h3>
-                <p>Yes. Use export buttons in Incident Logs and Risk Analysis pages for CSV reports.</p>
+            <section class="detail-section help-list" id="help-list" aria-label="Frequently asked questions">
+                <details class="help-item" data-help-item data-help-tags="incidents report issue analysis form">
+                    <summary>How do I report an incident?</summary>
+                    <div class="help-item-content">
+                        <p>Open Report Issue, select the affected asset, add a clear description, and submit. Include what happened, when it happened, and user impact so analysis quality improves.</p>
+                    </div>
+                </details>
+
+                <details class="help-item" data-help-item data-help-tags="incidents scan nmap target ports">
+                    <summary>Why did the scan step get skipped?</summary>
+                    <div class="help-item-content">
+                        <p>Scan is skipped when live scan is disabled for the asset or when the scan target is not configured. In that case, analysis continues using cached security context.</p>
+                    </div>
+                </details>
+
+                <details class="help-item" data-help-item data-help-tags="risk score likelihood impact critical high">
+                    <summary>Why is my risk level high?</summary>
+                    <div class="help-item-content">
+                        <p>Risk is based on likelihood and impact. Exposed ports, vulnerable services, severe threats, and high-value assets increase final risk score.</p>
+                    </div>
+                </details>
+
+                <details class="help-item" data-help-item data-help-tags="reports export csv incident logs risk analysis">
+                    <summary>Can I export incident or risk reports?</summary>
+                    <div class="help-item-content">
+                        <p>Yes. Use export actions on Incident Logs and Risk Analysis pages to download CSV reports for briefings and audits.</p>
+                    </div>
+                </details>
+
+                <details class="help-item" data-help-item data-help-tags="account password settings authentication">
+                    <summary>How do I change my password?</summary>
+                    <div class="help-item-content">
+                        <p>Go to Settings, open the password section, then enter your current password and new password. Use a strong unique password for security operations accounts.</p>
+                    </div>
+                </details>
+
+                <details class="help-item" data-help-item data-help-tags="cve nist ai gemini fallback">
+                    <summary>What happens if AI analysis fails?</summary>
+                    <div class="help-item-content">
+                        <p>The platform can still use scan findings and NIST CVE enrichment. AI failure should not remove core scan data like ports, services, OS, and CPE context.</p>
+                    </div>
+                </details>
             </section>
 
-            <section class="detail-section">
-                <h3>How do I reset my password?</h3>
-                <p>Open Settings, then Password tab, enter current password and your new password.</p>
+            <section class="detail-section help-empty" id="help-empty" hidden>
+                <h3>No matching FAQ items</h3>
+                <p>Try broader terms like <strong>incident</strong>, <strong>scan</strong>, or <strong>risk</strong>.</p>
             </section>
         </main>
     </div>
 
     <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/help-pages.js"></script>
     <script>
         if (!apiClient.isAuthenticated()) {
             window.location.href = 'login.html';
