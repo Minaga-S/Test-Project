@@ -23,18 +23,22 @@ function buildCveProfile(asset, scanResult = {}) {
     const vulnerabilityProfile = asset?.vulnerabilityProfile || {};
     const serviceNames = Array.isArray(scanResult.services)
         ? scanResult.services
-            .map((service) => service.service)
+            .map((service) => {
+                const name = String(service?.service || '').trim();
+                const version = String(service?.version || '').trim();
+                return version ? `${name} ${version}` : name;
+            })
             .filter((serviceName) => Boolean(serviceName))
         : [];
 
     return {
         assetName: asset?.assetName || '',
         assetType: asset?.assetType || '',
-        cpeUri: vulnerabilityProfile.cpeUri || '',
+        cpeUri: String(vulnerabilityProfile.cpeUri || '').trim() || String(scanResult.osCpe || '').trim(),
         vendor: vulnerabilityProfile.vendor || '',
         product: vulnerabilityProfile.product || '',
         productVersion: vulnerabilityProfile.productVersion || '',
-        osName: isLikelyOperatingSystem(vulnerabilityProfile.osName) ? vulnerabilityProfile.osName : '',
+        osName: String(scanResult.osInfo || '').trim() || (isLikelyOperatingSystem(vulnerabilityProfile.osName) ? vulnerabilityProfile.osName : ''),
         serviceNames: serviceNames.length > 0 ? serviceNames : vulnerabilityProfile.serviceNames || [],
     };
 }
@@ -53,6 +57,8 @@ function buildEmptyScanResult(asset, target = '') {
             state: 'unknown',
         },
         rawOutput: '',
+        osInfo: '',
+        osCpe: '',
     };
 }
 
@@ -141,19 +147,27 @@ function inferProfileUpdates(asset, scanResult) {
     const currentOsName = String(existingProfile.osName || '').trim();
     const currentVendor = String(existingProfile.vendor || '').trim();
     const currentProduct = String(existingProfile.product || '').trim();
+    const currentCpeUri = String(existingProfile.cpeUri || '').trim();
+    const detectedOsName = String(scanResult?.osInfo || '').trim();
+    const detectedCpeUri = String(scanResult?.osCpe || '').trim();
 
     const detectedServices = Array.isArray(scanResult?.services)
         ? scanResult.services
-            .map((service) => String(service?.service || '').trim())
+            .map((service) => {
+                const name = String(service?.service || '').trim();
+                const version = String(service?.version || '').trim();
+                return name && version ? `${name} ${version}` : name;
+            })
             .filter(Boolean)
         : [];
     const uniqueServices = [...new Set(detectedServices)];
 
     const nextProfile = {
         ...existingProfile,
-        osName: currentOsName,
+        osName: currentOsName || detectedOsName,
         vendor: currentVendor,
         product: currentProduct,
+        cpeUri: currentCpeUri || detectedCpeUri,
     };
 
     if (!nextProfile.product && uniqueServices.length > 0) {
@@ -166,7 +180,8 @@ function inferProfileUpdates(asset, scanResult) {
 
     const hasChanges = nextProfile.osName !== currentOsName
         || nextProfile.vendor !== currentVendor
-        || nextProfile.product !== currentProduct;
+        || nextProfile.product !== currentProduct
+        || nextProfile.cpeUri !== currentCpeUri;
 
     return {
         hasChanges,

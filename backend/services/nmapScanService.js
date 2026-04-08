@@ -164,13 +164,16 @@ function parsePortsLine(output) {
     return portsLineMatch[1]
         .split(', ')
         .map((entry) => {
-            const [portText, state, protocol, , serviceName] = entry.split('/');
-            const port = Number(portText);
+            const parts = entry.split('/');
+            const port = Number(parts[0]);
+            const version = parts.slice(5).join('/').replace(/^\/+|\/+$/g, '').trim();
+
             return {
                 port: Number.isInteger(port) ? port : null,
-                state: state || '',
-                protocol: protocol || '',
-                service: serviceName || 'unknown',
+                state: parts[1] || '',
+                protocol: parts[2] || '',
+                service: parts[4] || 'unknown',
+                version,
             };
         })
         .filter((entry) => entry.port !== null && entry.state === 'open');
@@ -217,13 +220,23 @@ function parseOsInfo(output) {
         return runningMatch[1].trim();
     }
 
-        if (/Too many fingerprints match/i.test(normalizedOutput)) {
+    if (/Too many fingerprints match/i.test(normalizedOutput)) {
         return 'Unable to determine (inconclusive fingerprints)';
     }
 
     return '';
 }
 
+
+function parseOsCpe(output) {
+    const normalizedOutput = String(output || '');
+    if (!normalizedOutput) {
+        return '';
+    }
+
+    const cpeMatch = normalizedOutput.match(/OS CPE:\s*([^\n]+)/i);
+    return cpeMatch?.[1] ? cpeMatch[1].trim() : '';
+}
 function buildCommandArgs(target, portsInput) {
     const args = ['-Pn', '-sV', '--version-light', '--open'];
     const normalizedPorts = normalizePorts(portsInput);
@@ -265,6 +278,7 @@ async function runScan({ target, ports, requestIp } = {}) {
         const openServices = parsePortsLine(stdout);
         const hostState = parseHostState(stdout);
         let osInfo = '';
+        let osCpe = '';
 
         try {
             const osArgs = buildOsDetectionArgs(normalizedTarget);
@@ -273,8 +287,10 @@ async function runScan({ target, ports, requestIp } = {}) {
                 timeout: DEFAULT_NMAP_TIMEOUT_MS,
             });
             osInfo = parseOsInfo(osStdout);
+            osCpe = parseOsCpe(osStdout);
         } catch (osError) {
             osInfo = '';
+            osCpe = '';
         }
 
         return {
@@ -286,6 +302,7 @@ async function runScan({ target, ports, requestIp } = {}) {
             services: openServices,
             hostState,
             osInfo,
+            osCpe,
             rawOutput: stdout,
         };
     } catch (error) {
@@ -305,6 +322,7 @@ module.exports = {
     parsePortsLine,
     parseHostState,
     parseOsInfo,
+    parseOsCpe,
     isAllowedScanTarget,
     isPrivateIpv4Address,
     isLocalHostname,

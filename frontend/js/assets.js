@@ -387,24 +387,30 @@ function applyScanPreviewToForm(previewPayload = {}) {
 
     document.getElementById('asset-live-scan-enabled').checked = true;
 
+    const detectedOsName = inferredProfile.osName || liveScan.osInfo || scanResult.osInfo || '';
+    const detectedVendor = inferredProfile.vendor || cveQuery.vendor || '';
+    const detectedProduct = inferredProfile.product || cveQuery.product || '';
+    const detectedProductVersion = inferredProfile.productVersion || cveQuery.productVersion || '';
+    const detectedCpeUri = inferredProfile.cpeUri || cveQuery.cpeUri || scanResult.osCpe || '';
+
     if (!document.getElementById('asset-os-name').value) {
-        document.getElementById('asset-os-name').value = inferredProfile.osName || '';
+        document.getElementById('asset-os-name').value = detectedOsName;
     }
 
     if (!document.getElementById('asset-vendor').value) {
-        document.getElementById('asset-vendor').value = inferredProfile.vendor || '';
+        document.getElementById('asset-vendor').value = detectedVendor;
     }
 
     if (!document.getElementById('asset-product').value) {
-        document.getElementById('asset-product').value = inferredProfile.product || '';
+        document.getElementById('asset-product').value = detectedProduct;
     }
 
     if (!document.getElementById('asset-product-version').value) {
-        document.getElementById('asset-product-version').value = inferredProfile.productVersion || '';
+        document.getElementById('asset-product-version').value = detectedProductVersion;
     }
 
     if (!document.getElementById('asset-cpe-uri').value) {
-        document.getElementById('asset-cpe-uri').value = inferredProfile.cpeUri || cveQuery.cpeUri || '';
+        document.getElementById('asset-cpe-uri').value = detectedCpeUri;
     }
 
     applyDetectedCriticality(previewPayload);
