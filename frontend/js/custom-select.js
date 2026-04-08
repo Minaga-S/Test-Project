@@ -3,11 +3,17 @@
 function setupCustomSelects() {
     const selectElements = Array.from(document.querySelectorAll('select:not([data-custom-select="true"])'));
     
+    if (selectElements.length > 0) {
+        console.log(`[Custom Select] Found ${selectElements.length} select element(s) to transform`);
+    }
+    
     selectElements.forEach((nativeSelect) => {
         // Skip if already converted
         if (nativeSelect.closest('.custom-select-container')) {
             return;
         }
+
+        console.log(`[Custom Select] Converting select:`, nativeSelect);
 
         // Create container
         const container = document.createElement('div');
@@ -104,19 +110,24 @@ function setupCustomSelects() {
 
         // Replace native select with custom
         nativeSelect.parentNode.insertBefore(container, nativeSelect);
+        
+        console.log(`[Custom Select] Converted successfully`, container);
     });
 
-    // Global close on outside click
-    document.addEventListener('click', (event) => {
-        const containers = document.querySelectorAll('.custom-select-container');
-        containers.forEach((container) => {
-            if (!container.contains(event.target)) {
-                const trigger = container.querySelector('.custom-select-trigger');
-                const dropdown = container.querySelector('.custom-select-dropdown');
-                closeDropdown(trigger, dropdown);
-            }
-        });
-    }, true);
+    // Global close on outside click (attach once)
+    if (!window.customSelectGlobalClickListener) {
+        window.customSelectGlobalClickListener = true;
+        document.addEventListener('click', (event) => {
+            const containers = document.querySelectorAll('.custom-select-container');
+            containers.forEach((container) => {
+                if (!container.contains(event.target)) {
+                    const trigger = container.querySelector('.custom-select-trigger');
+                    const dropdown = container.querySelector('.custom-select-dropdown');
+                    closeDropdown(trigger, dropdown);
+                }
+            });
+        }, true);
+    }
 }
 
 function toggleDropdown(trigger, dropdown) {

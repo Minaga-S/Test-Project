@@ -125,7 +125,12 @@
 }
 
 /* Form group context */
+.form-group .custom-select-container {
+    width: 100%;
+}
+
 .form-group .custom-select-trigger {
+    width: 100%;
     padding: 0.8rem 2.5rem 0.8rem 0.9rem;
 }
 
