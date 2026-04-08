@@ -381,16 +381,16 @@
             </div>
             <div class="analysis-progress">
                 <div class="spinner"></div>
-                <p id="asset-scan-status">Preparing security scan workflow...</p>
+                <p id="asset-scan-status">Preparing asset security scan...</p>
                 <div class="progress-bar">
                     <div class="progress-fill" id="asset-scan-progress-fill"></div>
                 </div>
-                <p id="asset-scan-eta" class="small">Estimated completion: 5-12 seconds depending on scan results and analysis complexity.</p>
+                <p id="asset-scan-eta" class="small">Estimated completion: 5-12 seconds depending on target responsiveness.</p>
                 <div id="asset-scan-steps" class="scan-step-list" role="list" aria-label="Asset scan workflow">
-                    <div id="asset-step-discovery" class="scan-step-item" role="listitem">Security scanning and enrichment</div>
-                    <div id="asset-step-probe" class="scan-step-item" role="listitem">Querying vulnerability databases</div>
-                    <div id="asset-step-fingerprint" class="scan-step-item" role="listitem">AI threat analysis and risk scoring</div>
-                    <div id="asset-step-summary" class="scan-step-item" role="listitem">Generating recommendations</div>
+                    <div id="asset-step-discovery" class="scan-step-item" role="listitem">Running security scan on target asset</div>
+                    <div id="asset-step-probe" class="scan-step-item" role="listitem">Retrieving vulnerability profile</div>
+                    <div id="asset-step-fingerprint" class="scan-step-item" role="listitem">Fingerprinting services and extracting OS details</div>
+                    <div id="asset-step-summary" class="scan-step-item" role="listitem">Populating asset form with detected data</div>
                 </div>
                 <details id="asset-scan-terminal-shell" class="scan-terminal-shell" open>
                     <summary>Scan Output</summary>

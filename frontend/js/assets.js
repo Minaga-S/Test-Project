@@ -251,7 +251,7 @@ function resetAssetScanWorkflow() {
         setAssetScanStepState(stepId, 'pending');
     });
 
-    updateAssetScanStatus('Preparing security analysis workflow...', 8);
+    updateAssetScanStatus('Preparing asset security scan...', 8);
 }
 
 function showAssetScanWorkflowModal() {
@@ -367,11 +367,11 @@ async function runLiveScanPreview() {
 
     try {
         setAssetScanStepState('asset-step-discovery', 'active');
-        updateAssetScanStatus('Running security scan on selected asset...', 20);
+        updateAssetScanStatus('Running security scan on target asset...', 20);
 
         setAssetScanStepState('asset-step-discovery', 'done');
         setAssetScanStepState('asset-step-probe', 'active');
-        updateAssetScanStatus('Querying vulnerability databases for identified services...', 44);
+        updateAssetScanStatus('Retrieving vulnerability profile for asset...', 44);
 
         const response = await apiClient.previewAssetScan(payload);
         const preview = response?.preview || response;
@@ -381,15 +381,15 @@ async function runLiveScanPreview() {
 
         setAssetScanStepState('asset-step-probe', 'done');
         setAssetScanStepState('asset-step-fingerprint', 'active');
-        updateAssetScanStatus('Analyzing threat patterns and risk indicators with AI...', 68);
+        updateAssetScanStatus('Fingerprinting services and extracting OS details...', 68);
 
         applyScanPreviewToForm(preview);
 
         setAssetScanStepState('asset-step-fingerprint', 'done');
         setAssetScanStepState('asset-step-summary', 'active');
-        updateAssetScanStatus('Generating mitigation recommendations...', 90);
+        updateAssetScanStatus('Populating asset form with detected data...', 90);
         setAssetScanStepState('asset-step-summary', 'done');
-        updateAssetScanStatus('Analysis complete. Details and recommendations are ready.', 100);
+        updateAssetScanStatus('Scan complete. Asset data has been auto-filled.', 100);
 
         setTimeout(() => {
             hideAssetScanWorkflowModal();
