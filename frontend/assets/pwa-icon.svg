@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Hotel Cybersecurity Governance">
+  <rect width="192" height="192" rx="40" fill="#0f172a"/>
+  <circle cx="96" cy="96" r="74" fill="none" stroke="#4070ff" stroke-width="10"/>
+  <path d="M96 46v100M46 96h100" stroke="#4070ff" stroke-width="12" stroke-linecap="round"/>
+  <rect x="82" y="82" width="28" height="28" rx="4" fill="#4070ff"/>
+</svg>

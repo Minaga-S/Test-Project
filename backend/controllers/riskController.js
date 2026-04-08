@@ -5,9 +5,51 @@
 
 
 const Incident = require('../models/Incident');
+const Asset = require('../models/Asset');
 const RiskAssessment = require('../models/RiskAssessment');
 const riskService = require('../services/riskCalculationService');
 const logger = require('../utils/logger');
+
+const RISK_LEVEL_RANK = {
+    Low: 1,
+    Medium: 2,
+    High: 3,
+    Critical: 4,
+};
+
+const CRITICALITY_RISK_SCORE = {
+    Low: 4,
+    Medium: 8,
+    High: 12,
+    Critical: 16,
+};
+
+function getRiskRank(level) {
+    return RISK_LEVEL_RANK[level] || 1;
+}
+
+function getHigherRiskLevel(currentLevel, nextLevel) {
+    if (getRiskRank(nextLevel) > getRiskRank(currentLevel)) {
+        return nextLevel;
+    }
+
+    return currentLevel || nextLevel || 'Low';
+}
+
+function buildAssetRiskRecord(asset) {
+    const riskLevel = asset?.criticality || 'Low';
+
+    return {
+        assetId: String(asset?._id || ''),
+        assetName: asset?.assetName || 'Unknown',
+        assetType: asset?.assetType || 'Unknown',
+        criticality: riskLevel,
+        vulnerabilityProfile: asset?.vulnerabilityProfile || {},
+        incidents: [],
+        maxRiskScore: CRITICALITY_RISK_SCORE[riskLevel] || 4,
+        riskLevel,
+    };
+}
 
 class RiskController {
     /**
@@ -166,35 +208,47 @@ class RiskController {
      */
     async getRiskByAsset(req, res, next) {
         try {
-            const incidents = await Incident.find({ userId: req.user.userId });
+            const [assets, incidents] = await Promise.all([
+                Asset.find({ userId: req.user.userId }),
+                Incident.find({ userId: req.user.userId }),
+            ]);
 
-            const assetRiskMap = {};
+            const assetRiskMap = new Map();
 
-            incidents.forEach(incident => {
-                const assetName = incident.asset?.assetName || 'Unknown';
-                if (!assetRiskMap[assetName]) {
-                    assetRiskMap[assetName] = {
-                        assetName,
-                        assetType: incident.asset?.assetType,
-                        incidents: [],
-                        maxRiskScore: 0,
-                        riskLevel: 'Low',
-                    };
-                }
+            assets.forEach((asset) => {
+                assetRiskMap.set(String(asset._id), buildAssetRiskRecord(asset));
+            });
 
-                assetRiskMap[assetName].incidents.push({
+            incidents.forEach((incident) => {
+                const assetId = String(incident.assetId || '');
+                const fallbackAsset = incident.asset || {};
+                const existingRecord = assetRiskMap.get(assetId) || buildAssetRiskRecord({
+                    _id: assetId,
+                    assetName: fallbackAsset.assetName || 'Unknown',
+                    assetType: fallbackAsset.assetType || 'Unknown',
+                    criticality: 'Low',
+                    vulnerabilityProfile: {},
+                });
+
+                existingRecord.incidents.push({
                     incidentId: incident.incidentId,
                     riskScore: incident.riskScore,
                     threatType: incident.threatType,
                 });
 
-                if (incident.riskScore > assetRiskMap[assetName].maxRiskScore) {
-                    assetRiskMap[assetName].maxRiskScore = incident.riskScore;
-                    assetRiskMap[assetName].riskLevel = incident.riskLevel;
-                }
+                existingRecord.maxRiskScore = Math.max(existingRecord.maxRiskScore, Number(incident.riskScore) || 0);
+                existingRecord.riskLevel = getHigherRiskLevel(existingRecord.riskLevel, incident.riskLevel);
+                assetRiskMap.set(assetId || existingRecord.assetId, existingRecord);
             });
 
-            const assetRisks = Object.values(assetRiskMap);
+            const assetRisks = Array.from(assetRiskMap.values()).sort((left, right) => {
+                const riskDifference = getRiskRank(right.riskLevel) - getRiskRank(left.riskLevel);
+                if (riskDifference !== 0) {
+                    return riskDifference;
+                }
+
+                return left.assetName.localeCompare(right.assetName);
+            });
 
             res.json({
                 success: true,

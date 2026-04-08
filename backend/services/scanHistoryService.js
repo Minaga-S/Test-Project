@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Scan History Service
  */
 // NOTE: Orchestrates real scan execution and provider-based CVE enrichment.
@@ -34,7 +34,7 @@ function buildCveProfile(asset, scanResult = {}) {
         vendor: vulnerabilityProfile.vendor || '',
         product: vulnerabilityProfile.product || '',
         productVersion: vulnerabilityProfile.productVersion || '',
-        osName: vulnerabilityProfile.osName || '',
+        osName: isLikelyOperatingSystem(vulnerabilityProfile.osName) ? vulnerabilityProfile.osName : '',
         serviceNames: serviceNames.length > 0 ? serviceNames : vulnerabilityProfile.serviceNames || [],
     };
 }
@@ -103,21 +103,39 @@ function inferVendorFromServices(serviceNames = []) {
     return '';
 }
 
-function isMeaningfulHostName(hostName, target) {
-    const normalizedHostName = String(hostName || '').trim().toLowerCase();
-    const normalizedTarget = String(target || '').trim().toLowerCase();
-
-    if (!normalizedHostName || normalizedHostName === 'unknown') {
+function isLikelyOperatingSystem(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) {
         return false;
     }
 
-    if (normalizedHostName === normalizedTarget) {
-        return false;
-    }
-
-    const ipv4Pattern = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
-    return !ipv4Pattern.test(normalizedHostName);
+    return [
+        'windows',
+        'linux',
+        'ubuntu',
+        'debian',
+        'kali',
+        'mac os',
+        'macos',
+        'android',
+        'ios',
+        'freebsd',
+        'openbsd',
+        'netbsd',
+        'solaris',
+        'aix',
+        'hp-ux',
+        'unix',
+        'red hat',
+        'centos',
+        'fedora',
+        'arch',
+        'opensuse',
+        'suse',
+        'openwrt'
+    ].some((keyword) => normalized.includes(keyword));
 }
+
 function inferProfileUpdates(asset, scanResult) {
     const existingProfile = asset?.vulnerabilityProfile || {};
     const currentOsName = String(existingProfile.osName || '').trim();
@@ -137,14 +155,6 @@ function inferProfileUpdates(asset, scanResult) {
         vendor: currentVendor,
         product: currentProduct,
     };
-
-    if (!nextProfile.osName) {
-        const detectedHostName = String(scanResult?.hostState?.hostName || '').trim();
-        const scanTarget = String(scanResult?.target || '').trim();
-        if (isMeaningfulHostName(detectedHostName, scanTarget)) {
-            nextProfile.osName = detectedHostName;
-        }
-    }
 
     if (!nextProfile.product && uniqueServices.length > 0) {
         nextProfile.product = uniqueServices.slice(0, 3).join(', ');
@@ -166,7 +176,7 @@ function inferProfileUpdates(asset, scanResult) {
 
 async function persistInferredProfile(asset, userId, scanResult) {
     const inferred = inferProfileUpdates(asset, scanResult);
-    if (!inferred.hasChanges) {
+    if (!inferred.hasChanges || !asset?._id) {
         return;
     }
 
@@ -342,21 +352,37 @@ class ScanHistoryService {
             requestIp: requesterIp,
         });
 
-        const cveResult = await cveEnrichmentService.enrichForAsset(
-            buildCveProfile(assetDraft, scanResult),
-            target,
-            {
-                userId,
-                assetId: String(assetDraft?._id || ''),
-                ipAddress: requesterIp,
-            }
-        );
+        let cveResult;
+        try {
+            cveResult = await cveEnrichmentService.enrichForAsset(
+                buildCveProfile(assetDraft, scanResult),
+                target,
+                {
+                    userId,
+                    assetId: String(assetDraft?._id || ''),
+                    ipAddress: requesterIp,
+                }
+            );
+        } catch (error) {
+            cveResult = {
+                source: 'NIST NVD API',
+                query: {},
+                matches: [],
+                totalMatches: 0,
+                retrievedAt: new Date().toISOString(),
+                error: error.message,
+            };
+        }
 
         const inferred = inferProfileUpdates(assetDraft, scanResult);
         const enrichedAssetDraft = {
             ...assetDraft,
             vulnerabilityProfile: inferred.nextProfile,
         };
+
+        if (assetDraft?._id) {
+            await persistInferredProfile(assetDraft, userId, scanResult);
+        }
 
         const securityContext = assetSecurityContextService.buildFromScanResult(
             enrichedAssetDraft,
@@ -386,3 +412,11 @@ class ScanHistoryService {
 }
 
 module.exports = new ScanHistoryService();
+
+
+
+
+
+
+
+
