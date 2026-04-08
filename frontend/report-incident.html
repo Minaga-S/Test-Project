@@ -159,27 +159,20 @@
             </div>
             <div class="analysis-progress">
                 <div class="spinner"></div>
-                <p id="analysis-status">Preparing incident analysis workflow...</p>
+                <p id="analysis-status">Preparing security analysis workflow...</p>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progress-fill"></div>
                 </div>
-                <p id="analysis-eta" class="small">Estimated completion: about 15-45 seconds depending on scan and AI response times.</p>
-                <div id="analysis-data-sources" class="analysis-data-sources" aria-live="polite">
-                    <span id="badge-scan-source" class="live-badge">Live Scan Pending</span>
-                    <span id="badge-cve-source" class="live-badge">CVE Enrichment Pending</span>
-                    <span id="badge-enrichment-confidence" class="live-badge">Confidence: Pending</span>
-                </div>
-                <p id="scan-open-ports-meta" class="small">Open ports: Pending</p>
-                <p id="enriched-meta" class="small">Last enriched: Pending</p>
+                <p id="analysis-eta" class="small">Estimated completion: about 15-45 seconds depending on scan and analysis times.</p>
                 <div id="analysis-steps" class="scan-step-list" role="list" aria-label="Analysis workflow">
-                    <div id="step-scan" class="scan-step-item" role="listitem">Running live scan (if enabled for the selected asset)</div>
-                    <div id="step-cve" class="scan-step-item" role="listitem">Querying NIST NVD using discovered services and asset profile</div>
-                    <div id="step-ai" class="scan-step-item" role="listitem">Performing AI threat analysis and risk scoring</div>
-                    <div id="step-rec" class="scan-step-item" role="listitem">Generating mitigation guidance and NIST mapping</div>
+                    <div id="step-scan" class="scan-step-item" role="listitem">Security scanning and enrichment</div>
+                    <div id="step-cve" class="scan-step-item" role="listitem">Querying vulnerability databases</div>
+                    <div id="step-ai" class="scan-step-item" role="listitem">AI threat analysis and risk scoring</div>
+                    <div id="step-rec" class="scan-step-item" role="listitem">Generating recommendations</div>
                 </div>
                 <details id="analysis-terminal-shell" class="scan-terminal-shell" open>
-                    <summary>Live Scan Output (simulated Nmap)</summary>
-                    <pre id="analysis-terminal-output" class="scan-terminal-output" aria-live="polite">[scan] Waiting to start...</pre>
+                    <summary>Scan Output</summary>
+                    <pre id="analysis-terminal-output" class="scan-terminal-output" aria-live="polite">[scan] Preparing scan workflow...</pre>
                 </details>
             </div>
         </div>

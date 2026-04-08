@@ -24,7 +24,7 @@ function resolveApiBaseUrl() {
     const host = window.location.hostname;
     const isLocalHost = host === 'localhost' || host === '127.0.0.1';
 
-    return isLocalHost ? LOCAL_API_BASE_URL : PROD_API_BASE_URL;
+    return isLocalHost ? LOCAL_API_BASE_URL : (/^\d+\.\d+\.\d+\.\d+$/.test(host) ? `http://${host}:5000/api` : PROD_API_BASE_URL);
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -287,7 +287,31 @@ class APIClient {
     }
 
     async getAssetSecurityContext(assetId) {
-        return this.get(`/assets/${assetId}/security-context`);
+        return this.get(/assets//security-context);
+    }
+
+    // ============== PUSH NOTIFICATIONS ==============
+
+    async getPushPublicKey() {
+        const response = await this.get('/notifications/public-key');
+        return response?.publicKey || '';
+    }
+
+    async subscribeToPushNotifications(subscription, deviceName = 'Browser') {
+        return this.post('/notifications/subscriptions', {
+            subscription,
+            deviceName,
+        });
+    }
+
+    async unsubscribeFromPushNotifications(endpoint) {
+        return this.delete('/notifications/subscriptions', {
+            body: { endpoint },
+        });
+    }
+
+    async sendPushTest() {
+        return this.post('/notifications/test', {});
     }
 
     // ============== INCIDENT ENDPOINTS ==============
@@ -421,6 +445,8 @@ class APIClient {
 
 // Create singleton instance
 const apiClient = new APIClient();
+
+
 
 
 

@@ -62,4 +62,24 @@ describe('assetSecurityContextService', () => {
 
         expect(context.liveScan.observedOpenPorts.length).toBe(2);
     });
+    it('should ignore hostname-like osName when scan result has no OS fingerprint', () => {
+        const context = assetSecurityContextService.buildFromScanResult(
+            {
+                _id: 'asset-1',
+                assetName: 'Core Server',
+                assetType: 'Server',
+                vulnerabilityProfile: { osName: 'edge-gateway.local' },
+            },
+            {
+                target: '10.0.0.10',
+                requestedPorts: [22, 443],
+                openPorts: [22, 443],
+                services: [],
+                osInfo: '',
+            },
+            { source: 'NIST NVD API', matches: [] }
+        );
+
+        expect(context.liveScan.osInfo).toBe('');
+    });
 });

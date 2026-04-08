@@ -9,6 +9,39 @@ function normalize(value) {
     return String(value || '').trim();
 }
 
+function isLikelyOperatingSystem(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) {
+        return false;
+    }
+
+    return [
+        'windows',
+        'linux',
+        'ubuntu',
+        'debian',
+        'kali',
+        'mac os',
+        'macos',
+        'android',
+        'ios',
+        'freebsd',
+        'openbsd',
+        'netbsd',
+        'solaris',
+        'aix',
+        'hp-ux',
+        'unix',
+        'red hat',
+        'centos',
+        'fedora',
+        'arch',
+        'opensuse',
+        'suse',
+        'openwrt'
+    ].some((keyword) => normalized.includes(keyword));
+}
+
 function normalizePorts(portsInput) {
     const raw = normalize(portsInput);
     if (!raw) {
@@ -27,7 +60,7 @@ function buildCveQuery(profile = {}) {
         vendor: normalize(profile.vendor),
         product: normalize(profile.product),
         productVersion: normalize(profile.productVersion),
-        osName: normalize(profile.osName),
+        osName: isLikelyOperatingSystem(profile.osName) ? normalize(profile.osName) : '',
     };
 }
 
@@ -92,6 +125,7 @@ function buildFallbackContext(asset, reason = 'No completed scan history yet', c
             requestedPorts,
             observedOpenPorts: [],
             services: [],
+            osInfo: isLikelyOperatingSystem(vulnerabilityProfile.osName) ? normalize(vulnerabilityProfile.osName) : '',
             status: reason,
         },
         cve: {
@@ -139,6 +173,7 @@ function buildFromScanResult(asset, scanResult = {}, cveResult = {}, scanHistory
             requestedPorts,
             observedOpenPorts,
             services,
+            osInfo: normalize(scanResult.osInfo) || (isLikelyOperatingSystem(vulnerabilityProfile.osName) ? normalize(vulnerabilityProfile.osName) : ''),
             status: scanHistory?.status || 'Completed',
         },
         cve: {
@@ -185,3 +220,5 @@ module.exports = {
     buildCveQuery,
     normalizePorts,
 };
+
+

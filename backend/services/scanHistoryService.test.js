@@ -22,6 +22,7 @@ jest.mock('./cveEnrichmentService', () => ({
 jest.mock('./nmapScanService', () => ({
     runScan: jest.fn(),
     isAllowedScanTarget: jest.fn(),
+    assertTargetWithinRequesterNetwork: jest.fn(),
 }));
 
 jest.mock('./assetSecurityContextService', () => ({
@@ -139,6 +140,66 @@ describe('scanHistoryService', () => {
         expect(Asset.updateOne).toHaveBeenCalled();
     });
 
+    it('should persist inferred vulnerability profile during preview for an existing asset', async () => {
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22', '443'],
+            openPorts: [22, 443],
+            services: [
+                { port: 22, service: 'ssh' },
+                { port: 443, service: 'https' },
+            ],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.runPreviewScan({
+            _id: 'asset-1',
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22,443' },
+            vulnerabilityProfile: { vendor: '', product: '', osName: '' },
+        }, 'user-1', { ipAddress: '10.0.0.9' });
+
+        expect(Asset.updateOne).toHaveBeenCalledWith(
+            { _id: 'asset-1', userId: 'user-1' },
+            expect.objectContaining({
+                $set: expect.objectContaining({
+                    vulnerabilityProfile: expect.objectContaining({
+                        vendor: 'OpenSSH',
+                        product: 'ssh, https',
+                    }),
+                }),
+            })
+        );
+    });
+
+    it('should not persist preview scan results for a draft asset without an id', async () => {
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22'],
+            openPorts: [22],
+            services: [{ port: 22, service: 'ssh' }],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.runPreviewScan({
+            _id: '',
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22' },
+            vulnerabilityProfile: { vendor: '', product: '', osName: '' },
+        }, 'user-1', { ipAddress: '10.0.0.9' });
+
+        expect(Asset.updateOne).not.toHaveBeenCalled();
+    });
     it('should fall back to enrichment when Nmap is unavailable', async () => {
         ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Skipped' });
         nmapScanService.isAllowedScanTarget.mockReturnValue(true);
@@ -181,6 +242,29 @@ describe('scanHistoryService', () => {
         expect(context.liveScan.observedOpenPorts).toEqual([22, 80]);
     });
 
+    it('should not persist hostname as osName when scan output only includes host name', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22'],
+            openPorts: [22],
+            services: [],
+            hostState: { state: 'up', hostName: 'edge-gateway.local' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.runAssetScan({
+            _id: 'asset-1',
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22' },
+            vulnerabilityProfile: { vendor: '', product: '', osName: '' },
+        }, 'user-1', { ipAddress: '10.0.0.9' });
+
+        expect(Asset.updateOne).not.toHaveBeenCalled();
+    });
     it('should return the latest scan history from storage', async () => {
         ScanHistory.findOne.mockReturnValue({ sort: jest.fn().mockResolvedValue({ _id: 'history-1' }) });
 
@@ -189,3 +273,6 @@ describe('scanHistoryService', () => {
         expect(result._id).toBe('history-1');
     });
 });
+
+
+

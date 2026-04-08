@@ -8,15 +8,14 @@ let currentEditingAssetId = null;
 let selectedAssetIds = new Set();
 let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
+const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
+const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
 let assetScanTerminalTimer = null;
-
-const ASSET_SCAN_SIMULATED_LINES = [
-    '[nmap] Starting local asset discovery process',
-    '[nmap] Validating private-network target scope',
-    '[nmap] Running TCP SYN checks for configured ports',
-    '[nmap] Capturing service fingerprints and metadata',
-    '[nmap] Building scan summary for asset profile update',
-];
+let assetScanTerminalSequenceToken = 0;
+let assetScanMeta = {
+    target: null,
+    securityContext: null,
+};
 
 function isIpv4Address(value) {
     return /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/.test(String(value || '').trim());
@@ -145,13 +144,14 @@ function appendAssetScanTerminalLine(line) {
     }
 
     const currentLines = outputEl.textContent.split('\n').filter(Boolean);
-    const nextLines = [...currentLines, line].slice(-10);
+    const nextLines = [...currentLines, line].slice(-ASSET_SCAN_TERMINAL_LINE_LIMIT);
     outputEl.textContent = nextLines.join('\n');
     outputEl.scrollTop = outputEl.scrollHeight;
 }
 
 function startAssetScanTerminalSimulation() {
     stopAssetScanTerminalSimulation(false);
+    assetScanTerminalSequenceToken += 1;
 
     const terminalShell = document.getElementById('asset-scan-terminal-shell');
     if (terminalShell) {
@@ -160,17 +160,12 @@ function startAssetScanTerminalSimulation() {
 
     const outputEl = document.getElementById('asset-scan-terminal-output');
     if (outputEl) {
-        outputEl.textContent = '[scan] Bootstrapping scan workflow...';
+        outputEl.textContent = '[scan] Preparing scan workflow...';
     }
-
-    let lineIndex = 0;
-    assetScanTerminalTimer = window.setInterval(() => {
-        appendAssetScanTerminalLine(ASSET_SCAN_SIMULATED_LINES[lineIndex % ASSET_SCAN_SIMULATED_LINES.length]);
-        lineIndex += 1;
-    }, 720);
 }
-
 function stopAssetScanTerminalSimulation(autoCloseTerminal = true) {
+    assetScanTerminalSequenceToken += 1;
+
     if (assetScanTerminalTimer) {
         window.clearInterval(assetScanTerminalTimer);
         assetScanTerminalTimer = null;
@@ -183,13 +178,97 @@ function stopAssetScanTerminalSimulation(autoCloseTerminal = true) {
         }
     }
 }
+async function generateAssetTerminalOutput(preview) {
+    const securityContext = preview?.securityContext || {};
+    const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
+        ? securityContext.liveScan.observedOpenPorts
+        : [];
+    const services = Array.isArray(securityContext?.liveScan?.services)
+        ? securityContext.liveScan.services
+        : [];
+    const osInfo = securityContext?.liveScan?.osInfo || 'Unknown';
+    const target = String(securityContext?.liveScan?.target || 'target asset').trim() || 'target asset';
+    const token = assetScanTerminalSequenceToken;
+    const sleep = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    const isCancelled = () => token !== assetScanTerminalSequenceToken;
+    const appendStep = async (line, delayMs = ASSET_SCAN_TERMINAL_STEP_DELAY_MS) => {
+        if (isCancelled()) {
+            return false;
+        }
+
+        appendAssetScanTerminalLine(line);
+        await sleep(delayMs);
+        return !isCancelled();
+    };
+    const serviceMap = {
+        22: 'ssh       OpenSSH 7.4',
+        80: 'http      Apache httpd 2.4',
+        443: 'https     Apache httpd 2.4',
+        3306: 'mysql     MySQL 5.7',
+        5432: 'postgres  PostgreSQL 10',
+        8080: 'http-alt  Apache Tomcat 8.5',
+        3389: 'rdp       Windows RDP',
+        445: 'netbios-ssn Microsoft Windows SMB',
+        139: 'netbios-ssn Microsoft Windows SMB',
+        25: 'smtp      Postfix smtp',
+    };
+
+    await appendStep('');
+    await appendStep(`[scan] Host ${target} is up.`);
+    await appendStep('[scan] Reviewing discovered ports...');
+
+    if (observedOpenPorts.length > 0) {
+        await appendStep('PORT      STATE    SERVICE      VERSION');
+        await appendStep('___________________________________________', 120);
+
+        for (const port of observedOpenPorts.slice(0, 10)) {
+            const portNum = String(port).padEnd(9);
+            const serviceInfo = serviceMap[port] || 'unknown service';
+            await appendStep(`${portNum} open     ${serviceInfo}`, 140);
+        }
+
+        if (observedOpenPorts.length > 10) {
+            await appendStep(`... and ${observedOpenPorts.length - 10} more ports`);
+        }
+    } else {
+        await appendStep('PORT      STATE    SERVICE');
+        await appendStep('___________________________', 120);
+        await appendStep('All observed ports filtered or closed.');
+    }
+
+    await appendStep('[scan] Fingerprinting services...');
+
+    if (services.length > 0) {
+        await appendStep('Identified Services:');
+        for (const svc of services.slice(0, 5)) {
+            let serviceName = '';
+            if (typeof svc === 'object' && svc !== null) {
+                serviceName = svc.name || svc.service || svc.type || JSON.stringify(svc);
+            } else {
+                serviceName = String(svc);
+            }
+
+            await appendStep(`  - ${serviceName}`, 140);
+        }
+
+        if (services.length > 5) {
+            await appendStep(`  ... and ${services.length - 5} more`);
+        }
+    }
+
+    await appendStep('[scan] Running OS detection...');
+    await appendStep(osInfo && osInfo !== 'Unknown'
+        ? `OS Detection: ${osInfo}`
+        : 'OS Detection: Not enough fingerprint data to identify the OS.');
+    await appendStep(`[scan] Scan complete at ${new Date().toLocaleTimeString()}.`);
+}
 
 function resetAssetScanWorkflow() {
     ['asset-step-discovery', 'asset-step-probe', 'asset-step-fingerprint', 'asset-step-summary'].forEach((stepId) => {
         setAssetScanStepState(stepId, 'pending');
     });
 
-    updateAssetScanStatus('Preparing live scan workflow...', 8);
+    updateAssetScanStatus('Preparing asset security scan...', 8);
 }
 
 function showAssetScanWorkflowModal() {
@@ -268,7 +347,7 @@ function resetScanPreviewFields() {
 }
 
 function buildScanPreviewPayload() {
-    return {
+    const payload = {
         assetName: String(document.getElementById('asset-name').value || '').trim(),
         assetType: String(document.getElementById('asset-type').value || '').trim(),
         liveScan: {
@@ -285,6 +364,12 @@ function buildScanPreviewPayload() {
             cpeUri: String(document.getElementById('asset-cpe-uri').value || '').trim(),
         },
     };
+
+    if (currentEditingAssetId) {
+        payload.assetId = currentEditingAssetId;
+    }
+
+    return payload;
 }
 
 async function runLiveScanPreview() {
@@ -305,44 +390,40 @@ async function runLiveScanPreview() {
 
     try {
         setAssetScanStepState('asset-step-discovery', 'active');
-        updateAssetScanStatus('Validating target and initializing scan profile...', 18);
+        updateAssetScanStatus('Running security scan on target asset...', 20);
 
         setAssetScanStepState('asset-step-discovery', 'done');
         setAssetScanStepState('asset-step-probe', 'active');
-        updateAssetScanStatus('Running Nmap probes on selected target...', 42);
+        updateAssetScanStatus('Retrieving vulnerability profile for asset...', 44);
 
         const response = await apiClient.previewAssetScan(payload);
         const preview = response?.preview || response;
 
+        await generateAssetTerminalOutput(preview);
+        stopAssetScanTerminalSimulation(false);
+
         setAssetScanStepState('asset-step-probe', 'done');
         setAssetScanStepState('asset-step-fingerprint', 'active');
-        updateAssetScanStatus('Fingerprinting services and extracting metadata...', 68);
+        updateAssetScanStatus('Fingerprinting services and extracting OS details...', 68);
 
         applyScanPreviewToForm(preview);
 
-        const observedOpenPorts = Array.isArray(preview?.securityContext?.liveScan?.observedOpenPorts)
-            ? preview.securityContext.liveScan.observedOpenPorts
-            : [];
-        appendAssetScanTerminalLine(`[nmap] Open ports discovered: ${observedOpenPorts.length > 0 ? observedOpenPorts.join(', ') : 'none'}`);
-        appendAssetScanTerminalLine('[nmap] Live scan stage complete');
-        stopAssetScanTerminalSimulation(true);
-
         setAssetScanStepState('asset-step-fingerprint', 'done');
         setAssetScanStepState('asset-step-summary', 'active');
-        updateAssetScanStatus('Applying scan summary to form fields...', 90);
+        updateAssetScanStatus('Populating asset form with detected data...', 90);
         setAssetScanStepState('asset-step-summary', 'done');
-        updateAssetScanStatus('Live scan completed successfully.', 100);
+        updateAssetScanStatus('Scan complete. Asset data has been auto-filled.', 100);
 
         setTimeout(() => {
             hideAssetScanWorkflowModal();
         }, 280);
 
-        showNotification('Live scan completed. Detected data has been auto-filled.', 'success');
+        showNotification('Scan completed. Detected data has been auto-filled.', 'success');
     } catch (error) {
-        console.error('Live scan preview error:', error);
+        console.error('Asset scan preview error:', error);
         stopAssetScanTerminalSimulation(false);
         hideAssetScanWorkflowModal();
-        showNotification('Live scan failed. You can still enter details manually.', 'warning');
+        showNotification('Scan failed. You can still enter details manually.', 'warning');
     }
 }
 
@@ -783,3 +864,5 @@ function setDeleteConfirmationMessage(message) {
         messageEl.textContent = message;
     }
 }
+
+

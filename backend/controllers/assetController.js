@@ -388,7 +388,7 @@ class AssetController {
             }
 
             const assetDraft = {
-                _id: '',
+                _id: typeof req.body.assetId === 'string' ? req.body.assetId.trim() : '',
                 assetName: req.body.assetName || 'Asset Draft',
                 assetType: req.body.assetType || 'Other',
                 liveScan: {
