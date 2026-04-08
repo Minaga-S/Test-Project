@@ -339,7 +339,7 @@
     }
 
     .dashboard-page .user-profile {
-        order: 2;
+        order: 1;
         margin-left: 0;
         width: auto;
         justify-content: center;
@@ -349,7 +349,7 @@
     }
 
     .dashboard-page .live-badge {
-        order: 1;
+        order: 2;
         margin-top: 0;
         width: auto;
         max-width: 100%;

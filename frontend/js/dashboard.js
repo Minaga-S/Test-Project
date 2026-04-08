@@ -17,6 +17,7 @@ const MOBILE_BREAKPOINT = 768;
 const METRIC_ANIMATION_DURATION_MS = 800;
 let chartJsLoadPromise = null;
 let dashboardCharts = {};
+let isTwoFactorEnabled = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeDashboard();
@@ -44,10 +45,27 @@ async function displayUserInfo() {
             document.getElementById('user-name').textContent = user.fullName || user.email;
             const initial = (user.fullName || user.email)[0].toUpperCase();
             document.getElementById('user-initial').textContent = initial;
+            isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
+            updateLiveBadgeState();
             setLocalStorage('user', user);
         }
     } catch (error) {
         console.error('Error loading user info:', error);
+    }
+}
+
+function updateLiveBadgeState() {
+    const lastUpdatedEl = document.getElementById('last-updated-text');
+    const liveBadge = lastUpdatedEl ? lastUpdatedEl.closest('.live-badge') : null;
+
+    if (!lastUpdatedEl || !liveBadge) {
+        return;
+    }
+
+    liveBadge.classList.toggle('live-badge-warning', !isTwoFactorEnabled);
+
+    if (!isTwoFactorEnabled) {
+        lastUpdatedEl.textContent = '2FA not enabled';
     }
 }
 
@@ -255,6 +273,11 @@ function showDashboardSkeleton() {
         }
     });
 
+    setDashboardSummarySkeleton('dashboard-risk-distribution-summary');
+    setDashboardSummarySkeleton('dashboard-threat-categories-summary');
+    setDashboardSummarySkeleton('dashboard-vulnerable-assets-summary');
+    setDashboardSummarySkeleton('dashboard-recent-incidents-summary');
+
     const tbody = document.getElementById('recent-incidents-tbody');
     if (tbody) {
         const skeletonRows = Array.from({ length: 3 }, () => `
@@ -283,9 +306,23 @@ function hideDashboardSkeleton() {
     });
 }
 
+function setDashboardSummarySkeleton(elementId) {
+    const summaryEl = document.getElementById(elementId);
+    if (!summaryEl) {
+        return;
+    }
+
+    summaryEl.innerHTML = createSummaryBadgeSkeleton();
+}
+
 function updateLiveTimestamp(timestamp) {
     const lastUpdatedEl = document.getElementById('last-updated-text');
     if (!lastUpdatedEl) return;
+
+    if (!isTwoFactorEnabled) {
+        updateLiveBadgeState();
+        return;
+    }
 
     const now = new Date();
     const diff = Math.floor((now - new Date(timestamp)) / 1000);
@@ -305,6 +342,7 @@ function updateLiveTimestamp(timestamp) {
     }
 
     lastUpdatedEl.textContent = timeText;
+    updateLiveBadgeState();
 
     // Update incrementally every minute
     setTimeout(() => {
@@ -612,6 +650,10 @@ function renderVulnerableAssetsChart(assetsData) {
 
 function createSummaryBadge(text) {
     return `<span class="summary-badge">${text}</span>`;
+}
+
+function createSummaryBadgeSkeleton() {
+    return '<span class="summary-badge summary-badge-skeleton" aria-hidden="true"></span>';
 }
 
 window.addEventListener('resize', () => {

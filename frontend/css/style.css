@@ -617,6 +617,10 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     color: #94a3b8;
 }
 
+.dashboard-page .header-breadcrumb {
+    display: none;
+}
+
 .sidebar-toggle-btn {
     border: 1px solid #E8EAEF;
     background: #F7FAFC;
@@ -1113,10 +1117,10 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     gap: 0.4rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #718096;
+    color: var(--secondary-color);
     padding: 0.35rem 0.65rem;
-    background: rgba(64, 112, 255, 0.1);
-    border: 1px solid rgba(64, 112, 255, 0.2);
+    background-color: #F0F4FF;
+    border: 1px solid rgba(148, 163, 184, 0.4);
     border-radius: 999px;
     white-space: nowrap;
     margin-top: 0.35rem;
@@ -1127,6 +1131,16 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     height: 6px;
     border-radius: 50%;
     background: #718096;
+}
+
+.live-badge.live-badge-warning {
+    background: rgba(237, 137, 54, 0.14);
+    border-color: rgba(237, 137, 54, 0.35);
+    color: #9A3412;
+}
+
+.live-badge.live-badge-warning .live-badge-dot {
+    background: #C2410C;
 }
 
 .scan-timestamp {

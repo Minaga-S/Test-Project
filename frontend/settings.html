@@ -115,6 +115,7 @@
                                 type="text" 
                                 id="profile-name" 
                                 name="fullName" 
+                                autocomplete="name"
                                 required
                             >
                         </div>
@@ -125,6 +126,7 @@
                                 type="email" 
                                 id="profile-email" 
                                 name="email" 
+                                autocomplete="email"
                                 required
                                 readonly
                             >
@@ -163,36 +165,66 @@
                 <!-- Password Tab -->
                 <div id="password-tab" class="settings-tab-content">
                         <h2>Change Password</h2>
-                        <form id="password-form" class="settings-form">
+                        <form id="password-form" class="settings-form" autocomplete="on">
                         <div class="form-group">
                             <label for="current-password">Current Password</label>
-                            <input 
-                                type="password" 
-                                id="current-password" 
-                                name="currentPassword" 
-                                required
-                            >
+                            <div class="password-field">
+                                <input 
+                                    type="password" 
+                                    id="current-password" 
+                                    name="currentPassword" 
+                                    autocomplete="current-password"
+                                    required
+                                >
+                                <button type="button" class="password-toggle" data-password-target="current-password" aria-label="Show password">
+                                    <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="new-password">New Password</label>
-                            <input 
-                                type="password" 
-                                id="new-password" 
-                                name="newPassword" 
-                                required
-                            >
-                            <small>At least 8 characters, mix of letters and numbers</small>
+                            <div class="password-field">
+                                <input 
+                                    type="password" 
+                                    id="new-password" 
+                                    name="newPassword" 
+                                    autocomplete="new-password"
+                                    required
+                                >
+                                <button type="button" class="password-toggle" data-password-target="new-password" aria-label="Show password">
+                                    <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+                                </button>
+                            </div>
+                            <div id="settings-password-guidance" class="password-guidance" aria-live="polite">
+                                <p class="password-guidance-title">Use a strong password:</p>
+                                <p id="settings-password-strength" class="password-strength">Strength: Weak</p>
+                                <ul class="password-guidance-list">
+                                    <li id="settings-rule-length" class="password-rule">At least 12 characters</li>
+                                    <li id="settings-rule-upper" class="password-rule">At least 1 uppercase letter</li>
+                                    <li id="settings-rule-lower" class="password-rule">At least 1 lowercase letter</li>
+                                    <li id="settings-rule-number" class="password-rule">At least 1 number</li>
+                                    <li id="settings-rule-symbol" class="password-rule">At least 1 symbol (for example: !@#$%)</li>
+                                    <li id="settings-rule-space" class="password-rule">No spaces</li>
+                                    <li id="settings-rule-common" class="password-rule">Avoid common words like "password"</li>
+                                </ul>
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="confirm-password">Confirm New Password</label>
-                            <input 
-                                type="password" 
-                                id="confirm-password" 
-                                name="confirmPassword" 
-                                required
-                            >
+                            <div class="password-field">
+                                <input 
+                                    type="password" 
+                                    id="confirm-password" 
+                                    name="confirmPassword" 
+                                    autocomplete="new-password"
+                                    required
+                                >
+                                <button type="button" class="password-toggle" data-password-target="confirm-password" aria-label="Show password">
+                                    <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+                                </button>
+                            </div>
                         </div>
 
                             <button type="submit" class="btn btn-primary">
@@ -204,9 +236,13 @@
                 </div>
                 <div id="security-tab" class="settings-tab-content">
                         <h2>Two-Factor Authentication</h2>
+                        <p id="security-recommendation" class="security-recommendation">
+                            <span class="material-symbols-rounded" aria-hidden="true">verified_user</span>
+                            <span><strong>Security recommendation:</strong> Enable 2FA to add an extra layer of protection and strengthen identity verification during password recovery.</span>
+                        </p>
                         <form id="two-factor-setup-form-settings" class="settings-form">
                             <div class="two-factor-status-card">
-                                <p id="two-factor-status-text">Loading 2FA status...</p>
+                                <p id="two-factor-status-text"><span class="skeleton-text-row w-md" aria-hidden="true"></span></p>
                                 <button type="button" id="start-two-factor-setup-btn" class="btn btn-primary">Enable 2FA Setup</button>
                             </div>
                             <div id="two-factor-setup-panel" style="display: none;">
@@ -216,10 +252,20 @@
                                 <p class="two-factor-key">Manual key: <strong id="settings-two-factor-manual-key"></strong></p>
                                 <div class="form-group">
                                     <label for="settings-two-factor-code">Enter 6-digit code to enable</label>
-                                    <input type="text" id="settings-two-factor-code" inputmode="numeric" maxlength="7" placeholder="123 456">
+                                    <input type="text" id="settings-two-factor-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456">
                                     <small id="settings-two-factor-setup-error" class="error-message"></small>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Enable 2FA</button>
+                                <div id="settings-two-factor-recovery-codes-panel" class="success-details two-factor-recovery-panel" style="display: none;">
+                                    <div class="two-factor-recovery-header">
+                                        <p class="two-factor-recovery-title">Recovery Codes</p>
+                                        <button type="button" id="settings-two-factor-recovery-copy-btn" class="btn btn-secondary two-factor-recovery-copy-btn" aria-label="Copy recovery codes" title="Copy recovery codes">
+                                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <p class="two-factor-recovery-copy">Save these one-time codes in a secure place. Each code can be used once if you lose access to Google Authenticator.</p>
+                                    <ul id="settings-two-factor-recovery-codes-list" class="two-factor-recovery-codes"></ul>
+                                </div>
+                                <button id="settings-enable-two-factor-btn" type="submit" class="btn btn-primary two-factor-enable-submit-btn">Enable 2FA</button>
                             </div>
                         </form>
 
@@ -228,7 +274,7 @@
                             <p>Enter your current 6-digit authenticator code to disable two-factor authentication.</p>
                             <div class="form-group">
                                 <label for="settings-two-factor-disable-code">Authenticator Code</label>
-                                <input type="text" id="settings-two-factor-disable-code" inputmode="numeric" maxlength="7" placeholder="123 456">
+                                <input type="text" id="settings-two-factor-disable-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456">
                                 <small id="settings-two-factor-disable-error" class="error-message"></small>
                             </div>
                             <button type="submit" class="btn btn-secondary">Disable 2FA</button>
@@ -333,6 +379,9 @@
     <script src="js/settings.js"></script>
 </body>
 </html>
+
+
+
 
 
 

@@ -526,7 +526,6 @@ function setupEventListeners() {
 }
 
 async function loadAssets() {
-    showLoading(true);
     renderTableSkeleton('assets-tbody', 8, 4);
 
     try {
@@ -535,8 +534,6 @@ async function loadAssets() {
     } catch (error) {
         console.error('Error loading assets:', error);
         showNotification('Error loading assets', 'error');
-    } finally {
-        showLoading(false);
     }
 }
 
