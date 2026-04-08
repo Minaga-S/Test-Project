@@ -5,9 +5,12 @@
 
 let assets = [];
 let progressTimer = null;
+let analysisStartTime = null;
+let analysisEstimatedDuration = 0;
 const ANALYSIS_TERMINAL_LINE_LIMIT = 18;
 const ANALYSIS_TERMINAL_STEP_DELAY_MS = 180;
-let scanTerminalTimer = null;
+const ANALYSIS_ESTIMATED_MIN_MS = 10000;
+const ANALYSIS_ESTIMATED_MAX_MS = 20000;
 let analysisTerminalSequenceToken = 0;
 
 let analysisMeta = {
@@ -184,23 +187,12 @@ function startScanTerminalSimulation() {
 
     const outputEl = document.getElementById('analysis-terminal-output');
     if (outputEl) {
-        outputEl.textContent = '[scan] Bootstrapping scan workflow...';
+        outputEl.textContent = '[scan] Preparing scan workflow...';
     }
-
-    let lineIndex = 0;
-    scanTerminalTimer = window.setInterval(() => {
-        appendScanTerminalLine(SIMULATED_SCAN_LINES[lineIndex % SIMULATED_SCAN_LINES.length]);
-        lineIndex += 1;
-    }, 780);
 }
 
 function stopScanTerminalSimulation(autoCloseTerminal = true) {
     analysisTerminalSequenceToken += 1;
-
-    if (scanTerminalTimer) {
-        window.clearInterval(scanTerminalTimer);
-        scanTerminalTimer = null;
-    }
 
     if (autoCloseTerminal) {
         const shellEl = document.getElementById('analysis-terminal-shell');
@@ -228,18 +220,38 @@ function beginAnalysisProgress() {
     stopAnalysisProgress();
     resetAnalysisSteps();
 
+    analysisStartTime = Date.now();
+    analysisEstimatedDuration = ANALYSIS_ESTIMATED_MIN_MS + Math.random() * (ANALYSIS_ESTIMATED_MAX_MS - ANALYSIS_ESTIMATED_MIN_MS);
+
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl) {
-        etaEl.textContent = 'Estimated completion: 5-12 seconds depending on scan results and analysis complexity.';
+        etaEl.textContent = 'Estimated time remaining: calculating...';
     }
 
-    let currentProgress = 8;
+    let currentProgress = 5;
     updateAnalysisStatus('Preparing security analysis workflow...', currentProgress);
+    updateAnalysisTimer();
 
-    progressTimer = window.setInterval(() => {
-        currentProgress = Math.min(currentProgress + Math.random() * 5, 90);
+    progressTimer = window.setInterval(updateAnalysisTimer, 200);
+}
+
+function updateAnalysisTimer() {
+    const elapsedMs = Date.now() - analysisStartTime;
+    let currentProgress = Math.min((elapsedMs / analysisEstimatedDuration) * 100, 90);
+    
+    const remainingMs = Math.max(0, analysisEstimatedDuration - elapsedMs);
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    
+    const etaEl = document.getElementById('analysis-eta');
+    if (etaEl && remainingSeconds > 0) {
+        etaEl.textContent = 'Estimated time remaining: ' + remainingSeconds + 's';
+    }
+
+    if (currentProgress >= 89) {
+        updateAnalysisStatus('Finalizing threat analysis and generating recommendations...', currentProgress);
+    } else {
         updateAnalysisStatus('Enriching security context with vulnerability and threat data...', currentProgress);
-    }, 450);
+    }
 }
 
 function stopAnalysisProgress() {
@@ -385,6 +397,7 @@ async function generateTerminalOutputFromScan(securityContext) {
         ? securityContext.liveScan.services
         : [];
     const osInfo = securityContext?.liveScan?.osInfo || 'Unknown';
+    const detectedCpeUri = String(securityContext?.cve?.query?.cpeUri || '').trim();
     const target = String(securityContext?.liveScan?.target || 'selected asset').trim() || 'selected asset';
     const token = analysisTerminalSequenceToken;
     const sleep = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
@@ -460,8 +473,11 @@ async function generateTerminalOutputFromScan(securityContext) {
 
     await appendStep('[scan] Extracting OS fingerprint...');
     await appendStep(osInfo && osInfo !== 'Unknown'
-        ? `OS Detection: ${osInfo}`
+        ? 'OS Detection: ' + osInfo
         : 'OS Detection: Not enough fingerprint data to identify the OS.');
+    await appendStep(detectedCpeUri
+        ? 'CPE Fingerprint: ' + detectedCpeUri
+        : 'CPE Fingerprint: No CPE URI detected from scan profile.');
     await appendStep('[scan] Generating analysis summary...');
     await appendStep('Nmap analysis complete.');
 }

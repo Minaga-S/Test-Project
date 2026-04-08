@@ -10,8 +10,14 @@ let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
 const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
+const ASSET_SCAN_PROGRESS_INTERVAL_MS = 420;
+const ASSET_SCAN_ESTIMATED_MIN_MS = 8000;
+const ASSET_SCAN_ESTIMATED_MAX_MS = 12000;
 let assetScanTerminalTimer = null;
 let assetScanTerminalSequenceToken = 0;
+let assetScanProgressTimer = null;
+let assetScanStartTime = null;
+let assetScanEstimatedDuration = 0;
 let assetScanMeta = {
     target: null,
     securityContext: null,
@@ -345,13 +351,56 @@ function resetAssetScanWorkflow() {
     updateAssetScanStatus('Preparing asset security scan...', 8);
 }
 
+
+function beginAssetScanProgress() {
+    if (assetScanProgressTimer) {
+        window.clearInterval(assetScanProgressTimer);
+    }
+
+    assetScanStartTime = Date.now();
+    assetScanEstimatedDuration = ASSET_SCAN_ESTIMATED_MIN_MS + Math.random() * (ASSET_SCAN_ESTIMATED_MAX_MS - ASSET_SCAN_ESTIMATED_MIN_MS);
+
+    let currentProgress = 5;
+    updateAssetScanStatus('Preparing asset security scan...', currentProgress);
+    updateAssetScanTimer();
+
+    assetScanProgressTimer = window.setInterval(updateAssetScanTimer, 200);
+}
+
+function updateAssetScanTimer() {
+    const elapsedMs = Date.now() - assetScanStartTime;
+    let currentProgress = Math.min((elapsedMs / assetScanEstimatedDuration) * 100, 90);
+    
+    const remainingMs = Math.max(0, assetScanEstimatedDuration - elapsedMs);
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    
+    const etaEl = document.getElementById('asset-scan-eta');
+    if (etaEl && remainingSeconds > 0) {
+        etaEl.textContent = 'Estimated time remaining: ' + remainingSeconds + 's';
+    }
+
+    if (currentProgress >= 89) {
+        updateAssetScanStatus('Finalizing scan results...', currentProgress);
+    } else {
+        updateAssetScanStatus('Scanning target and enriching vulnerability data...', currentProgress);
+    }
+}
+
+function stopAssetScanProgress() {
+    if (assetScanProgressTimer) {
+        window.clearInterval(assetScanProgressTimer);
+        assetScanProgressTimer = null;
+    }
+}
 function showAssetScanWorkflowModal() {
     resetAssetScanWorkflow();
     showModal('asset-scan-modal');
     startAssetScanTerminalSimulation();
+    beginAssetScanProgress();
 }
 
 function hideAssetScanWorkflowModal() {
+    stopAssetScanProgress();
     stopAssetScanTerminalSimulation(false);
     hideModal('asset-scan-modal');
 }
@@ -502,6 +551,7 @@ async function runLiveScanPreview() {
         showNotification('Scan completed. Detected data has been auto-filled.', 'success');
     } catch (error) {
         console.error('Asset scan preview error:', error);
+        stopAssetScanProgress();
         stopAssetScanTerminalSimulation(false);
         hideAssetScanWorkflowModal();
         showNotification('Scan failed. You can still enter details manually.', 'warning');

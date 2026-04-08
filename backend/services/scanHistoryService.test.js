@@ -117,6 +117,32 @@ describe('scanHistoryService', () => {
         }));
     });
 
+
+    it('should prioritize detected os cpe over stored cpe for enrichment', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22'],
+            openPorts: [22],
+            services: [{ port: 22, service: 'ssh', version: 'OpenSSH 8.0' }],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux 6.6',
+            osCpe: 'cpe:/o:linux:linux_kernel:6.6',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.runAssetScan({
+            _id: 'asset-1',
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22' },
+            vulnerabilityProfile: { cpeUri: 'cpe:/o:linux:linux_kernel:4.19' },
+        }, 'user-1', { ipAddress: '10.0.0.9' });
+
+        expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0].cpeUri).toBe('cpe:/o:linux:linux_kernel:6.6');
+    });
     it('should infer and persist missing vulnerability profile fields from scan output', async () => {
         ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
         nmapScanService.isAllowedScanTarget.mockReturnValue(true);

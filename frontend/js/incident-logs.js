@@ -565,6 +565,10 @@ function displayIncidentDetails(incident) {
         ? liveScan.observedOpenPorts
         : (Array.isArray(clientReportedLiveScan.observedOpenPorts) ? clientReportedLiveScan.observedOpenPorts : []);
     const openPortsText = openPorts.length > 0 ? openPorts.join(', ') : 'None identified';
+    const cveQuery = securityContext?.cve?.query || {};
+    const clientReportedCveQuery = securityContext?.clientReported?.cve?.query || {};
+    const osInfo = String(liveScan.osInfo || clientReportedLiveScan.osInfo || cveQuery.osName || clientReportedCveQuery.osName || '').trim() || 'N/A';
+    const cpeUri = String(cveQuery.cpeUri || clientReportedCveQuery.cpeUri || '').trim() || 'N/A';
 
     document.getElementById('detail-incident-id').textContent = incident.incidentId;
     document.getElementById('detail-status').textContent = incident.status;
@@ -606,6 +610,8 @@ function displayIncidentDetails(incident) {
 
     document.getElementById('detail-scanned-ip').textContent = scanTarget;
     document.getElementById('detail-open-ports').textContent = openPortsText;
+    document.getElementById('detail-os-info').textContent = osInfo;
+    document.getElementById('detail-cpe-uri').textContent = cpeUri;
 
     renderIncidentCveDetails(incident);
 
