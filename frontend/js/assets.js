@@ -98,6 +98,21 @@ function detectCriticalityFromPreview(previewPayload = {}) {
     const detectedSeverity = severityOrder.find((severityLevel) => cveMatches.some((match) => String(match?.severity || '').toUpperCase() === severityLevel));
     const detectedFromCve = mapSeverityToCriticality(detectedSeverity);
     if (detectedFromCve) {
+        // Check if scan was queued for agent (production/Render)
+        if (response.jobId && response.status === 'Pending') {
+            updateAssetScanStatus('Scan queued for local agent. Waiting for results...', 50);
+            
+            try {
+                // Poll for results
+                const results = await pollScanJobStatus(response.jobId);
+                var preview = results?.preview || results;
+            } catch (error) {
+                console.error('Scan job error:', error);
+                throw error;
+            }
+        } else {
+            var preview = response?.preview || response;
+        }
         return detectedFromCve;
     }
 

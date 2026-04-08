@@ -9,7 +9,9 @@
         "test": "jest",
         "generate:vapid": "node scripts/generateVapidKeys.js",
         "seed:test-data": "node scripts/seedTestIncidents.js",
-        "reset:test-data": "node scripts/resetTestDatabase.js"
+            "reset:test-data": "node scripts/resetTestDatabase.js",
+            "agent:start": "node scripts/scanAgent.js",
+            "agent:dev": "nodemon scripts/scanAgent.js"
     },
     "keywords": [
         "cybersecurity",

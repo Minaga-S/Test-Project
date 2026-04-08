@@ -91,6 +91,9 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Auth routes (no authentication required)
 app.use('/api/auth', require('./routes/auth'));
 
+// Agent routes (API key authentication)
+app.use('/api/agents', require('./routes/agents'));
+
 // Protected routes (authentication required)
 app.use('/api/assets', authMiddleware, require('./routes/assets'));
 app.use('/api/incidents', authMiddleware, require('./routes/incidents'));

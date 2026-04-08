@@ -4,6 +4,7 @@
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
 const Asset = require('../models/Asset');
+const ScanJob = require('../models/ScanJob');
 const { ASSET_TYPES } = require('../utils/constants');
 const { validateAsset } = require('../utils/validators');
 const logger = require('../utils/logger');
@@ -387,6 +388,27 @@ class AssetController {
                 });
             }
 
+                // On production (Render), queue the scan job for local agent
+                if (process.env.NODE_ENV === 'production' || process.env.ENVIRONMENT === 'render') {
+                    const scanJob = new ScanJob({
+                        userId: req.user.userId,
+                        assetId: req.body.assetId || undefined,
+                        target: liveScan.target,
+                        ports: liveScan.ports,
+                        frequency: liveScan.frequency || 'Once',
+                    });
+
+                    await scanJob.save();
+                
+                    logger.info(`Scan job queued: ${scanJob._id} for target ${liveScan.target}`);
+                
+                    return res.json({
+                        success: true,
+                        message: 'Scan queued for local agent',
+                        jobId: String(scanJob._id),
+                        status: 'Pending',
+                    });
+                }
             const assetDraft = {
                 _id: typeof req.body.assetId === 'string' ? req.body.assetId.trim() : '',
                 assetName: req.body.assetName || 'Asset Draft',

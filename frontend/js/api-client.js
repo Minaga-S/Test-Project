@@ -31,6 +31,10 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+function isRenderBackend() {
+    return API_BASE_URL.includes('onrender.com');
+}
+
 class APIClient {
     constructor() {
         this.token = localStorage.getItem('accessToken');
