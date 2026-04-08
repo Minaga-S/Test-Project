@@ -72,3 +72,4 @@ router.put('/:id', objectIdValidation, assetBodyValidation, withController(asset
 router.delete('/:id', objectIdValidation, withController(assetController, 'deleteAsset'));
 
 module.exports = router;
+

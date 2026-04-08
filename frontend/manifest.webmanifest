@@ -1,0 +1,17 @@
+{
+    "name": "Hotel Cybersecurity Governance",
+    "short_name": "HCGS",
+    "start_url": "/dashboard.html",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "description": "Push notifications for hotel cybersecurity alerts.",
+    "icons": [
+        {
+            "src": "/assets/pwa-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

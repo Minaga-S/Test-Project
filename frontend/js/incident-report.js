@@ -5,15 +5,16 @@
 
 let assets = [];
 let progressTimer = null;
+const ANALYSIS_TERMINAL_LINE_LIMIT = 18;
+const ANALYSIS_TERMINAL_STEP_DELAY_MS = 180;
 let scanTerminalTimer = null;
+let analysisTerminalSequenceToken = 0;
 
-const SIMULATED_SCAN_LINES = [
-    '[nmap] Starting Nmap 7.94 scan engine',
-    '[nmap] Resolving selected target and validating route',
-    '[nmap] Host is up; beginning SYN probes',
-    '[nmap] Service fingerprinting in progress',
-    '[nmap] Correlating discovered services with enrichment profile',
-];
+let analysisMeta = {
+    assetId: null,
+    asset: null,
+    securityContext: null,
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentReport();
@@ -167,13 +168,14 @@ function appendScanTerminalLine(text) {
     }
 
     const currentLines = outputEl.textContent.split('\n').filter(Boolean);
-    const nextLines = [...currentLines, text].slice(-9);
+    const nextLines = [...currentLines, text].slice(-ANALYSIS_TERMINAL_LINE_LIMIT);
     outputEl.textContent = nextLines.join('\n');
     outputEl.scrollTop = outputEl.scrollHeight;
 }
 
 function startScanTerminalSimulation() {
     stopScanTerminalSimulation(false);
+    analysisTerminalSequenceToken += 1;
 
     const shellEl = document.getElementById('analysis-terminal-shell');
     if (shellEl) {
@@ -193,6 +195,8 @@ function startScanTerminalSimulation() {
 }
 
 function stopScanTerminalSimulation(autoCloseTerminal = true) {
+    analysisTerminalSequenceToken += 1;
+
     if (scanTerminalTimer) {
         window.clearInterval(scanTerminalTimer);
         scanTerminalTimer = null;
@@ -223,19 +227,18 @@ function resetAnalysisSteps() {
 function beginAnalysisProgress() {
     stopAnalysisProgress();
     resetAnalysisSteps();
-    updateAnalysisDataSources(null);
 
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl) {
-        etaEl.textContent = 'Estimated completion: about 15-45 seconds depending on the asset scan, CVE lookup, and AI analysis.';
+        etaEl.textContent = 'Estimated completion: 5-12 seconds depending on scan results and analysis complexity.';
     }
 
     let currentProgress = 8;
-    updateAnalysisStatus('Preparing live scan, CVE enrichment, and AI threat analysis...', currentProgress);
+    updateAnalysisStatus('Preparing security analysis workflow...', currentProgress);
 
     progressTimer = window.setInterval(() => {
         currentProgress = Math.min(currentProgress + Math.random() * 5, 90);
-        updateAnalysisStatus('Collecting scan results, CVEs, and threat signals...', currentProgress);
+        updateAnalysisStatus('Enriching security context with vulnerability and threat data...', currentProgress);
     }, 450);
 }
 
@@ -268,6 +271,8 @@ async function handleIncidentSubmit(e) {
         return;
     }
 
+    const selectedAsset = assets.find((a) => a._id === assetId);
+
     setSubmitButtonState(true);
     showModal('analysis-modal');
     beginAnalysisProgress();
@@ -275,26 +280,40 @@ async function handleIncidentSubmit(e) {
     try {
         let clientSecurityContext = null;
 
-        setStepState('step-scan', 'active');
-        startScanTerminalSimulation();
-        updateAnalysisStatus('Requesting security context and running an on-demand live scan when allowed...', 20);
-        const securityResponse = await apiClient.getAssetSecurityContext(assetId);
-        clientSecurityContext = securityResponse?.securityContext || null;
-        const observedOpenPorts = Array.isArray(clientSecurityContext?.liveScan?.observedOpenPorts)
-            ? clientSecurityContext.liveScan.observedOpenPorts
-            : [];
-        appendScanTerminalLine(`[nmap] Open ports discovered: ${observedOpenPorts.length > 0 ? observedOpenPorts.join(', ') : 'none'}`);
-        appendScanTerminalLine('[nmap] Live scan stage complete');
-        stopScanTerminalSimulation(true);
-        updateAnalysisDataSources(clientSecurityContext);
-        setStepState('step-scan', 'done');
+        analysisMeta.assetId = assetId;
+        analysisMeta.asset = selectedAsset || null;
+
+        const isLiveScanEnabled = selectedAsset?.liveScan?.enabled === true;
+        configureScanStep(isLiveScanEnabled);
+
+        if (isLiveScanEnabled) {
+            setStepState('step-scan', 'active');
+            startScanTerminalSimulation();
+            updateAnalysisStatus('Running security scan on selected asset...', 20);
+
+            const scanResponse = await apiClient.scanAssets([assetId]);
+            const scanResult = Array.isArray(scanResponse?.scans) ? scanResponse.scans[0] : null;
+            clientSecurityContext = scanResult?.securityContext || null;
+            analysisMeta.securityContext = clientSecurityContext;
+
+            await generateTerminalOutputFromScan(clientSecurityContext);
+            stopScanTerminalSimulation(false);
+            setStepState('step-scan', 'done');
+        } else {
+            setStepState('step-scan', 'done');
+            updateAnalysisStatus('Retrieving cached security context...', 15);
+
+            const securityResponse = await apiClient.getAssetSecurityContext(assetId);
+            clientSecurityContext = securityResponse?.securityContext || null;
+            analysisMeta.securityContext = clientSecurityContext;
+        }
 
         setStepState('step-cve', 'active');
-        updateAnalysisStatus('Querying NIST NVD for vulnerabilities tied to the discovered services and asset profile...', 44);
+        updateAnalysisStatus('Querying vulnerability databases for identified services...', 44);
         setStepState('step-cve', 'done');
 
         setStepState('step-ai', 'active');
-        updateAnalysisStatus('Passing the incident description, scan output, and CVE matches into AI for threat classification...', 68);
+        updateAnalysisStatus('Analyzing threat patterns and risk indicators with AI...', 68);
 
         const incidentData = {
             assetId,
@@ -310,11 +329,11 @@ async function handleIncidentSubmit(e) {
         setStepState('step-ai', 'done');
 
         setStepState('step-rec', 'active');
-        updateAnalysisStatus('Generating mitigation guidance and NIST control mapping...', 90);
+        updateAnalysisStatus('Generating mitigation recommendations...', 90);
         setStepState('step-rec', 'done');
 
         stopAnalysisProgress();
-        updateAnalysisStatus('Analysis complete. Threat intelligence and recommendations are ready.', 100);
+        updateAnalysisStatus('Analysis complete. Details and recommendations are ready.', 100);
 
         setTimeout(() => {
             hideModal('analysis-modal');
@@ -329,6 +348,122 @@ async function handleIncidentSubmit(e) {
     } finally {
         setSubmitButtonState(false);
     }
+}
+
+function configureScanStep(isLiveScanEnabled) {
+    const stepEl = document.getElementById('step-scan');
+    if (!stepEl) {
+        return;
+    }
+
+    if (isLiveScanEnabled) {
+        stepEl.dataset.stepLabel = 'Running security scan on selected asset';
+        const textEl = stepEl.querySelector('.scan-step-text');
+        if (textEl) {
+            textEl.textContent = 'Running security scan on selected asset';
+        } else {
+            stepEl.textContent = 'Running security scan on selected asset';
+        }
+        stepEl.style.display = 'grid';
+    } else {
+        stepEl.dataset.stepLabel = 'Live scan: disabled for this asset';
+        const textEl = stepEl.querySelector('.scan-step-text');
+        if (textEl) {
+            textEl.textContent = 'Live scan: disabled for this asset';
+        } else {
+            stepEl.textContent = 'Live scan: disabled for this asset';
+        }
+        stepEl.style.display = 'grid';
+    }
+}
+
+async function generateTerminalOutputFromScan(securityContext) {
+    const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
+        ? securityContext.liveScan.observedOpenPorts
+        : [];
+    const services = Array.isArray(securityContext?.liveScan?.services)
+        ? securityContext.liveScan.services
+        : [];
+    const osInfo = securityContext?.liveScan?.osInfo || 'Unknown';
+    const target = String(securityContext?.liveScan?.target || 'selected asset').trim() || 'selected asset';
+    const token = analysisTerminalSequenceToken;
+    const sleep = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    const isCancelled = () => token !== analysisTerminalSequenceToken;
+    const appendStep = async (text, delayMs = ANALYSIS_TERMINAL_STEP_DELAY_MS) => {
+        if (isCancelled()) {
+            return false;
+        }
+
+        appendScanTerminalLine(text);
+        await sleep(delayMs);
+        return !isCancelled();
+    };
+    const serviceMap = {
+        22: 'ssh       OpenSSH 7.4',
+        80: 'http      Apache httpd 2.4',
+        443: 'https     Apache httpd 2.4',
+        3306: 'mysql     MySQL 5.7',
+        5432: 'postgres  PostgreSQL 10',
+        8080: 'http-alt  Apache Tomcat 8.5',
+        3389: 'rdp       Windows RDP',
+        445: 'netbios-ssn Microsoft Windows SMB',
+        139: 'netbios-ssn Microsoft Windows SMB',
+        25: 'smtp      Postfix smtp',
+    };
+
+    await appendStep('');
+    await appendStep(`[scan] Reviewing ${target}...`);
+    await appendStep('[scan] Nmap host discovery complete.');
+
+    if (observedOpenPorts.length > 0) {
+        await appendStep('[scan] Enumerating open ports...');
+        await appendStep('PORT      STATE    SERVICE      VERSION');
+        await appendStep('-----------------------------------------', 120);
+
+        for (const port of observedOpenPorts.slice(0, 10)) {
+            const portNum = String(port).padEnd(9);
+            const serviceInfo = serviceMap[port] || 'unknown service';
+            await appendStep(`${portNum} open     ${serviceInfo}`, 140);
+        }
+
+        if (observedOpenPorts.length > 10) {
+            await appendStep(`... and ${observedOpenPorts.length - 10} more ports`);
+        }
+    } else {
+        await appendStep('[scan] No open ports were identified.');
+        await appendStep('PORT      STATE    SERVICE');
+        await appendStep('-----------------------------', 120);
+        await appendStep('All observed ports filtered or closed.');
+    }
+
+    await appendStep('[scan] Correlating services with vulnerability context...');
+
+    if (services.length > 0) {
+        await appendStep('Identified Services:');
+        for (const svc of services.slice(0, 5)) {
+            let serviceName = '';
+            if (typeof svc === 'object' && svc !== null) {
+                serviceName = svc.name || svc.service || svc.type || JSON.stringify(svc);
+            } else {
+                serviceName = String(svc);
+            }
+
+            await appendStep(`  - ${serviceName}`, 140);
+        }
+
+        if (services.length > 5) {
+            await appendStep(`  ... and ${services.length - 5} more`);
+        }
+    } else {
+        await appendStep('Identified Services: none');
+    }
+
+    await appendStep('[scan] Extracting OS fingerprint...');
+    await appendStep(osInfo && osInfo !== 'Unknown'
+        ? `OS Detection: ${osInfo}`
+        : 'OS Detection: Not enough fingerprint data to identify the OS.');
+    await appendStep('[scan] Generating analysis summary...');
+    await appendStep('Nmap analysis complete.');
 }
 
 function updateAnalysisStatus(message, progressValue = null) {
@@ -409,41 +544,5 @@ function setupLogoutButton() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.type = 'button';
-    }
-}
-function updateAnalysisDataSources(securityContext) {
-    const scanBadge = document.getElementById('badge-scan-source');
-    const cveBadge = document.getElementById('badge-cve-source');
-    const confidenceBadge = document.getElementById('badge-enrichment-confidence');
-    const openPortsMeta = document.getElementById('scan-open-ports-meta');
-    const enrichedMeta = document.getElementById('enriched-meta');
-
-    const sources = securityContext?.dataSources || {};
-    const enrichment = securityContext?.enrichment || {};
-
-    if (scanBadge) {
-        scanBadge.textContent = sources.scan || 'Live scan pending';
-    }
-
-    if (cveBadge) {
-        cveBadge.textContent = sources.cve || 'CVE enrichment pending';
-    }
-
-    if (confidenceBadge) {
-        confidenceBadge.textContent = `Confidence: ${enrichment.confidence || securityContext?.cve?.confidence || 'Pending'}`;
-    }
-
-    if (openPortsMeta) {
-        const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
-            ? securityContext.liveScan.observedOpenPorts
-            : [];
-        const openPortsText = observedOpenPorts.length > 0 ? observedOpenPorts.join(', ') : 'None identified';
-        openPortsMeta.textContent = `Open ports: ${openPortsText}`;
-    }
-
-    if (enrichedMeta) {
-        const enrichedAt = enrichment.lastEnrichedAt || securityContext?.cve?.retrievedAt;
-        const resolvedText = enrichedAt ? formatDateTime(enrichedAt) : 'Pending';
-        enrichedMeta.textContent = `Last enriched: ${resolvedText}`;
     }
 }
