@@ -165,15 +165,17 @@
                 </div>
                 <p id="analysis-eta" class="small">Estimated completion: about 15-45 seconds depending on scan and analysis times.</p>
                 <div id="analysis-steps" class="scan-step-list" role="list" aria-label="Analysis workflow">
-                    <div id="step-scan" class="scan-step-item" role="listitem">Security scanning and enrichment</div>
+                    <div id="step-scan" class="scan-step-item" role="listitem">
+                        Security scanning and enrichment
+                        <details id="analysis-terminal-shell" class="scan-terminal-shell" open style="grid-column: 1 / -1;">
+                            <summary>Scan Output</summary>
+                            <pre id="analysis-terminal-output" class="scan-terminal-output" aria-live="polite">[scan] Preparing scan workflow...</pre>
+                        </details>
+                    </div>
                     <div id="step-cve" class="scan-step-item" role="listitem">Querying vulnerability databases</div>
                     <div id="step-ai" class="scan-step-item" role="listitem">AI threat analysis and risk scoring</div>
                     <div id="step-rec" class="scan-step-item" role="listitem">Generating recommendations</div>
                 </div>
-                <details id="analysis-terminal-shell" class="scan-terminal-shell" open>
-                    <summary>Scan Output</summary>
-                    <pre id="analysis-terminal-output" class="scan-terminal-output" aria-live="polite">[scan] Preparing scan workflow...</pre>
-                </details>
             </div>
         </div>
     </div>

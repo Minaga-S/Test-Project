@@ -223,7 +223,7 @@
 .scan-step-item {
     display: grid;
     grid-template-columns: 1.7rem minmax(0, 1fr) auto;
-    align-items: center;
+    align-items: start;
     gap: 0.55rem;
     text-align: left;
     border: 1px solid #E8EAEF;
@@ -231,6 +231,19 @@
     background: #FAFBFF;
     padding: 0.5rem 0.6rem;
     min-height: 44px;
+}
+
+.scan-step-item .scan-terminal-shell {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+    margin-left: -0.6rem;
+    margin-right: -0.6rem;
+    margin-bottom: -0.5rem;
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid #CBD5E0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
 }
 
 .scan-step-circle {
