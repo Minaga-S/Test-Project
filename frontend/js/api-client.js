@@ -24,7 +24,7 @@ function resolveApiBaseUrl() {
     const host = window.location.hostname;
     const isLocalHost = host === 'localhost' || host === '127.0.0.1';
 
-    return isLocalHost ? LOCAL_API_BASE_URL : PROD_API_BASE_URL;
+    return isLocalHost ? LOCAL_API_BASE_URL : (/^\d+\.\d+\.\d+\.\d+$/.test(host) ? `http://${host}:5000/api` : PROD_API_BASE_URL);
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -421,6 +421,8 @@ class APIClient {
 
 // Create singleton instance
 const apiClient = new APIClient();
+
+
 
 
 

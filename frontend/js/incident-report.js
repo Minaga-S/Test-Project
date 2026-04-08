@@ -5,7 +5,10 @@
 
 let assets = [];
 let progressTimer = null;
+const ANALYSIS_TERMINAL_LINE_LIMIT = 18;
+const ANALYSIS_TERMINAL_STEP_DELAY_MS = 180;
 let scanTerminalTimer = null;
+let analysisTerminalSequenceToken = 0;
 
 let analysisMeta = {
     assetId: null,
@@ -165,13 +168,14 @@ function appendScanTerminalLine(text) {
     }
 
     const currentLines = outputEl.textContent.split('\n').filter(Boolean);
-    const nextLines = [...currentLines, text].slice(-9);
+    const nextLines = [...currentLines, text].slice(-ANALYSIS_TERMINAL_LINE_LIMIT);
     outputEl.textContent = nextLines.join('\n');
     outputEl.scrollTop = outputEl.scrollHeight;
 }
 
 function startScanTerminalSimulation() {
     stopScanTerminalSimulation(false);
+    analysisTerminalSequenceToken += 1;
 
     const shellEl = document.getElementById('analysis-terminal-shell');
     if (shellEl) {
@@ -191,6 +195,8 @@ function startScanTerminalSimulation() {
 }
 
 function stopScanTerminalSimulation(autoCloseTerminal = true) {
+    analysisTerminalSequenceToken += 1;
+
     if (scanTerminalTimer) {
         window.clearInterval(scanTerminalTimer);
         scanTerminalTimer = null;
@@ -284,19 +290,22 @@ async function handleIncidentSubmit(e) {
             setStepState('step-scan', 'active');
             startScanTerminalSimulation();
             updateAnalysisStatus('Running security scan on selected asset...', 20);
+
+            const scanResponse = await apiClient.scanAssets([assetId]);
+            const scanResult = Array.isArray(scanResponse?.scans) ? scanResponse.scans[0] : null;
+            clientSecurityContext = scanResult?.securityContext || null;
+            analysisMeta.securityContext = clientSecurityContext;
+
+            await generateTerminalOutputFromScan(clientSecurityContext);
+            stopScanTerminalSimulation(false);
+            setStepState('step-scan', 'done');
         } else {
             setStepState('step-scan', 'done');
             updateAnalysisStatus('Retrieving cached security context...', 15);
-        }
 
-        const securityResponse = await apiClient.getAssetSecurityContext(assetId);
-        clientSecurityContext = securityResponse?.securityContext || null;
-        analysisMeta.securityContext = clientSecurityContext;
-
-        if (isLiveScanEnabled) {
-            generateTerminalOutputFromScan(clientSecurityContext);
-            stopScanTerminalSimulation(false);
-            setStepState('step-scan', 'done');
+            const securityResponse = await apiClient.getAssetSecurityContext(assetId);
+            clientSecurityContext = securityResponse?.securityContext || null;
+            analysisMeta.securityContext = clientSecurityContext;
         }
 
         setStepState('step-cve', 'active');
@@ -368,7 +377,7 @@ function configureScanStep(isLiveScanEnabled) {
     }
 }
 
-function generateTerminalOutputFromScan(securityContext) {
+async function generateTerminalOutputFromScan(securityContext) {
     const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
         ? securityContext.liveScan.observedOpenPorts
         : [];
@@ -376,67 +385,85 @@ function generateTerminalOutputFromScan(securityContext) {
         ? securityContext.liveScan.services
         : [];
     const osInfo = securityContext?.liveScan?.osInfo || 'Unknown';
+    const target = String(securityContext?.liveScan?.target || 'selected asset').trim() || 'selected asset';
+    const token = analysisTerminalSequenceToken;
+    const sleep = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    const isCancelled = () => token !== analysisTerminalSequenceToken;
+    const appendStep = async (text, delayMs = ANALYSIS_TERMINAL_STEP_DELAY_MS) => {
+        if (isCancelled()) {
+            return false;
+        }
 
-    appendScanTerminalLine('');
-    appendScanTerminalLine('Nmap scan report');
-    appendScanTerminalLine('Host is up (0.045s latency).');
-    appendScanTerminalLine('');
+        appendScanTerminalLine(text);
+        await sleep(delayMs);
+        return !isCancelled();
+    };
+    const serviceMap = {
+        22: 'ssh       OpenSSH 7.4',
+        80: 'http      Apache httpd 2.4',
+        443: 'https     Apache httpd 2.4',
+        3306: 'mysql     MySQL 5.7',
+        5432: 'postgres  PostgreSQL 10',
+        8080: 'http-alt  Apache Tomcat 8.5',
+        3389: 'rdp       Windows RDP',
+        445: 'netbios-ssn Microsoft Windows SMB',
+        139: 'netbios-ssn Microsoft Windows SMB',
+        25: 'smtp      Postfix smtp',
+    };
+
+    await appendStep('');
+    await appendStep(`[scan] Reviewing ${target}...`);
+    await appendStep('[scan] Nmap host discovery complete.');
 
     if (observedOpenPorts.length > 0) {
-        appendScanTerminalLine('PORT      STATE    SERVICE      VERSION');
-        appendScanTerminalLine('─────────────────────────────────────────');
-        observedOpenPorts.slice(0, 10).forEach((port) => {
+        await appendStep('[scan] Enumerating open ports...');
+        await appendStep('PORT      STATE    SERVICE      VERSION');
+        await appendStep('-----------------------------------------', 120);
+
+        for (const port of observedOpenPorts.slice(0, 10)) {
             const portNum = String(port).padEnd(9);
-            const serviceMap = {
-                22: 'ssh       OpenSSH 7.4',
-                80: 'http      Apache httpd 2.4',
-                443: 'https     Apache httpd 2.4',
-                3306: 'mysql     MySQL 5.7',
-                5432: 'postgres  PostgreSQL 10',
-                8080: 'http-alt  Apache Tomcat 8.5',
-                3389: 'rdp       Windows RDP',
-                445: 'netbios-ssn Microsoft Windows SMB',
-                139: 'netbios-ssn Microsoft Windows SMB',
-                25: 'smtp      Postfix smtp',
-            };
             const serviceInfo = serviceMap[port] || 'unknown service';
-            appendScanTerminalLine(`${portNum} open     ${serviceInfo}`);
-        });
+            await appendStep(`${portNum} open     ${serviceInfo}`, 140);
+        }
+
         if (observedOpenPorts.length > 10) {
-            appendScanTerminalLine(`... and ${observedOpenPorts.length - 10} more ports`);
+            await appendStep(`... and ${observedOpenPorts.length - 10} more ports`);
         }
     } else {
-        appendScanTerminalLine('PORT      STATE    SERVICE');
-        appendScanTerminalLine('─────────────────────────────');
-        appendScanTerminalLine('All observed ports filtered or closed.');
+        await appendStep('[scan] No open ports were identified.');
+        await appendStep('PORT      STATE    SERVICE');
+        await appendStep('-----------------------------', 120);
+        await appendStep('All observed ports filtered or closed.');
     }
 
-    appendScanTerminalLine('');
-    if (osInfo && osInfo !== 'Unknown') {
-        appendScanTerminalLine(`OS Detection: ${osInfo}`);
-    } else {
-        appendScanTerminalLine('OS Detection: Linux 4.15 - 5.6');
-    }
+    await appendStep('[scan] Correlating services with vulnerability context...');
 
     if (services.length > 0) {
-        appendScanTerminalLine('');
-        appendScanTerminalLine('Identified Services:');
-        services.slice(0, 5).forEach((svc) => {
+        await appendStep('Identified Services:');
+        for (const svc of services.slice(0, 5)) {
             let serviceName = '';
             if (typeof svc === 'object' && svc !== null) {
                 serviceName = svc.name || svc.service || svc.type || JSON.stringify(svc);
             } else {
                 serviceName = String(svc);
             }
-            appendScanTerminalLine(`  • ${serviceName}`);
-        });
-        if (services.length > 5) {
-            appendScanTerminalLine(`  ... and ${services.length - 5} more`);
+
+            await appendStep(`  - ${serviceName}`, 140);
         }
+
+        if (services.length > 5) {
+            await appendStep(`  ... and ${services.length - 5} more`);
+        }
+    } else {
+        await appendStep('Identified Services: none');
     }
 
-    appendScanTerminalLine('');
-    appendScanTerminalLine('Nmap done at ' + new Date().toLocaleTimeString() + '; 1 IP address');
+    await appendStep('[scan] Extracting OS fingerprint...');
+    await appendStep(osInfo && osInfo !== 'Unknown'
+        ? `OS Detection: ${osInfo}`
+        : 'OS Detection: Not enough fingerprint data to identify the OS.');
+    await appendStep('[scan] Generating analysis summary...');
+    await appendStep('Nmap analysis complete.');
 }
 
 function updateAnalysisStatus(message, progressValue = null) {

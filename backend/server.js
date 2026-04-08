@@ -52,7 +52,7 @@ const defaultAllowedOrigins = [
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5500',
-    'http://192.168.204.1:3000',
+    'http://192.168.21.1:3000',
 ];
 
 const effectiveAllowedOrigins = [
@@ -130,6 +130,7 @@ app.use(errorHandler);
 // ============== SERVER STARTUP ==============
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 async function startServer() {
     try {
@@ -141,8 +142,8 @@ async function startServer() {
         await seedDatabase();
 
         // Start server
-        const server = app.listen(PORT, () => {
-            console.log(`? Server running on port ${PORT}`);
+        const server = app.listen(PORT, HOST, () => {
+            console.log(`? Server running on http://${HOST}:${PORT}`);
             console.log(`? Environment: ${process.env.NODE_ENV}`);
         });
 
@@ -174,4 +175,5 @@ async function startServer() {
 startServer();
 
 module.exports = app;
+
 

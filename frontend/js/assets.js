@@ -8,7 +8,10 @@ let currentEditingAssetId = null;
 let selectedAssetIds = new Set();
 let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
+const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
+const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
 let assetScanTerminalTimer = null;
+let assetScanTerminalSequenceToken = 0;
 let assetScanMeta = {
     target: null,
     securityContext: null,
@@ -141,13 +144,14 @@ function appendAssetScanTerminalLine(line) {
     }
 
     const currentLines = outputEl.textContent.split('\n').filter(Boolean);
-    const nextLines = [...currentLines, line].slice(-10);
+    const nextLines = [...currentLines, line].slice(-ASSET_SCAN_TERMINAL_LINE_LIMIT);
     outputEl.textContent = nextLines.join('\n');
     outputEl.scrollTop = outputEl.scrollHeight;
 }
 
 function startAssetScanTerminalSimulation() {
     stopAssetScanTerminalSimulation(false);
+    assetScanTerminalSequenceToken += 1;
 
     const terminalShell = document.getElementById('asset-scan-terminal-shell');
     if (terminalShell) {
@@ -159,8 +163,9 @@ function startAssetScanTerminalSimulation() {
         outputEl.textContent = '[scan] Preparing scan workflow...';
     }
 }
-
 function stopAssetScanTerminalSimulation(autoCloseTerminal = true) {
+    assetScanTerminalSequenceToken += 1;
+
     if (assetScanTerminalTimer) {
         window.clearInterval(assetScanTerminalTimer);
         assetScanTerminalTimer = null;
@@ -173,8 +178,7 @@ function stopAssetScanTerminalSimulation(autoCloseTerminal = true) {
         }
     }
 }
-
-function generateAssetTerminalOutput(preview) {
+async function generateAssetTerminalOutput(preview) {
     const securityContext = preview?.securityContext || {};
     const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
         ? securityContext.liveScan.observedOpenPorts
@@ -183,67 +187,80 @@ function generateAssetTerminalOutput(preview) {
         ? securityContext.liveScan.services
         : [];
     const osInfo = securityContext?.liveScan?.osInfo || 'Unknown';
+    const target = String(securityContext?.liveScan?.target || 'target asset').trim() || 'target asset';
+    const token = assetScanTerminalSequenceToken;
+    const sleep = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    const isCancelled = () => token !== assetScanTerminalSequenceToken;
+    const appendStep = async (line, delayMs = ASSET_SCAN_TERMINAL_STEP_DELAY_MS) => {
+        if (isCancelled()) {
+            return false;
+        }
 
-    appendAssetScanTerminalLine('');
-    appendAssetScanTerminalLine('Nmap scan report');
-    appendAssetScanTerminalLine('Host is up (0.045s latency).');
-    appendAssetScanTerminalLine('');
+        appendAssetScanTerminalLine(line);
+        await sleep(delayMs);
+        return !isCancelled();
+    };
+    const serviceMap = {
+        22: 'ssh       OpenSSH 7.4',
+        80: 'http      Apache httpd 2.4',
+        443: 'https     Apache httpd 2.4',
+        3306: 'mysql     MySQL 5.7',
+        5432: 'postgres  PostgreSQL 10',
+        8080: 'http-alt  Apache Tomcat 8.5',
+        3389: 'rdp       Windows RDP',
+        445: 'netbios-ssn Microsoft Windows SMB',
+        139: 'netbios-ssn Microsoft Windows SMB',
+        25: 'smtp      Postfix smtp',
+    };
+
+    await appendStep('');
+    await appendStep(`[scan] Host ${target} is up.`);
+    await appendStep('[scan] Reviewing discovered ports...');
 
     if (observedOpenPorts.length > 0) {
-        appendAssetScanTerminalLine('PORT      STATE    SERVICE      VERSION');
-        appendAssetScanTerminalLine('___________________________________________');
-        observedOpenPorts.slice(0, 10).forEach((port) => {
+        await appendStep('PORT      STATE    SERVICE      VERSION');
+        await appendStep('___________________________________________', 120);
+
+        for (const port of observedOpenPorts.slice(0, 10)) {
             const portNum = String(port).padEnd(9);
-            const serviceMap = {
-                22: 'ssh       OpenSSH 7.4',
-                80: 'http      Apache httpd 2.4',
-                443: 'https     Apache httpd 2.4',
-                3306: 'mysql     MySQL 5.7',
-                5432: 'postgres  PostgreSQL 10',
-                8080: 'http-alt  Apache Tomcat 8.5',
-                3389: 'rdp       Windows RDP',
-                445: 'netbios-ssn Microsoft Windows SMB',
-                139: 'netbios-ssn Microsoft Windows SMB',
-                25: 'smtp      Postfix smtp',
-            };
             const serviceInfo = serviceMap[port] || 'unknown service';
-            appendAssetScanTerminalLine(`${portNum} open     ${serviceInfo}`);
-        });
+            await appendStep(`${portNum} open     ${serviceInfo}`, 140);
+        }
+
         if (observedOpenPorts.length > 10) {
-            appendAssetScanTerminalLine(`... and ${observedOpenPorts.length - 10} more ports`);
+            await appendStep(`... and ${observedOpenPorts.length - 10} more ports`);
         }
     } else {
-        appendAssetScanTerminalLine('PORT      STATE    SERVICE');
-        appendAssetScanTerminalLine('___________________________');
-        appendAssetScanTerminalLine('All observed ports filtered or closed.');
+        await appendStep('PORT      STATE    SERVICE');
+        await appendStep('___________________________', 120);
+        await appendStep('All observed ports filtered or closed.');
     }
 
-    appendAssetScanTerminalLine('');
-    if (osInfo && osInfo !== 'Unknown') {
-        appendAssetScanTerminalLine(`OS Detection: ${osInfo}`);
-    } else {
-        appendAssetScanTerminalLine('OS Detection: Linux 4.15 - 5.6');
-    }
+    await appendStep('[scan] Fingerprinting services...');
 
     if (services.length > 0) {
-        appendAssetScanTerminalLine('');
-        appendAssetScanTerminalLine('Identified Services:');
-        services.slice(0, 5).forEach((svc) => {
+        await appendStep('Identified Services:');
+        for (const svc of services.slice(0, 5)) {
             let serviceName = '';
             if (typeof svc === 'object' && svc !== null) {
                 serviceName = svc.name || svc.service || svc.type || JSON.stringify(svc);
             } else {
                 serviceName = String(svc);
             }
-            appendAssetScanTerminalLine(`  - ${serviceName}`);
-        });
+
+            await appendStep(`  - ${serviceName}`, 140);
+        }
+
         if (services.length > 5) {
-            appendAssetScanTerminalLine(`  ... and ${services.length - 5} more`);
+            await appendStep(`  ... and ${services.length - 5} more`);
         }
     }
 
-    appendAssetScanTerminalLine('');
-    appendAssetScanTerminalLine('Nmap done at ' + new Date().toLocaleTimeString() + '; 1 IP address');
+    await appendStep('[scan] Running OS detection...');
+    await appendStep(osInfo && osInfo !== 'Unknown'
+        ? `OS Detection: ${osInfo}`
+        : 'OS Detection: Not enough fingerprint data to identify the OS.');
+    await appendStep(`[scan] Scan complete at ${new Date().toLocaleTimeString()}.`);
 }
 
 function resetAssetScanWorkflow() {
@@ -330,7 +347,7 @@ function resetScanPreviewFields() {
 }
 
 function buildScanPreviewPayload() {
-    return {
+    const payload = {
         assetName: String(document.getElementById('asset-name').value || '').trim(),
         assetType: String(document.getElementById('asset-type').value || '').trim(),
         liveScan: {
@@ -347,6 +364,12 @@ function buildScanPreviewPayload() {
             cpeUri: String(document.getElementById('asset-cpe-uri').value || '').trim(),
         },
     };
+
+    if (currentEditingAssetId) {
+        payload.assetId = currentEditingAssetId;
+    }
+
+    return payload;
 }
 
 async function runLiveScanPreview() {
@@ -376,7 +399,7 @@ async function runLiveScanPreview() {
         const response = await apiClient.previewAssetScan(payload);
         const preview = response?.preview || response;
 
-        generateAssetTerminalOutput(preview);
+        await generateAssetTerminalOutput(preview);
         stopAssetScanTerminalSimulation(false);
 
         setAssetScanStepState('asset-step-probe', 'done');
@@ -841,3 +864,5 @@ function setDeleteConfirmationMessage(message) {
         messageEl.textContent = message;
     }
 }
+
+
