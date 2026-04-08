@@ -1,7 +1,7 @@
 // NOTE: Custom select dropdown handler with theme styling and smooth animations.
 
 function setupCustomSelects() {
-    const selectElements = Array.from(document.querySelectorAll('select'));
+    const selectElements = Array.from(document.querySelectorAll('select:not([data-custom-select="true"])'));
     
     selectElements.forEach((nativeSelect) => {
         // Skip if already converted
@@ -116,7 +116,7 @@ function setupCustomSelects() {
                 closeDropdown(trigger, dropdown);
             }
         });
-    });
+    }, true);
 }
 
 function toggleDropdown(trigger, dropdown) {
@@ -172,9 +172,14 @@ function selectOption(nativeSelect, trigger, dropdown, value, optionElement) {
 }
 
 // Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setupCustomSelects();
+    });
+} else {
+    // DOM already loaded
     setupCustomSelects();
-});
+}
 
 // Also watch for dynamically added selects
 const observer = new MutationObserver(() => {
