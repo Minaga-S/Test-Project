@@ -373,6 +373,33 @@
         </div>
     </div>
 
+    <div id="asset-scan-modal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-content-small analysis-modal-content">
+            <div class="modal-header">
+                <h2 id="asset-scan-title">Running Live Scan...</h2>
+            </div>
+            <div class="analysis-progress">
+                <div class="spinner"></div>
+                <p id="asset-scan-status">Preparing live scan workflow...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="asset-scan-progress-fill"></div>
+                </div>
+                <p id="asset-scan-eta" class="small">Estimated completion: about 10-30 seconds depending on target responsiveness.</p>
+                <div id="asset-scan-steps" class="scan-step-list" role="list" aria-label="Asset live scan workflow">
+                    <div id="asset-step-discovery" class="scan-step-item" role="listitem">Initializing host discovery and target validation</div>
+                    <div id="asset-step-probe" class="scan-step-item" role="listitem">Probing configured ports with Nmap scan profile</div>
+                    <div id="asset-step-fingerprint" class="scan-step-item" role="listitem">Fingerprinting exposed services and banner metadata</div>
+                    <div id="asset-step-summary" class="scan-step-item" role="listitem">Finalizing scan summary and updating form fields</div>
+                </div>
+                <details id="asset-scan-terminal-shell" class="scan-terminal-shell" open>
+                    <summary>Live Scan Output (simulated Nmap)</summary>
+                    <pre id="asset-scan-terminal-output" class="scan-terminal-output" aria-live="polite">[scan] Waiting to start...</pre>
+                </details>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay" style="display: none;">
         <div class="spinner"></div>

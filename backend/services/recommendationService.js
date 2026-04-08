@@ -19,17 +19,46 @@ class RecommendationService {
             if (Array.isArray(aiRecommendations) && aiRecommendations.length > 0) {
                 logger.info(`AI recommendations generated for threat: ${threatType}`);
                 const normalizedRecommendations = this.toRecommendationArray(aiRecommendations);
-                return this.alignRecommendationsToNist(threatType, normalizedRecommendations);
+                const prioritizedRecommendations = this.prioritizeRecommendations(threatType, normalizedRecommendations);
+
+                if (prioritizedRecommendations.length > 0) {
+                    return prioritizedRecommendations;
+                }
             }
 
             logger.info(`Using threat intelligence recommendations for threat: ${threatType}`);
             const fallbackRecommendations = this.getThreatIntelRecommendations(threatType);
-            return this.alignRecommendationsToNist(threatType, this.toRecommendationArray(fallbackRecommendations));
+            const normalizedFallback = this.toRecommendationArray(fallbackRecommendations);
+
+            if (normalizedFallback.length > 0) {
+                return this.prioritizeRecommendations(threatType, normalizedFallback);
+            }
+
+            return this.getGenericRecommendations();
         } catch (error) {
             logger.error(`Recommendation generation error: ${error.message}`);
             const fallbackRecommendations = this.getThreatIntelRecommendations(threatType);
-            return this.alignRecommendationsToNist(threatType, this.toRecommendationArray(fallbackRecommendations));
+            const normalizedFallback = this.toRecommendationArray(fallbackRecommendations);
+
+            if (normalizedFallback.length > 0) {
+                return this.prioritizeRecommendations(threatType, normalizedFallback);
+            }
+
+            return this.getGenericRecommendations();
         }
+    }
+
+    prioritizeRecommendations(threatType, recommendations) {
+        const alignedRecommendations = this.alignRecommendationsToNist(threatType, recommendations);
+        const nistRecommendations = alignedRecommendations.filter((item) => this.isNistRecommendation(item));
+        const nonNistRecommendations = alignedRecommendations
+            .filter((item) => !this.isNistRecommendation(item));
+
+        if (nistRecommendations.length > 0) {
+            return [...nistRecommendations, ...nonNistRecommendations];
+        }
+
+        return this.getGenericRecommendations();
     }
 
     /**
@@ -113,11 +142,52 @@ class RecommendationService {
             return '';
         }
 
-        if (/[A-Z]{2}\.[A-Z]{2}/.test(text)) {
-            return text;
+        const taggedRecommendation = text.match(/^\[([^\]]+)\]\s*(.*)$/);
+        if (taggedRecommendation) {
+            const rawLabel = taggedRecommendation[1].trim();
+            const message = (taggedRecommendation[2] || '').trim();
+
+            if (this.isNistLabel(rawLabel)) {
+                if (/^NIST\b/i.test(rawLabel)) {
+                    return text;
+                }
+
+                const normalizedMessage = message || text;
+                return `[NIST | ${rawLabel}] ${normalizedMessage}`;
+            }
+
+            const normalizedMessage = message || text;
+            return `[Other Source: ${rawLabel}] ${normalizedMessage}`;
         }
 
-        return `[${controlCode} | ${functionName}] ${text}`;
+        return `[NIST | ${controlCode} | ${functionName}] ${text}`;
+    }
+
+    isNistLabel(label) {
+        const normalizedLabel = String(label || '').trim();
+        if (!normalizedLabel) {
+            return false;
+        }
+
+        if (/^NIST\b/i.test(normalizedLabel)) {
+            return true;
+        }
+
+        return /[A-Z]{2}\.[A-Z]{2}(?:-\d+)?/.test(normalizedLabel);
+    }
+
+    isNistRecommendation(recommendation) {
+        const text = String(recommendation || '').trim();
+        if (!text) {
+            return false;
+        }
+
+        const taggedRecommendation = text.match(/^\[([^\]]+)\]/);
+        if (!taggedRecommendation) {
+            return false;
+        }
+
+        return this.isNistLabel(taggedRecommendation[1]);
     }
 
     /**
@@ -133,12 +203,12 @@ class RecommendationService {
             : ['Protect', 'Detect', 'Respond'];
 
         return [
-            `[${controls[0]} | ${functions[0]}] Enforce least-privilege and strong authentication on affected systems`,
-            `[${controls[1 % controls.length]} | ${functions[1 % functions.length]}] Enable continuous monitoring for threat-specific indicators and anomalies`,
-            `[${controls[2 % controls.length]} | ${functions[2 % functions.length]}] Patch or harden exposed services identified in the incident context`,
-            `[${controls[0]} | ${functions[0]}] Validate backup integrity and recovery plans for impacted operations`,
-            `[${controls[1 % controls.length]} | ${functions[1 % functions.length]}] Document and rehearse incident response tasks mapped to this threat`,
-            `[${controls[2 % controls.length]} | ${functions[2 % functions.length]}] Deliver targeted staff awareness guidance to prevent recurrence`
+            `[NIST | ${controls[0]} | ${functions[0]}] Enforce least-privilege and strong authentication on affected systems`,
+            `[NIST | ${controls[1 % controls.length]} | ${functions[1 % functions.length]}] Enable continuous monitoring for threat-specific indicators and anomalies`,
+            `[NIST | ${controls[2 % controls.length]} | ${functions[2 % functions.length]}] Patch or harden exposed services identified in the incident context`,
+            `[NIST | ${controls[0]} | ${functions[0]}] Validate backup integrity and recovery plans for impacted operations`,
+            `[NIST | ${controls[1 % controls.length]} | ${functions[1 % functions.length]}] Document and rehearse incident response tasks mapped to this threat`,
+            `[NIST | ${controls[2 % controls.length]} | ${functions[2 % functions.length]}] Deliver targeted staff awareness guidance to prevent recurrence`
         ];
     }
 
@@ -147,13 +217,13 @@ class RecommendationService {
      */
     getGenericRecommendations() {
         return [
-            'Implement multi-factor authentication (MFA)',
-            'Keep all systems and software up to date',
-            'Regular backup and disaster recovery testing',
-            'Employee cybersecurity awareness training',
-            'Implement network segmentation',
-            'Enable logging and monitoring',
-            'Regular security assessments',
+            '[General Recommendation] Implement multi-factor authentication (MFA)',
+            '[General Recommendation] Keep all systems and software up to date',
+            '[General Recommendation] Regular backup and disaster recovery testing',
+            '[General Recommendation] Employee cybersecurity awareness training',
+            '[General Recommendation] Implement network segmentation',
+            '[General Recommendation] Enable logging and monitoring',
+            '[General Recommendation] Regular security assessments',
         ];
     }
 
