@@ -16,6 +16,8 @@ let assetScanMeta = {
     target: null,
     securityContext: null,
 };
+let isCriticalityManuallyOverridden = false;
+let isApplyingDetectedCriticality = false;
 
 function isIpv4Address(value) {
     return /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/.test(String(value || '').trim());
@@ -70,6 +72,78 @@ function setScanDetailsVisibility(isVisible) {
 function setAssetModalMode(isEditMode) {
     setScanDetailsVisibility(isEditMode);
 }
+
+function mapSeverityToCriticality(severity) {
+    const normalizedSeverity = String(severity || '').trim().toUpperCase();
+    if (normalizedSeverity === 'CRITICAL') return 'Critical';
+    if (normalizedSeverity === 'HIGH') return 'High';
+    if (normalizedSeverity === 'MEDIUM') return 'Medium';
+    if (normalizedSeverity === 'LOW') return 'Low';
+    return '';
+}
+
+function detectCriticalityFromPreview(previewPayload = {}) {
+    const cveMatches = Array.isArray(previewPayload?.cveResult?.matches) ? previewPayload.cveResult.matches : [];
+    const severityOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+
+    const detectedSeverity = severityOrder.find((severityLevel) => cveMatches.some((match) => String(match?.severity || '').toUpperCase() === severityLevel));
+    const detectedFromCve = mapSeverityToCriticality(detectedSeverity);
+    if (detectedFromCve) {
+        return detectedFromCve;
+    }
+
+    const liveScan = previewPayload?.securityContext?.liveScan || {};
+    const scanResult = previewPayload?.scanResult || {};
+    const openPorts = Array.isArray(liveScan.observedOpenPorts) && liveScan.observedOpenPorts.length > 0
+        ? liveScan.observedOpenPorts
+        : (Array.isArray(scanResult.openPorts) ? scanResult.openPorts : []);
+
+    if (openPorts.length >= 8) {
+        return 'High';
+    }
+
+    if (openPorts.length >= 4) {
+        return 'Medium';
+    }
+
+    if (openPorts.length > 0) {
+        return 'Low';
+    }
+
+    return '';
+}
+
+function applyDetectedCriticality(previewPayload = {}) {
+    const criticalityEl = document.getElementById('asset-criticality');
+    if (!criticalityEl || isCriticalityManuallyOverridden) {
+        return;
+    }
+
+    const detectedCriticality = detectCriticalityFromPreview(previewPayload);
+    if (!detectedCriticality || criticalityEl.value === detectedCriticality) {
+        return;
+    }
+
+    isApplyingDetectedCriticality = true;
+    criticalityEl.value = detectedCriticality;
+    isApplyingDetectedCriticality = false;
+}
+
+function setupCriticalityOverrideTracking() {
+    const criticalityEl = document.getElementById('asset-criticality');
+    if (!criticalityEl || criticalityEl.dataset.overrideListenerBound === 'true') {
+        return;
+    }
+
+    criticalityEl.addEventListener('change', () => {
+        if (!isApplyingDetectedCriticality) {
+            isCriticalityManuallyOverridden = true;
+        }
+    });
+
+    criticalityEl.dataset.overrideListenerBound = 'true';
+}
+
 
 function ensureAssetScanStepStructure(stepEl) {
     if (!stepEl || stepEl.querySelector('.scan-step-text')) {
@@ -332,8 +406,9 @@ function applyScanPreviewToForm(previewPayload = {}) {
     if (!document.getElementById('asset-cpe-uri').value) {
         document.getElementById('asset-cpe-uri').value = inferredProfile.cpeUri || cveQuery.cpeUri || '';
     }
-}
 
+    applyDetectedCriticality(previewPayload);
+}
 function resetScanPreviewFields() {
     const previewOpenPortsEl = document.getElementById('asset-preview-open-ports');
     if (previewOpenPortsEl) {
@@ -440,6 +515,7 @@ async function initializeAssets() {
     setupUserInfo();
     setupLogoutButton();
     setupEventListeners();
+    setupCriticalityOverrideTracking();
     await loadAssets();
 }
 
@@ -675,6 +751,7 @@ function openAssetModal() {
     document.getElementById('modal-title').textContent = 'Add New Asset';
     document.getElementById('asset-form').reset();
     resetScanPreviewFields();
+    isCriticalityManuallyOverridden = false;
     setAssetModalMode(false);
     showModal('asset-modal');
 }
@@ -684,6 +761,7 @@ function closeAssetModal() {
     document.getElementById('asset-form').reset();
     currentEditingAssetId = null;
     resetScanPreviewFields();
+    isCriticalityManuallyOverridden = false;
     setAssetModalMode(false);
 }
 
@@ -699,6 +777,7 @@ async function editAsset(assetId) {
         document.getElementById('asset-location').value = asset.location || '';
         document.getElementById('asset-description').value = asset.description || '';
         document.getElementById('asset-criticality').value = asset.criticality;
+        isCriticalityManuallyOverridden = true;
         document.getElementById('asset-owner').value = asset.owner || '';
         document.getElementById('asset-status').value = asset.status;
 
