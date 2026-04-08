@@ -190,6 +190,12 @@
     align-items: center;
     gap: 0.85rem;
     text-align: center;
+    padding-top: 1.2rem;
+}
+
+.analysis-progress .spinner {
+    margin-top: 0.5rem;
+    margin-bottom: 0.3rem;
 }
 
 .analysis-progress .progress-bar {
