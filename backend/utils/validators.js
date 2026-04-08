@@ -7,9 +7,9 @@ const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
 const HOSTNAME_PATTERN = /^[a-zA-Z0-9.-]+$/;
 const IPV4_PATTERN = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
 const PORT_LIST_PATTERN = /^$|^\d{1,5}(,\d{1,5})*$/;
-const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 .,_\-/]{0,80}$/;
+const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 .,_\-/():|+%]{0,160}$/;
 const PROFILE_VERSION_PATTERN = /^[a-zA-Z0-9 ._\-]{0,40}$/;
-const CPE_URI_PATTERN = /^$|^cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}$/i;
+const CPE_URI_PATTERN = /^$|^(cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}|cpe:\/[aho]:[a-z0-9._-]+:[a-z0-9._-]+(:[a-z0-9*._-]*){0,7})$/i;
 
 function validateEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,6 +37,20 @@ function isValidScanTarget(value) {
     return IPV4_PATTERN.test(normalizedValue) || HOSTNAME_PATTERN.test(normalizedValue);
 }
 
+function normalizeCpeUri(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) {
+        return '';
+    }
+
+    const tokenMatch = rawValue.match(/(cpe:2\.3:[^\s,;]+|cpe:\/[^\s,;]+)/i);
+    if (!tokenMatch) {
+        return '';
+    }
+
+    return tokenMatch[1].replace(/[)\].,;\/]+$/, '');
+}
+
 function validateVulnerabilityProfile(profile = {}) {
     const errors = {};
 
@@ -56,8 +70,11 @@ function validateVulnerabilityProfile(profile = {}) {
         errors.productVersion = 'Product version contains invalid characters';
     }
 
-    if (isNonEmptyString(profile.cpeUri) && !CPE_URI_PATTERN.test(profile.cpeUri.trim())) {
-        errors.cpeUri = 'CPE URI must use cpe:2.3 format';
+    if (isNonEmptyString(profile.cpeUri)) {
+        const normalizedCpeUri = normalizeCpeUri(profile.cpeUri);
+        if (!normalizedCpeUri || !CPE_URI_PATTERN.test(normalizedCpeUri)) {
+            errors.cpeUri = 'CPE URI must use cpe:2.3 or cpe:/ format';
+        }
     }
 
     return errors;
@@ -129,3 +146,5 @@ module.exports = {
     validateIncident,
     validateVulnerabilityProfile,
 };
+
+

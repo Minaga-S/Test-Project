@@ -387,31 +387,17 @@ function applyScanPreviewToForm(previewPayload = {}) {
 
     document.getElementById('asset-live-scan-enabled').checked = true;
 
-    const detectedOsName = inferredProfile.osName || liveScan.osInfo || scanResult.osInfo || '';
-    const detectedVendor = inferredProfile.vendor || '';
-    const detectedProduct = inferredProfile.product || '';
-    const detectedProductVersion = inferredProfile.productVersion || '';
-    const detectedCpeUri = inferredProfile.cpeUri || cveQuery.cpeUri || scanResult.osCpe || '';
+    const detectedOsName = liveScan.osInfo || scanResult.osInfo || inferredProfile.osName || '';
+    const detectedVendor = cveQuery.vendor || inferredProfile.vendor || '';
+    const detectedProduct = cveQuery.product || inferredProfile.product || '';
+    const detectedProductVersion = cveQuery.productVersion || inferredProfile.productVersion || '';
+    const detectedCpeUri = scanResult.osCpe || cveQuery.cpeUri || inferredProfile.cpeUri || '';
 
-    if (!document.getElementById('asset-os-name').value) {
-        document.getElementById('asset-os-name').value = detectedOsName;
-    }
-
-    if (!document.getElementById('asset-vendor').value) {
-        document.getElementById('asset-vendor').value = detectedVendor;
-    }
-
-    if (!document.getElementById('asset-product').value) {
-        document.getElementById('asset-product').value = detectedProduct;
-    }
-
-    if (!document.getElementById('asset-product-version').value) {
-        document.getElementById('asset-product-version').value = detectedProductVersion;
-    }
-
-    if (!document.getElementById('asset-cpe-uri').value) {
-        document.getElementById('asset-cpe-uri').value = detectedCpeUri;
-    }
+    document.getElementById('asset-os-name').value = detectedOsName;
+    document.getElementById('asset-vendor').value = detectedVendor;
+    document.getElementById('asset-product').value = detectedProduct;
+    document.getElementById('asset-product-version').value = detectedProductVersion;
+    document.getElementById('asset-cpe-uri').value = detectedCpeUri;
 
     applyDetectedCriticality(previewPayload);
 }
@@ -425,6 +411,20 @@ function resetScanPreviewFields() {
     if (previewServicesEl) {
         previewServicesEl.value = '';
     }
+}
+
+function normalizeCpeUri(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) {
+        return '';
+    }
+
+    const tokenMatch = rawValue.match(/(cpe:2\.3:[^\s,;]+|cpe:\/[^\s,;]+)/i);
+    if (!tokenMatch) {
+        return '';
+    }
+
+    return tokenMatch[1].replace(/[)\].,;\/]+$/, '');
 }
 
 function buildScanPreviewPayload() {
@@ -442,7 +442,7 @@ function buildScanPreviewPayload() {
             vendor: String(document.getElementById('asset-vendor').value || '').trim(),
             product: String(document.getElementById('asset-product').value || '').trim(),
             productVersion: String(document.getElementById('asset-product-version').value || '').trim(),
-            cpeUri: String(document.getElementById('asset-cpe-uri').value || '').trim(),
+            cpeUri: normalizeCpeUri(document.getElementById('asset-cpe-uri').value || ''),
         },
     };
 
@@ -946,5 +946,7 @@ function setDeleteConfirmationMessage(message) {
         messageEl.textContent = message;
     }
 }
+
+
 
 
