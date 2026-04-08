@@ -869,3 +869,30 @@ document.head.appendChild(style);
 
 
 
+
+const APP_MANIFEST_PATH = 'manifest.webmanifest';
+const APP_THEME_COLOR = '#0f172a';
+
+function ensureAppMetadata() {
+    if (typeof document === 'undefined' || !document.head) {
+        return;
+    }
+
+    if (!document.querySelector('link[rel="manifest"]')) {
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = APP_MANIFEST_PATH;
+        document.head.appendChild(manifestLink);
+    }
+
+    let themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (!themeColorMeta) {
+        themeColorMeta = document.createElement('meta');
+        themeColorMeta.name = 'theme-color';
+        document.head.appendChild(themeColorMeta);
+    }
+
+    themeColorMeta.content = APP_THEME_COLOR;
+}
+
+document.addEventListener('DOMContentLoaded', ensureAppMetadata);
