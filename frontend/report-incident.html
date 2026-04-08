@@ -171,12 +171,16 @@
                 </div>
                 <p id="scan-open-ports-meta" class="small">Open ports: Pending</p>
                 <p id="enriched-meta" class="small">Last enriched: Pending</p>
-                <ul id="analysis-steps" class="examples-list">
-                    <li id="step-scan">1. Running live scan (if enabled for the selected asset)</li>
-                    <li id="step-cve">2. Querying NIST NVD using the discovered services, ports, and asset profile to collect matching CVEs.</li>
-                    <li id="step-ai">3. Performing AI threat analysis and risk scoring</li>
-                    <li id="step-rec">4. Generating response recommendations and NIST mapping</li>
-                </ul>
+                <div id="analysis-steps" class="scan-step-list" role="list" aria-label="Analysis workflow">
+                    <div id="step-scan" class="scan-step-item" role="listitem">Running live scan (if enabled for the selected asset)</div>
+                    <div id="step-cve" class="scan-step-item" role="listitem">Querying NIST NVD using discovered services and asset profile</div>
+                    <div id="step-ai" class="scan-step-item" role="listitem">Performing AI threat analysis and risk scoring</div>
+                    <div id="step-rec" class="scan-step-item" role="listitem">Generating mitigation guidance and NIST mapping</div>
+                </div>
+                <details id="analysis-terminal-shell" class="scan-terminal-shell" open>
+                    <summary>Live Scan Output (simulated Nmap)</summary>
+                    <pre id="analysis-terminal-output" class="scan-terminal-output" aria-live="polite">[scan] Waiting to start...</pre>
+                </details>
             </div>
         </div>
     </div>

@@ -5,6 +5,15 @@
 
 let assets = [];
 let progressTimer = null;
+let scanTerminalTimer = null;
+
+const SIMULATED_SCAN_LINES = [
+    '[nmap] Starting Nmap 7.94 scan engine',
+    '[nmap] Resolving selected target and validating route',
+    '[nmap] Host is up; beginning SYN probes',
+    '[nmap] Service fingerprinting in progress',
+    '[nmap] Correlating discovered services with enrichment profile',
+];
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentReport();
@@ -93,11 +102,14 @@ function setStepState(stepId, state) {
         return;
     }
 
-    const baseLabel = stepEl.dataset.stepLabel || stepEl.textContent.trim();
+    ensureStepStructure(stepEl);
+
+    const textEl = stepEl.querySelector('.scan-step-text');
+    const baseLabel = stepEl.dataset.stepLabel || (textEl ? textEl.textContent.trim() : stepEl.textContent.trim());
     stepEl.dataset.stepLabel = baseLabel;
 
     const stateEl = stepEl.querySelector('.analysis-step-state');
-    const labelEl = stepEl.querySelector('.analysis-step-label');
+    const labelEl = stepEl.querySelector('.scan-step-text');
 
     stepEl.classList.remove('is-pending', 'is-active', 'is-done');
     stepEl.classList.add(`is-${state}`);
@@ -111,19 +123,97 @@ function setStepState(stepId, state) {
     }
 
     if (state === 'active') {
-        stateEl.innerHTML = '<span class="analysis-step-spinner" aria-hidden="true"></span><span class="analysis-step-status-text">Loading</span>';
+        stateEl.textContent = 'Loading';
         return;
     }
 
     if (state === 'done') {
-        stateEl.innerHTML = '<span class="analysis-step-check" aria-hidden="true">&#10003;</span><span class="analysis-step-status-text">Done</span>';
+        stateEl.textContent = 'Done';
         return;
     }
 
-    stateEl.innerHTML = '<span class="analysis-step-pending" aria-hidden="true">&bull;</span><span class="analysis-step-status-text">Waiting</span>';
+    stateEl.textContent = 'Waiting';
+}
+
+function ensureStepStructure(stepEl) {
+    if (stepEl.querySelector('.scan-step-text')) {
+        return;
+    }
+
+    const baseLabel = stepEl.textContent.trim();
+    stepEl.textContent = '';
+
+    const circleEl = document.createElement('span');
+    circleEl.className = 'scan-step-circle';
+    circleEl.setAttribute('aria-hidden', 'true');
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'scan-step-text';
+    labelEl.textContent = baseLabel;
+
+    const stateEl = document.createElement('span');
+    stateEl.className = 'scan-step-state analysis-step-state';
+    stateEl.textContent = 'Waiting';
+
+    stepEl.appendChild(circleEl);
+    stepEl.appendChild(labelEl);
+    stepEl.appendChild(stateEl);
+}
+
+function appendScanTerminalLine(text) {
+    const outputEl = document.getElementById('analysis-terminal-output');
+    if (!outputEl) {
+        return;
+    }
+
+    const currentLines = outputEl.textContent.split('\n').filter(Boolean);
+    const nextLines = [...currentLines, text].slice(-9);
+    outputEl.textContent = nextLines.join('\n');
+    outputEl.scrollTop = outputEl.scrollHeight;
+}
+
+function startScanTerminalSimulation() {
+    stopScanTerminalSimulation(false);
+
+    const shellEl = document.getElementById('analysis-terminal-shell');
+    if (shellEl) {
+        shellEl.open = true;
+    }
+
+    const outputEl = document.getElementById('analysis-terminal-output');
+    if (outputEl) {
+        outputEl.textContent = '[scan] Bootstrapping scan workflow...';
+    }
+
+    let lineIndex = 0;
+    scanTerminalTimer = window.setInterval(() => {
+        appendScanTerminalLine(SIMULATED_SCAN_LINES[lineIndex % SIMULATED_SCAN_LINES.length]);
+        lineIndex += 1;
+    }, 780);
+}
+
+function stopScanTerminalSimulation(autoCloseTerminal = true) {
+    if (scanTerminalTimer) {
+        window.clearInterval(scanTerminalTimer);
+        scanTerminalTimer = null;
+    }
+
+    if (autoCloseTerminal) {
+        const shellEl = document.getElementById('analysis-terminal-shell');
+        if (shellEl) {
+            shellEl.open = false;
+        }
+    }
 }
 
 function resetAnalysisSteps() {
+    ['step-scan', 'step-cve', 'step-ai', 'step-rec'].forEach((stepId) => {
+        const stepEl = document.getElementById(stepId);
+        if (stepEl) {
+            ensureStepStructure(stepEl);
+        }
+    });
+
     setStepState('step-scan', 'pending');
     setStepState('step-cve', 'pending');
     setStepState('step-ai', 'pending');
@@ -154,6 +244,8 @@ function stopAnalysisProgress() {
         window.clearInterval(progressTimer);
         progressTimer = null;
     }
+
+    stopScanTerminalSimulation(false);
 }
 
 async function handleIncidentSubmit(e) {
@@ -184,9 +276,16 @@ async function handleIncidentSubmit(e) {
         let clientSecurityContext = null;
 
         setStepState('step-scan', 'active');
+        startScanTerminalSimulation();
         updateAnalysisStatus('Requesting security context and running an on-demand live scan when allowed...', 20);
         const securityResponse = await apiClient.getAssetSecurityContext(assetId);
         clientSecurityContext = securityResponse?.securityContext || null;
+        const observedOpenPorts = Array.isArray(clientSecurityContext?.liveScan?.observedOpenPorts)
+            ? clientSecurityContext.liveScan.observedOpenPorts
+            : [];
+        appendScanTerminalLine(`[nmap] Open ports discovered: ${observedOpenPorts.length > 0 ? observedOpenPorts.join(', ') : 'none'}`);
+        appendScanTerminalLine('[nmap] Live scan stage complete');
+        stopScanTerminalSimulation(true);
         updateAnalysisDataSources(clientSecurityContext);
         setStepState('step-scan', 'done');
 
@@ -224,6 +323,7 @@ async function handleIncidentSubmit(e) {
     } catch (error) {
         console.error('Error submitting incident:', error);
         stopAnalysisProgress();
+        stopScanTerminalSimulation(false);
         hideModal('analysis-modal');
         showNotification(`Error submitting incident: ${error.message}`, 'error');
     } finally {

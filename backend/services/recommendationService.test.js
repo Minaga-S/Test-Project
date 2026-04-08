@@ -20,31 +20,45 @@ describe('recommendationService', () => {
         });
     });
 
-    it('should add NIST tags to AI recommendations that do not include a control code', async () => {
+    it('should add explicit NIST source labels to AI recommendations without a source tag', async () => {
         generateRecommendations.mockResolvedValue(['Isolate affected hosts']);
 
         const result = await recommendationService.generateRecommendations('Ransomware', {});
 
-        expect(result[0]).toContain('[PR.AC | Protect]');
+        expect(result[0]).toContain('[NIST | PR.AC | Protect]');
     });
 
-    it('should keep AI recommendations that already include a control code unchanged', async () => {
-        generateRecommendations.mockResolvedValue(['[PR.AC | Protect] Enforce MFA for admin logins']);
+    it('should keep recommendations already labeled as NIST', async () => {
+        generateRecommendations.mockResolvedValue(['[NIST | PR.AC | Protect] Enforce MFA for admin logins']);
 
         const result = await recommendationService.generateRecommendations('Unauthorized Access', {});
 
-        expect(result[0]).toBe('[PR.AC | Protect] Enforce MFA for admin logins');
+        expect(result[0]).toBe('[NIST | PR.AC | Protect] Enforce MFA for admin logins');
     });
 
-    it('should return fallback recommendations with NIST tags when AI returns empty output', async () => {
+    it('should label non-NIST tagged AI recommendations as other source', async () => {
+        generateRecommendations.mockResolvedValue(['[CISA] Block malicious domains at the email gateway']);
+
+        const aligned = recommendationService.alignRecommendationsToNist('Phishing', ['[CISA] Block malicious domains at the email gateway']);
+
+        expect(aligned[0]).toBe('[Other Source: CISA] Block malicious domains at the email gateway');
+    });
+
+    it('should return fallback recommendations with explicit NIST labels when AI returns empty output', async () => {
         generateRecommendations.mockResolvedValue([]);
 
         const result = await recommendationService.generateRecommendations('Phishing', {});
 
-        expect(result.every((item) => /\[[A-Z]{2}\.[A-Z]{2} \|/.test(item))).toBe(true);
+        expect(result.every((item) => /^\[NIST\s\|/.test(item))).toBe(true);
     });
 
-    it('should repair clipped recommendation text before applying NIST tags', async () => {
+    it('should return generic recommendations when no NIST recommendations can be prioritized', async () => {
+        const prioritized = recommendationService.prioritizeRecommendations('Phishing', ['[Vendor Advisory] Rotate secrets now']);
+
+        expect(prioritized.every((item) => /^\[General Recommendation\]/.test(item))).toBe(true);
+    });
+
+    it('should repair clipped recommendation text before applying NIST labels', async () => {
         generateRecommendations.mockResolvedValue([
             "Immediately isolate the server (192.168.204.128) from the network to contain potential threats and investigate its purpose, given the severe vulnerabilities and 'no",
         ]);
