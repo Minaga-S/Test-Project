@@ -159,7 +159,7 @@ function normalizeRecommendationText(rawText) {
     return normalizedText;
 }
 
-function renderRecommendationWithNistTag(recommendationText) {
+function renderRecommendationWithSourceTag(recommendationText) {
     const normalizedText = normalizeRecommendationText(recommendationText);
     const tagMatch = normalizedText.match(/^\[([^\]]+)\]\s*(.*)$/);
 
@@ -604,7 +604,7 @@ function displayIncidentDetails(incident) {
 
     const recommendationsEl = document.getElementById('detail-recommendations');
     recommendationsEl.innerHTML = (incident.recommendations || [])
-        .map((rec) => renderRecommendationWithNistTag(rec))
+        .map((rec) => renderRecommendationWithSourceTag(rec))
         .join('');
 
     document.getElementById('detail-scanned-ip').textContent = scanTarget;
@@ -737,3 +737,8 @@ function setupLogoutButton() {
         logoutBtn.type = 'button';
     }
 }
+
+
+
+
+

@@ -8,6 +8,15 @@ let currentEditingAssetId = null;
 let selectedAssetIds = new Set();
 let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
+let assetScanTerminalTimer = null;
+
+const ASSET_SCAN_SIMULATED_LINES = [
+    '[nmap] Starting local asset discovery process',
+    '[nmap] Validating private-network target scope',
+    '[nmap] Running TCP SYN checks for configured ports',
+    '[nmap] Capturing service fingerprints and metadata',
+    '[nmap] Building scan summary for asset profile update',
+];
 
 function isIpv4Address(value) {
     return /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/.test(String(value || '').trim());
@@ -61,6 +70,137 @@ function setScanDetailsVisibility(isVisible) {
 
 function setAssetModalMode(isEditMode) {
     setScanDetailsVisibility(isEditMode);
+}
+
+function ensureAssetScanStepStructure(stepEl) {
+    if (!stepEl || stepEl.querySelector('.scan-step-text')) {
+        return;
+    }
+
+    const baseLabel = stepEl.textContent.trim();
+    stepEl.textContent = '';
+
+    const circleEl = document.createElement('span');
+    circleEl.className = 'scan-step-circle';
+    circleEl.setAttribute('aria-hidden', 'true');
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'scan-step-text';
+    labelEl.textContent = baseLabel;
+
+    const stateEl = document.createElement('span');
+    stateEl.className = 'scan-step-state';
+    stateEl.textContent = 'Waiting';
+
+    stepEl.appendChild(circleEl);
+    stepEl.appendChild(labelEl);
+    stepEl.appendChild(stateEl);
+}
+
+function setAssetScanStepState(stepId, state) {
+    const stepEl = document.getElementById(stepId);
+    if (!stepEl) {
+        return;
+    }
+
+    ensureAssetScanStepStructure(stepEl);
+    stepEl.classList.remove('is-pending', 'is-active', 'is-done');
+    stepEl.classList.add(`is-${state}`);
+
+    const stateEl = stepEl.querySelector('.scan-step-state');
+    if (!stateEl) {
+        return;
+    }
+
+    if (state === 'active') {
+        stateEl.textContent = 'Loading';
+        return;
+    }
+
+    if (state === 'done') {
+        stateEl.textContent = 'Done';
+        return;
+    }
+
+    stateEl.textContent = 'Waiting';
+}
+
+function updateAssetScanStatus(message, progressValue) {
+    const statusEl = document.getElementById('asset-scan-status');
+    if (statusEl) {
+        statusEl.textContent = message;
+    }
+
+    const progressEl = document.getElementById('asset-scan-progress-fill');
+    if (progressEl) {
+        const boundedProgress = Math.max(5, Math.min(100, Number(progressValue) || 5));
+        progressEl.style.width = `${boundedProgress}%`;
+    }
+}
+
+function appendAssetScanTerminalLine(line) {
+    const outputEl = document.getElementById('asset-scan-terminal-output');
+    if (!outputEl) {
+        return;
+    }
+
+    const currentLines = outputEl.textContent.split('\n').filter(Boolean);
+    const nextLines = [...currentLines, line].slice(-10);
+    outputEl.textContent = nextLines.join('\n');
+    outputEl.scrollTop = outputEl.scrollHeight;
+}
+
+function startAssetScanTerminalSimulation() {
+    stopAssetScanTerminalSimulation(false);
+
+    const terminalShell = document.getElementById('asset-scan-terminal-shell');
+    if (terminalShell) {
+        terminalShell.open = true;
+    }
+
+    const outputEl = document.getElementById('asset-scan-terminal-output');
+    if (outputEl) {
+        outputEl.textContent = '[scan] Bootstrapping scan workflow...';
+    }
+
+    let lineIndex = 0;
+    assetScanTerminalTimer = window.setInterval(() => {
+        appendAssetScanTerminalLine(ASSET_SCAN_SIMULATED_LINES[lineIndex % ASSET_SCAN_SIMULATED_LINES.length]);
+        lineIndex += 1;
+    }, 720);
+}
+
+function stopAssetScanTerminalSimulation(autoCloseTerminal = true) {
+    if (assetScanTerminalTimer) {
+        window.clearInterval(assetScanTerminalTimer);
+        assetScanTerminalTimer = null;
+    }
+
+    if (autoCloseTerminal) {
+        const terminalShell = document.getElementById('asset-scan-terminal-shell');
+        if (terminalShell) {
+            terminalShell.open = false;
+        }
+    }
+}
+
+function resetAssetScanWorkflow() {
+    ['asset-step-discovery', 'asset-step-probe', 'asset-step-fingerprint', 'asset-step-summary'].forEach((stepId) => {
+        setAssetScanStepState(stepId, 'pending');
+    });
+
+    updateAssetScanStatus('Preparing live scan workflow...', 8);
+}
+
+function showAssetScanWorkflowModal() {
+    resetAssetScanWorkflow();
+    showModal('asset-scan-modal');
+    startAssetScanTerminalSimulation();
+}
+
+function hideAssetScanWorkflowModal() {
+    stopAssetScanTerminalSimulation(false);
+    hideModal('asset-scan-modal');
 }
 
 function applyScanPreviewToForm(previewPayload = {}) {
@@ -161,17 +301,48 @@ async function runLiveScanPreview() {
         return;
     }
 
-    showLoading(true);
+    showAssetScanWorkflowModal();
+
     try {
+        setAssetScanStepState('asset-step-discovery', 'active');
+        updateAssetScanStatus('Validating target and initializing scan profile...', 18);
+
+        setAssetScanStepState('asset-step-discovery', 'done');
+        setAssetScanStepState('asset-step-probe', 'active');
+        updateAssetScanStatus('Running Nmap probes on selected target...', 42);
+
         const response = await apiClient.previewAssetScan(payload);
         const preview = response?.preview || response;
+
+        setAssetScanStepState('asset-step-probe', 'done');
+        setAssetScanStepState('asset-step-fingerprint', 'active');
+        updateAssetScanStatus('Fingerprinting services and extracting metadata...', 68);
+
         applyScanPreviewToForm(preview);
+
+        const observedOpenPorts = Array.isArray(preview?.securityContext?.liveScan?.observedOpenPorts)
+            ? preview.securityContext.liveScan.observedOpenPorts
+            : [];
+        appendAssetScanTerminalLine(`[nmap] Open ports discovered: ${observedOpenPorts.length > 0 ? observedOpenPorts.join(', ') : 'none'}`);
+        appendAssetScanTerminalLine('[nmap] Live scan stage complete');
+        stopAssetScanTerminalSimulation(true);
+
+        setAssetScanStepState('asset-step-fingerprint', 'done');
+        setAssetScanStepState('asset-step-summary', 'active');
+        updateAssetScanStatus('Applying scan summary to form fields...', 90);
+        setAssetScanStepState('asset-step-summary', 'done');
+        updateAssetScanStatus('Live scan completed successfully.', 100);
+
+        setTimeout(() => {
+            hideAssetScanWorkflowModal();
+        }, 280);
+
         showNotification('Live scan completed. Detected data has been auto-filled.', 'success');
     } catch (error) {
         console.error('Live scan preview error:', error);
+        stopAssetScanTerminalSimulation(false);
+        hideAssetScanWorkflowModal();
         showNotification('Live scan failed. You can still enter details manually.', 'warning');
-    } finally {
-        showLoading(false);
     }
 }
 
