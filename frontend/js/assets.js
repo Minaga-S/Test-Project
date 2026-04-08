@@ -11,8 +11,11 @@ const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
 const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
 const ASSET_SCAN_PROGRESS_INTERVAL_MS = 420;
-const ASSET_SCAN_ESTIMATED_MIN_MS = 8000;
-const ASSET_SCAN_ESTIMATED_MAX_MS = 12000;
+const ASSET_SCAN_DURATION_METRICS_STORAGE_KEY = 'assetScan:durationMetrics';
+const ASSET_SCAN_DEFAULT_ESTIMATED_MS = 55000;
+const ASSET_SCAN_ESTIMATED_MIN_MS = 25000;
+const ASSET_SCAN_ESTIMATED_MAX_MS = 180000;
+const ASSET_SCAN_OVERRUN_BUFFER_MS = 15000;
 let assetScanTerminalTimer = null;
 let assetScanTerminalSequenceToken = 0;
 let assetScanProgressTimer = null;
@@ -351,6 +354,74 @@ function resetAssetScanWorkflow() {
     updateAssetScanStatus('Preparing asset security scan...', 8);
 }
 
+function toBoundedNumber(value, fallback = 0) {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+        return fallback;
+    }
+
+    return parsedValue;
+}
+
+function formatDurationMinutesSeconds(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds}s`;
+    }
+
+    return `${minutes}m ${seconds}s`;
+}
+
+function readAssetScanDurationMetrics() {
+    try {
+        const rawValue = localStorage.getItem(ASSET_SCAN_DURATION_METRICS_STORAGE_KEY);
+        if (!rawValue) {
+            return {};
+        }
+
+        return JSON.parse(rawValue) || {};
+    } catch (error) {
+        console.warn('Unable to read asset scan duration metrics:', error);
+        return {};
+    }
+}
+
+function writeAssetScanDurationMetrics(metrics = {}) {
+    try {
+        localStorage.setItem(ASSET_SCAN_DURATION_METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    } catch (error) {
+        console.warn('Unable to store asset scan duration metrics:', error);
+    }
+}
+
+function getEstimatedAssetScanDurationMs() {
+    const metrics = readAssetScanDurationMetrics();
+    const historicalAverageMs = toBoundedNumber(metrics.averageMs, ASSET_SCAN_DEFAULT_ESTIMATED_MS);
+    const paddedEstimateMs = historicalAverageMs * 1.15;
+
+    return Math.max(ASSET_SCAN_ESTIMATED_MIN_MS, Math.min(ASSET_SCAN_ESTIMATED_MAX_MS, paddedEstimateMs));
+}
+
+function recordAssetScanDuration(elapsedMs) {
+    if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
+        return;
+    }
+
+    const metrics = readAssetScanDurationMetrics();
+    const previousAverageMs = toBoundedNumber(metrics.averageMs, ASSET_SCAN_DEFAULT_ESTIMATED_MS);
+    const previousSamples = toBoundedNumber(metrics.samples, 0);
+    const smoothingFactor = 0.35;
+    const nextAverageMs = (previousAverageMs * (1 - smoothingFactor)) + (elapsedMs * smoothingFactor);
+
+    writeAssetScanDurationMetrics({
+        averageMs: Math.round(nextAverageMs),
+        samples: previousSamples + 1,
+    });
+}
+
 
 function beginAssetScanProgress() {
     if (assetScanProgressTimer) {
@@ -358,10 +429,16 @@ function beginAssetScanProgress() {
     }
 
     assetScanStartTime = Date.now();
-    assetScanEstimatedDuration = ASSET_SCAN_ESTIMATED_MIN_MS + Math.random() * (ASSET_SCAN_ESTIMATED_MAX_MS - ASSET_SCAN_ESTIMATED_MIN_MS);
+    assetScanEstimatedDuration = getEstimatedAssetScanDurationMs();
 
     let currentProgress = 5;
     updateAssetScanStatus('Preparing asset security scan...', currentProgress);
+
+    const etaEl = document.getElementById('asset-scan-eta');
+    if (etaEl) {
+        etaEl.textContent = `Estimated time remaining: ~${formatDurationMinutesSeconds(assetScanEstimatedDuration / 1000)}`;
+    }
+
     updateAssetScanTimer();
 
     assetScanProgressTimer = window.setInterval(updateAssetScanTimer, 200);
@@ -369,6 +446,10 @@ function beginAssetScanProgress() {
 
 function updateAssetScanTimer() {
     const elapsedMs = Date.now() - assetScanStartTime;
+    if (elapsedMs > assetScanEstimatedDuration) {
+        assetScanEstimatedDuration = elapsedMs + ASSET_SCAN_OVERRUN_BUFFER_MS;
+    }
+
     let currentProgress = Math.min((elapsedMs / assetScanEstimatedDuration) * 100, 90);
     
     const remainingMs = Math.max(0, assetScanEstimatedDuration - elapsedMs);
@@ -376,7 +457,7 @@ function updateAssetScanTimer() {
     
     const etaEl = document.getElementById('asset-scan-eta');
     if (etaEl && remainingSeconds > 0) {
-        etaEl.textContent = 'Estimated time remaining: ' + remainingSeconds + 's';
+        etaEl.textContent = `Estimated time remaining: ${formatDurationMinutesSeconds(remainingSeconds)}`;
     }
 
     if (currentProgress >= 89) {
@@ -508,6 +589,9 @@ function buildScanPreviewPayload() {
 async function runLiveScanPreview() {
     setScanDetailsVisibility(true);
 
+    // A fresh live scan should be allowed to refresh criticality from detected findings.
+    isCriticalityManuallyOverridden = false;
+
     const payload = buildScanPreviewPayload();
     if (!payload.liveScan.target) {
         showNotification('Scan target is required before running live scan', 'warning');
@@ -546,6 +630,8 @@ async function runLiveScanPreview() {
         updateAssetScanStatus('Populating asset form with detected data...', 90);
         setAssetScanStepState('asset-step-summary', 'done');
         updateAssetScanStatus('Scan complete. Asset data has been auto-filled.', 100);
+
+        recordAssetScanDuration(Date.now() - assetScanStartTime);
 
         setTimeout(() => {
             hideAssetScanWorkflowModal();
@@ -836,7 +922,7 @@ async function editAsset(assetId) {
         document.getElementById('asset-location').value = asset.location || '';
         document.getElementById('asset-description').value = asset.description || '';
         document.getElementById('asset-criticality').value = asset.criticality;
-        isCriticalityManuallyOverridden = true;
+        isCriticalityManuallyOverridden = false;
         document.getElementById('asset-owner').value = asset.owner || '';
         document.getElementById('asset-status').value = asset.status;
 

@@ -122,7 +122,7 @@ function setStepState(stepId, state) {
     const stateEl = stepEl.querySelector('.analysis-step-state');
     const labelEl = stepEl.querySelector('.scan-step-text');
 
-    stepEl.classList.remove('is-pending', 'is-active', 'is-done');
+    stepEl.classList.remove('is-pending', 'is-active', 'is-done', 'is-failed');
     stepEl.classList.add(`is-${state}`);
 
     if (labelEl) {
@@ -143,7 +143,24 @@ function setStepState(stepId, state) {
         return;
     }
 
+    if (state === 'failed') {
+        stateEl.textContent = 'Failed';
+        return;
+    }
+
     stateEl.textContent = 'Waiting';
+}
+
+function setStepStateText(stepId, text) {
+    const stepEl = document.getElementById(stepId);
+    if (!stepEl) {
+        return;
+    }
+
+    const stateEl = stepEl.querySelector('.analysis-step-state');
+    if (stateEl) {
+        stateEl.textContent = text;
+    }
 }
 
 function ensureStepStructure(stepEl) {
@@ -383,6 +400,18 @@ function toBoundedNumber(value, fallback = 0) {
     return parsedValue;
 }
 
+function formatDurationMinutesSeconds(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds}s`;
+    }
+
+    return `${minutes}m ${seconds}s`;
+}
+
 function readAnalysisDurationMetrics() {
     try {
         const rawValue = localStorage.getItem(ANALYSIS_DURATION_METRICS_STORAGE_KEY);
@@ -450,7 +479,7 @@ function beginAnalysisProgress(isLiveScanEnabled) {
 
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl) {
-        etaEl.textContent = `Estimated time remaining: ~${Math.ceil(analysisEstimatedDuration / 1000)}s`;
+        etaEl.textContent = `Estimated time remaining: ~${formatDurationMinutesSeconds(analysisEstimatedDuration / 1000)}`;
     }
 
     let currentProgress = 5;
@@ -473,7 +502,7 @@ function updateAnalysisTimer() {
     
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl && remainingSeconds > 0) {
-        etaEl.textContent = 'Estimated time remaining: ' + remainingSeconds + 's';
+        etaEl.textContent = `Estimated time remaining: ${formatDurationMinutesSeconds(remainingSeconds)}`;
     }
 
     if (currentProgress >= 89) {
@@ -514,10 +543,12 @@ async function handleIncidentSubmit(e) {
 
     const selectedAsset = assets.find((a) => a._id === assetId);
     const isLiveScanEnabled = selectedAsset?.liveScan?.enabled === true;
+    const hasLiveScanTarget = Boolean(String(selectedAsset?.liveScan?.target || '').trim());
+    const canRunLiveScan = isLiveScanEnabled && hasLiveScanTarget;
 
     setSubmitButtonState(true);
     showModal('analysis-modal');
-    beginAnalysisProgress(isLiveScanEnabled);
+    beginAnalysisProgress(canRunLiveScan);
 
     try {
         let clientSecurityContext = null;
@@ -528,9 +559,9 @@ async function handleIncidentSubmit(e) {
         // Collect asset profile data (CPE, OS, ports, services) for merge with scan results
         let assetProfileData = collectAssetProfileData(selectedAsset);
 
-        configureScanStep(isLiveScanEnabled);
+        configureScanStep(isLiveScanEnabled, hasLiveScanTarget);
 
-        if (isLiveScanEnabled) {
+        if (canRunLiveScan) {
             setStepState('step-scan', 'active');
             startScanTerminalSimulation();
             updateAnalysisStatus('Running security scan on selected asset...', 20);
@@ -555,8 +586,23 @@ async function handleIncidentSubmit(e) {
             stopScanTerminalSimulation(false);
             setStepState('step-scan', 'done');
         } else {
-            setStepState('step-scan', 'done');
-            updateAnalysisStatus('Retrieving cached security context...', 15);
+            setStepState('step-scan', 'failed');
+            setStepStateText('step-scan', 'Skipped');
+
+            updateAnalysisStatus(
+                isLiveScanEnabled
+                    ? 'Live scan skipped: no scan target (IP/hostname) configured on this asset.'
+                    : 'Live scan skipped: enable live scan on the asset to run Nmap.',
+                15
+            );
+
+            appendScanTerminalLine('[scan] Live scan skipped.');
+            appendScanTerminalLine(
+                isLiveScanEnabled
+                    ? '[scan] Reason: No scan target (IP/hostname) configured on this asset.'
+                    : '[scan] Reason: Live scan is disabled for this asset.'
+            );
+            appendScanTerminalLine('[scan] Continuing with cached security context for analysis.');
 
             const securityResponse = await apiClient.getAssetSecurityContext(assetId);
             clientSecurityContext = securityResponse?.securityContext || null;
@@ -624,20 +670,47 @@ async function handleIncidentSubmit(e) {
         console.error('Error submitting incident:', error);
         stopAnalysisProgress();
         stopScanTerminalSimulation(false);
-        hideModal('analysis-modal');
-        showNotification(`Error submitting incident: ${error.message}`, 'error');
+        const errorMessage = String(error?.message || '').trim() || 'Unknown error';
+        const lowerErrorMessage = errorMessage.toLowerCase();
+
+        if (lowerErrorMessage.includes('ai') || lowerErrorMessage.includes('gemini')) {
+            setStepState('step-ai', 'failed');
+        }
+
+        if (lowerErrorMessage.includes('cve') || lowerErrorMessage.includes('vulnerab') || lowerErrorMessage.includes('nist')) {
+            setStepState('step-cve', 'failed');
+        }
+
+        if (lowerErrorMessage.includes('scan') || lowerErrorMessage.includes('target') || lowerErrorMessage.includes('nmap')) {
+            setStepState('step-scan', 'failed');
+        }
+
+        if (lowerErrorMessage.includes('recommend')) {
+            setStepState('step-rec', 'failed');
+        }
+
+        if (!lowerErrorMessage.includes('ai')
+            && !lowerErrorMessage.includes('cve')
+            && !lowerErrorMessage.includes('scan')
+            && !lowerErrorMessage.includes('recommend')) {
+            setStepState('step-ai', 'failed');
+        }
+
+        updateAnalysisStatus(`Analysis did not complete: ${errorMessage}`, 92);
+        appendScanTerminalLine(`[scan] Workflow failed: ${errorMessage}`);
+        showNotification(`Error submitting incident: ${errorMessage}`, 'error');
     } finally {
         setSubmitButtonState(false);
     }
 }
 
-function configureScanStep(isLiveScanEnabled) {
+function configureScanStep(isLiveScanEnabled, hasLiveScanTarget) {
     const stepEl = document.getElementById('step-scan');
     if (!stepEl) {
         return;
     }
 
-    if (isLiveScanEnabled) {
+    if (isLiveScanEnabled && hasLiveScanTarget) {
         stepEl.dataset.stepLabel = 'Running security scan on selected asset';
         const textEl = stepEl.querySelector('.scan-step-text');
         if (textEl) {
@@ -646,16 +719,32 @@ function configureScanStep(isLiveScanEnabled) {
             stepEl.textContent = 'Running security scan on selected asset';
         }
         stepEl.style.display = 'grid';
-    } else {
-        stepEl.dataset.stepLabel = 'Live scan: disabled for this asset';
+
+        return;
+    }
+
+    if (isLiveScanEnabled && !hasLiveScanTarget) {
+        stepEl.dataset.stepLabel = 'Live scan skipped: no scan target configured on this asset';
         const textEl = stepEl.querySelector('.scan-step-text');
         if (textEl) {
-            textEl.textContent = 'Live scan: disabled for this asset';
+            textEl.textContent = 'Live scan skipped: no scan target configured on this asset';
         } else {
-            stepEl.textContent = 'Live scan: disabled for this asset';
+            stepEl.textContent = 'Live scan skipped: no scan target configured on this asset';
         }
         stepEl.style.display = 'grid';
+
+        return;
     }
+
+    stepEl.dataset.stepLabel = 'Live scan skipped: disabled for this asset';
+    const textEl = stepEl.querySelector('.scan-step-text');
+    if (textEl) {
+        textEl.textContent = 'Live scan skipped: disabled for this asset';
+    } else {
+        stepEl.textContent = 'Live scan skipped: disabled for this asset';
+    }
+
+    stepEl.style.display = 'grid';
 }
 
 async function generateTerminalOutputFromScan(securityContext) {
