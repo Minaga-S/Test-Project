@@ -73,7 +73,6 @@ function initializeAuth() {
     setupTwoFactorModalActions();
     setupRecoveryCodeCopyButtons();
     setupForgotPasswordActions();
-    setupRememberMeCheckbox();
     setupTwoFactorCodeFormatting();
     setupPasswordGuidance();
     setupResetPasswordGuidance();
@@ -136,15 +135,6 @@ async function copyRecoveryCodesFromList(listId) {
         showNotification('Could not copy recovery codes. Please copy them manually.', 'error');
         return false;
     }
-}
-
-function setupRememberMeCheckbox() {
-    const rememberCheckbox = document.getElementById('remember');
-    if (!rememberCheckbox || !apiClient || typeof apiClient.getRememberSessionPreference !== 'function') {
-        return;
-    }
-
-    rememberCheckbox.checked = Boolean(apiClient.getRememberSessionPreference());
 }
 
 function setupForgotPasswordActions() {
@@ -416,7 +406,6 @@ async function handleLogin(e) {
 
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-    const rememberSession = Boolean(document.getElementById('remember')?.checked);
 
     clearFormError('email');
     clearFormError('password');
@@ -435,7 +424,7 @@ async function handleLogin(e) {
     showLoading(true);
 
     try {
-        const response = await apiClient.login(email, password, rememberSession);
+        const response = await apiClient.login(email, password);
         showLoading(false);
 
         if (response.requiresTwoFactor) {
