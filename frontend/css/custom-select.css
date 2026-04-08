@@ -1,5 +1,10 @@
 /* NOTE: Custom styled select dropdowns with theme matching and smooth animations. */
 
+/* Hide native select elements that have been converted */
+select[data-custom-select="true"] {
+    display: none !important;
+}
+
 .custom-select-container {
     position: relative;
     display: block;

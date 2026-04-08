@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Custom Select</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/custom-select.css">
+    <style>
+        body {
+            padding: 2rem;
+            font-family: var(--font-family);
+            background: #f8fafc;
+        }
+        .test-container {
+            max-width: 500px;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #2D3748;
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #2D3748;
+        }
+        select {
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+        .debug-info {
+            background: #f0f4ff;
+            border: 1px solid #4070FF;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-top: 2rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #2D3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Custom Select Test</h1>
+        
+        <label for="test-select-1">Test Select 1</label>
+        <select id="test-select-1">
+            <option value="">Choose an option</option>
+            <option value="option1">Option 1</option>
+            <option value="option2">Option 2</option>
+            <option value="option3">Option 3</option>
+            <option value="option4">Option 4</option>
+        </select>
+
+        <label for="test-select-2">Test Select 2</label>
+        <select id="test-select-2" class="filter-select">
+            <option value="">Filter by...</option>
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+
+        <div class="debug-info">
+            <strong>Debug Info:</strong><br>
+            Check the browser console (F12) for [Custom Select] logs
+        </div>
+    </div>
+
+    <script src="js/custom-select.js"></script>
+    <script>
+        // Log when page loads
+        console.log('[Test Page] Page loaded');
+        console.log('[Test Page] Found selects:', document.querySelectorAll('select').length);
+    </script>
+</body>
+</html>
