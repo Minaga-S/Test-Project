@@ -137,7 +137,7 @@ describe('incidentController.createIncident', () => {
         expect(response.json.mock.calls[0][0].incident.cveMatches).toEqual(clientSecurityContext.cve.matches);
     });
 
-    it('should keep persisted cveMatches when scan-history context already has matches', async () => {
+    it('should prefer client cveMatches when client context includes fresh scan matches', async () => {
         const persistedMatches = [{ cveId: 'CVE-2023-1111', severity: 'MEDIUM' }];
         assetSecurityContextService.buildForAsset.mockReturnValue({
             cve: { matches: persistedMatches },
@@ -155,7 +155,7 @@ describe('incidentController.createIncident', () => {
 
         await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
 
-        expect(response.json.mock.calls[0][0].incident.cveMatches).toEqual(persistedMatches);
+        expect(response.json.mock.calls[0][0].incident.cveMatches).toEqual(clientSecurityContext.cve.matches);
     });
 
     it('should keep client-reported open ports when persisted security context has none', async () => {
@@ -180,6 +180,97 @@ describe('incidentController.createIncident', () => {
         expect(response.json.mock.calls[0][0].incident.securityContext.liveScan.observedOpenPorts).toEqual([21, 22, 23, 80]);
     });
 
+
+    it('should include client-detected os and cpe uri in merged security context', async () => {
+        assetSecurityContextService.buildForAsset.mockReturnValue({
+            cve: {
+                matches: [{ cveId: 'CVE-2023-1111', severity: 'MEDIUM' }],
+                query: { cpeUri: 'cpe:/o:linux:linux_kernel:4.19', osName: 'Linux 4.19' },
+            },
+            liveScan: { osInfo: 'Linux 4.19' },
+            enrichment: {},
+        });
+
+        const clientSecurityContext = {
+            liveScan: {
+                osInfo: 'Linux 6.6',
+            },
+            cve: {
+                query: { cpeUri: 'cpe:/o:linux:linux_kernel:6.6', osName: 'Linux 6.6' },
+            },
+        };
+
+        const response = createResponse();
+
+        await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
+
+        expect(response.json.mock.calls[0][0].incident.securityContext.liveScan.osInfo).toBe('Linux 6.6');
+    });
+
+    it('should include client-detected cpe uri in merged security context', async () => {
+        assetSecurityContextService.buildForAsset.mockReturnValue({
+            cve: {
+                query: { cpeUri: 'cpe:/o:linux:linux_kernel:4.19' },
+            },
+            liveScan: {},
+            enrichment: {},
+        });
+
+        const clientSecurityContext = {
+            cve: {
+                query: { cpeUri: 'cpe:/o:linux:linux_kernel:6.6' },
+            },
+        };
+
+        const response = createResponse();
+
+        await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
+
+        expect(response.json.mock.calls[0][0].incident.securityContext.cve.query.cpeUri).toBe('cpe:/o:linux:linux_kernel:6.6');
+    });
+
+    it('should preserve persisted cpe uri when client scan omits cpe', async () => {
+        assetSecurityContextService.buildForAsset.mockReturnValue({
+            cve: {
+                query: { cpeUri: 'cpe:/o:linux:linux_kernel:2.6' },
+            },
+            liveScan: { osInfo: 'Linux 2.6' },
+            enrichment: {},
+        });
+
+        const clientSecurityContext = {
+            cve: {
+                query: { cpeUri: '' },
+            },
+        };
+
+        const response = createResponse();
+
+        await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
+
+        expect(response.json.mock.calls[0][0].incident.securityContext.cve.query.cpeUri).toBe('cpe:/o:linux:linux_kernel:2.6');
+    });
+
+    it('should preserve persisted os info when client scan omits os', async () => {
+        assetSecurityContextService.buildForAsset.mockReturnValue({
+            cve: { query: {} },
+            liveScan: { osInfo: 'Linux 2.6' },
+            enrichment: {},
+        });
+
+        const clientSecurityContext = {
+            liveScan: {
+                osInfo: '',
+            },
+            cve: { query: {} },
+        };
+
+        const response = createResponse();
+
+        await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
+
+        expect(response.json.mock.calls[0][0].incident.securityContext.liveScan.osInfo).toBe('Linux 2.6');
+    });
     it('should send a browser push notification when an incident is created', async () => {
         const response = createResponse();
 

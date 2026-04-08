@@ -325,12 +325,15 @@
     margin: 0;
     padding: 0.65rem;
     max-height: 190px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     text-align: left;
     font-family: var(--font-mono);
     font-size: 0.72rem;
     line-height: 1.45;
     white-space: pre-wrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 @keyframes scan-step-pulse {
@@ -684,4 +687,9 @@ select:disabled {
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);
     letter-spacing: 0.02em;
+}
+
+.scan-terminal-output::-webkit-scrollbar {
+    width: 0;
+    height: 0;
 }

@@ -34,7 +34,7 @@ function buildCveProfile(asset, scanResult = {}) {
     return {
         assetName: asset?.assetName || '',
         assetType: asset?.assetType || '',
-        cpeUri: String(vulnerabilityProfile.cpeUri || '').trim() || String(scanResult.osCpe || '').trim(),
+        cpeUri: String(scanResult.osCpe || '').trim() || String(vulnerabilityProfile.cpeUri || '').trim(),
         vendor: vulnerabilityProfile.vendor || '',
         product: vulnerabilityProfile.product || '',
         productVersion: vulnerabilityProfile.productVersion || '',
