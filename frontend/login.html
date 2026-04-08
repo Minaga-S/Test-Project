@@ -28,13 +28,14 @@
             <div class="login-content">
                 <div id="login-form-section">
                     <h2>Log In</h2>
-                    <form id="login-form">
+                    <form id="login-form" autocomplete="on">
                         <div class="form-group">
                             <label for="email">Email Address</label>
                             <input 
                                 type="email" 
                                 id="email" 
                                 name="email" 
+                                autocomplete="username"
                                 placeholder="Enter your email" 
                                 required
                             >
@@ -48,6 +49,7 @@
                                     type="password" 
                                     id="password" 
                                     name="password" 
+                                    autocomplete="current-password"
                                     placeholder="Enter your password" 
                                     required
                                 >
@@ -71,7 +73,7 @@
                     </form>
 
                     <div class="form-footer">
-                        <a href="#forgot-password" class="link">Forgot Password?</a>
+                        <a href="#forgot-password" class="link" id="open-forgot-password-link">Forgot Password?</a>
                         <span>Don't have an account?</span>
                         <a href="#signup" class="link" id="toggle-signup">Sign Up</a>
                     </div>
@@ -79,13 +81,14 @@
 
                 <div id="signup-form-section" style="display: none;">
                     <h2>Create Account</h2>
-                    <form id="signup-form">
+                    <form id="signup-form" autocomplete="on">
                         <div class="form-group">
                             <label for="signup-name">Full Name</label>
                             <input 
                                 type="text" 
                                 id="signup-name" 
                                 name="fullName" 
+                                autocomplete="name"
                                 placeholder="John Doe" 
                                 required
                             >
@@ -97,6 +100,7 @@
                                 type="email" 
                                 id="signup-email" 
                                 name="email" 
+                                autocomplete="email"
                                 placeholder="Enter your email" 
                                 required
                             >
@@ -117,6 +121,7 @@
                                     type="password" 
                                     id="signup-password" 
                                     name="password" 
+                                    autocomplete="new-password"
                                     placeholder="Enter your password" 
                                     required
                                 >
@@ -146,6 +151,7 @@
                                     type="password" 
                                     id="signup-confirm" 
                                     name="confirmPassword" 
+                                    autocomplete="new-password"
                                     placeholder="Confirm your password" 
                                     required
                                 >
@@ -176,23 +182,23 @@
 
         <div class="login-side-info">
             <div class="info-card">
-                <h3>Asset Protection</h3>
+                <h3><span class="icon material-symbols-rounded" aria-hidden="true">inventory_2</span>Asset Protection</h3>
                 <p>Track and monitor all your digital assets in one secure place.</p>
             </div>
             <div class="info-card">
-                <h3>Threat Detection</h3>
+                <h3><span class="icon material-symbols-rounded" aria-hidden="true">radar</span>Threat Detection</h3>
                 <p>AI-powered analysis identifies cyber threats instantly.</p>
             </div>
             <div class="info-card">
-                <h3>Risk Assessment</h3>
+                <h3><span class="icon material-symbols-rounded" aria-hidden="true">assessment</span>Risk Assessment</h3>
                 <p>Understand your cybersecurity risk in simple terms.</p>
             </div>
             <div class="info-card">
-                <h3>NIST Compliance</h3>
+                <h3><span class="icon material-symbols-rounded" aria-hidden="true">verified</span>NIST Compliance</h3>
                 <p>Follow industry-standard cybersecurity frameworks.</p>
             </div>
         </div>
-        </div>
+    </div>
 
     <div id="two-factor-login-modal" class="modal" style="display: none;">
         <div class="modal-overlay" aria-hidden="true"></div>
@@ -221,12 +227,11 @@
             <div class="modal-header">
                 <h2 id="two-factor-enable-title">Enable Two-Factor Authentication?</h2>
             </div>
-            <p>Add Google Authenticator for better account security.</p>
+            <p>Security recommendation: Enable Google Authenticator to protect your account and support secure password recovery.</p>
             <div class="form-actions">
                 <button type="button" id="skip-2fa-for-now-btn" class="btn btn-secondary">Maybe Later</button>
                 <button type="button" id="enable-2fa-now-btn" class="btn btn-primary">Enable Now</button>
-            </div>
-        </div>
+            </div>        </div>
     </div>
 
     <div id="two-factor-setup-modal" class="modal" style="display: none;">
@@ -246,9 +251,89 @@
                     <input type="text" id="two-factor-setup-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456" required>
                     <small id="two-factor-setup-error" class="error-message" aria-live="polite"></small>
                 </div>
+                <div id="two-factor-recovery-codes-panel" class="success-details two-factor-recovery-panel" style="display: none;">
+                    <div class="two-factor-recovery-header">
+                        <p class="two-factor-recovery-title">Recovery Codes</p>
+                        <button type="button" id="two-factor-recovery-copy-btn" class="btn btn-secondary two-factor-recovery-copy-btn" aria-label="Copy recovery codes" title="Copy recovery codes">
+                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                        </button>
+                    </div>
+                    <p class="two-factor-recovery-copy">Save these one-time codes in a secure place. Each code can be used once if you lose access to Google Authenticator.</p>
+                    <ul id="two-factor-recovery-codes-list" class="two-factor-recovery-codes"></ul>
+                </div>
                 <div class="form-actions">
                     <button type="button" id="cancel-two-factor-setup-btn" class="btn btn-secondary">Skip for Now</button>
                     <button type="submit" class="btn btn-primary">Confirm and Enable</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="forgot-password-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" aria-hidden="true"></div>
+        <div class="modal-content confirm-modal two-factor-modal-content" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
+            <div class="modal-header">
+                <h2 id="forgot-password-title">Reset Password</h2>
+            </div>
+            <p>Reset your password using Google Authenticator or a recovery code. Email reset links are disabled for this account recovery flow.</p>
+            <form id="forgot-password-start-form" class="modal-form">
+                <div class="form-group">
+                    <label for="forgot-password-email">Account Email</label>
+                    <input type="email" id="forgot-password-email" autocomplete="email" placeholder="name@hotel.com" required>
+                    <small id="forgot-password-start-error" class="error-message" aria-live="polite"></small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-forgot-password-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Continue</button>
+                </div>
+            </form>
+            <form id="password-reset-with-2fa-form" class="modal-form" style="display: none;">
+                <input type="hidden" id="reset-password-email">
+                <div class="form-group">
+                    <label for="reset-new-password">New Password</label>
+                    <div class="password-field">
+                        <input type="password" id="reset-new-password" name="newPassword" autocomplete="new-password" placeholder="Create a strong password" required>
+                        <button type="button" class="password-toggle" data-password-target="reset-new-password" aria-label="Show password">
+                            <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+                        </button>
+                    </div>
+                    <div id="reset-password-guidance" class="password-guidance" aria-live="polite">
+                        <p class="password-guidance-title">Use a strong password:</p>
+                        <p id="reset-password-strength" class="password-strength">Strength: Weak</p>
+                        <ul class="password-guidance-list">
+                            <li id="reset-rule-length" class="password-rule">At least 12 characters</li>
+                            <li id="reset-rule-upper" class="password-rule">At least 1 uppercase letter</li>
+                            <li id="reset-rule-lower" class="password-rule">At least 1 lowercase letter</li>
+                            <li id="reset-rule-number" class="password-rule">At least 1 number</li>
+                            <li id="reset-rule-symbol" class="password-rule">At least 1 symbol (for example: !@#$%)</li>
+                            <li id="reset-rule-space" class="password-rule">No spaces</li>
+                            <li id="reset-rule-common" class="password-rule">Avoid common words like "password"</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reset-confirm-password">Confirm New Password</label>
+                    <div class="password-field">
+                        <input type="password" id="reset-confirm-password" name="confirmNewPassword" autocomplete="new-password" placeholder="Re-enter new password" required>
+                        <button type="button" class="password-toggle" data-password-target="reset-confirm-password" aria-label="Show password">
+                            <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reset-authenticator-code">Authenticator Code</label>
+                    <input type="text" id="reset-authenticator-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456">
+                    <small>Enter a 6-digit code from Google Authenticator.</small>
+                </div>
+                <div class="form-group">
+                    <label for="reset-recovery-code">Or Recovery Code</label>
+                    <input type="text" id="reset-recovery-code" autocomplete="one-time-code" placeholder="Enter one-time recovery code">
+                    <small>Use this only if your authenticator app is unavailable.</small>
+                </div>
+                <small id="password-reset-error" class="error-message" aria-live="polite"></small>
+                <div class="form-actions">
+                    <button type="button" id="back-forgot-password-btn" class="btn btn-secondary">Back</button>
+                    <button type="submit" class="btn btn-primary">Reset Password</button>
                 </div>
             </form>
         </div>
@@ -262,3 +347,5 @@
     <script src="js/auth.js"></script>
 </body>
 </html>
+
+

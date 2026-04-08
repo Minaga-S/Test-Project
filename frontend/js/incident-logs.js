@@ -358,7 +358,6 @@ function setupEventListeners() {
 }
 
 async function loadIncidents() {
-    showLoading(true);
     renderTableSkeleton('incidents-tbody', 8, 4);
 
     try {
@@ -367,8 +366,6 @@ async function loadIncidents() {
     } catch (error) {
         console.error('Error loading incidents:', error);
         showNotification('Error loading incidents', 'error');
-    } finally {
-        showLoading(false);
     }
 }
 

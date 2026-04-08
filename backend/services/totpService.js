@@ -31,8 +31,8 @@ function generateSecret() {
     return authenticator.generateSecret();
 }
 
-function buildOtpAuthUrl({ appName, email, secret }) {
-    return authenticator.keyuri(email, appName, secret);
+function buildOtpAuthUrl({ appName, email, secret, accountName }) {
+    return authenticator.keyuri(accountName || email, appName, secret);
 }
 
 function isNormalizedTotpCode(code) {

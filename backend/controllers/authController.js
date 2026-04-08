@@ -3,6 +3,8 @@
  */
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
+const crypto = require('crypto');
+const bcryptjs = require('bcryptjs');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
@@ -11,6 +13,9 @@ const totpService = require('../services/totpService');
 
 const TWO_FACTOR_CHALLENGE_EXPIRATION = '5m';
 const DEFAULT_TOTP_APP_NAME = 'HCGS';
+const PASSWORD_RESET_LOCK_MINUTES = 10;
+const MAX_PASSWORD_RESET_FAILED_ATTEMPTS = 5;
+const RECOVERY_CODE_COUNT = 8;
 
 class AuthController {
     createAccessToken(user) {
@@ -39,6 +44,102 @@ class AuthController {
 
     getTwoFactorAppName() {
         return process.env.TOTP_APP_NAME || DEFAULT_TOTP_APP_NAME;
+    }
+
+    getTwoFactorSetupAppName() {
+        return this.getTwoFactorAppName();
+    }
+
+    getTwoFactorAccountName(email, secret) {
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const suffix = String(secret || '')
+            .replace(/[^A-Za-z0-9]/g, '')
+            .slice(-6)
+            .toUpperCase();
+
+        if (!normalizedEmail || !suffix) {
+            return normalizedEmail;
+        }
+
+        return `${normalizedEmail} - ${suffix}`;
+    }
+
+    normalizeTwoFactorCode(value) {
+        return String(value || '').replace(/\D/g, '').slice(0, 6);
+    }
+
+    isStrongPassword(password) {
+        const value = String(password || '');
+        return value.length >= 12
+            && /[A-Z]/.test(value)
+            && /[a-z]/.test(value)
+            && /\d/.test(value)
+            && /[^A-Za-z0-9]/.test(value)
+            && !/\s/.test(value);
+    }
+
+    createRecoveryCode() {
+        return crypto.randomBytes(5).toString('hex').toUpperCase();
+    }
+
+    async createRecoveryCodes() {
+        const recoveryCodes = Array.from({ length: RECOVERY_CODE_COUNT }, () => this.createRecoveryCode());
+        const recoveryCodeHashes = await Promise.all(recoveryCodes.map((code) => bcryptjs.hash(code, 10)));
+
+        return {
+            recoveryCodes,
+            recoveryCodeHashes,
+        };
+    }
+
+    isResetLocked(user) {
+        return Boolean(user.passwordResetLockUntil && user.passwordResetLockUntil.getTime() > Date.now());
+    }
+
+    async registerPasswordResetFailure(user) {
+        user.passwordResetFailedAttempts = (user.passwordResetFailedAttempts || 0) + 1;
+
+        if (user.passwordResetFailedAttempts >= MAX_PASSWORD_RESET_FAILED_ATTEMPTS) {
+            user.passwordResetLockUntil = new Date(Date.now() + (PASSWORD_RESET_LOCK_MINUTES * 60 * 1000));
+            user.passwordResetFailedAttempts = 0;
+        }
+
+        user.updatedAt = new Date();
+        await user.save();
+    }
+
+    async clearPasswordResetFailures(user) {
+        user.passwordResetFailedAttempts = 0;
+        user.passwordResetLockUntil = null;
+        user.updatedAt = new Date();
+        await user.save();
+    }
+
+    async verifyRecoveryCode(user, recoveryCode) {
+        if (!Array.isArray(user.recoveryCodeHashes) || user.recoveryCodeHashes.length === 0) {
+            return { isValid: false, remainingRecoveryCodeHashes: [] };
+        }
+
+        const normalizedCode = String(recoveryCode || '').trim().toUpperCase();
+        if (!normalizedCode) {
+            return { isValid: false, remainingRecoveryCodeHashes: user.recoveryCodeHashes };
+        }
+
+        for (let index = 0; index < user.recoveryCodeHashes.length; index += 1) {
+            const isMatch = await bcryptjs.compare(normalizedCode, user.recoveryCodeHashes[index]);
+            if (isMatch) {
+                const remainingRecoveryCodeHashes = user.recoveryCodeHashes.filter((_, hashIndex) => hashIndex !== index);
+                return {
+                    isValid: true,
+                    remainingRecoveryCodeHashes,
+                };
+            }
+        }
+
+        return {
+            isValid: false,
+            remainingRecoveryCodeHashes: user.recoveryCodeHashes,
+        };
     }
 
     /**
@@ -171,6 +272,122 @@ class AuthController {
         }
     }
 
+    async forgotPassword(req, res, next) {
+        try {
+            const normalizedEmail = String(req.body.email || '').toLowerCase().trim();
+            const user = await User.findOne({ email: normalizedEmail });
+
+            if (user?.isActive) {
+                await auditLogService.record({
+                    actorUserId: user._id,
+                    action: 'USER_PASSWORD_RESET_REQUESTED',
+                    entityType: 'User',
+                    entityId: String(user._id),
+                    ipAddress: req.ip || '',
+                });
+            }
+
+            return res.json({
+                success: true,
+                message: 'If an active account exists, continue with your authenticator code or recovery code to reset your password.',
+            });
+        } catch (error) {
+            logger.error(`Forgot password error: ${error.message}`);
+            return next(error);
+        }
+    }
+
+    async resetPassword(req, res, next) {
+        try {
+            const { email, newPassword, totpCode, recoveryCode } = req.body;
+            const normalizedEmail = String(email || '').toLowerCase().trim();
+
+            if (!this.isStrongPassword(newPassword)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password must be at least 12 characters and include uppercase, lowercase, number, and symbol.',
+                });
+            }
+
+            const user = await User.findOne({ email: normalizedEmail });
+            if (!user || !user.isActive) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid reset request',
+                });
+            }
+
+            if (this.isResetLocked(user)) {
+                return res.status(429).json({
+                    success: false,
+                    message: 'Password reset is temporarily locked due to repeated failed attempts. Please try again later.',
+                });
+            }
+
+            if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Two-factor authentication is required to reset password without email recovery.',
+                });
+            }
+
+            const normalizedTotpCode = this.normalizeTwoFactorCode(totpCode);
+            const hasTotpCode = /^\d{6}$/.test(normalizedTotpCode);
+            const hasRecoveryCode = Boolean(String(recoveryCode || '').trim());
+
+            let isVerified = false;
+            let usedRecoveryCode = false;
+            let remainingRecoveryCodeHashes = user.recoveryCodeHashes;
+
+            if (hasTotpCode) {
+                isVerified = totpService.verifyToken(user.twoFactorSecret, normalizedTotpCode);
+            }
+
+            if (!isVerified && hasRecoveryCode) {
+                const recoveryResult = await this.verifyRecoveryCode(user, recoveryCode);
+                isVerified = recoveryResult.isValid;
+                usedRecoveryCode = recoveryResult.isValid;
+                remainingRecoveryCodeHashes = recoveryResult.remainingRecoveryCodeHashes;
+            }
+
+            if (!isVerified) {
+                await this.registerPasswordResetFailure(user);
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid authenticator or recovery code',
+                });
+            }
+
+            await this.clearPasswordResetFailures(user);
+            user.password = newPassword;
+            user.passwordChangedAt = new Date();
+            user.updatedAt = new Date();
+
+            if (usedRecoveryCode) {
+                user.recoveryCodeHashes = remainingRecoveryCodeHashes;
+            }
+
+            await user.save();
+
+            await auditLogService.record({
+                actorUserId: user._id,
+                action: 'USER_PASSWORD_RESET',
+                entityType: 'User',
+                entityId: String(user._id),
+                after: { usedRecoveryCode },
+                ipAddress: req.ip || '',
+            });
+
+            return res.json({
+                success: true,
+                message: 'Password reset successful. Please log in again.',
+            });
+        } catch (error) {
+            logger.error(`Reset password error: ${error.message}`);
+            return next(error);
+        }
+    }
+
     async verifyTwoFactorLogin(req, res, next) {
         try {
             const { challengeToken, code } = req.body;
@@ -266,8 +483,9 @@ class AuthController {
 
             const secret = totpService.generateSecret();
             const otpAuthUrl = totpService.buildOtpAuthUrl({
-                appName: this.getTwoFactorAppName(),
+                appName: this.getTwoFactorSetupAppName(),
                 email: user.email,
+                accountName: this.getTwoFactorAccountName(user.email, secret),
                 secret,
             });
             const qrCodeDataUrl = await totpService.generateQrCodeDataUrl(otpAuthUrl);
@@ -315,9 +533,12 @@ class AuthController {
                 });
             }
 
+            const { recoveryCodes, recoveryCodeHashes } = await this.createRecoveryCodes();
+
             user.twoFactorSecret = user.twoFactorTempSecret;
             user.twoFactorTempSecret = '';
             user.twoFactorEnabled = true;
+            user.recoveryCodeHashes = recoveryCodeHashes;
             user.updatedAt = new Date();
             await user.save();
 
@@ -332,6 +553,7 @@ class AuthController {
             return res.json({
                 success: true,
                 message: 'Two-factor authentication enabled successfully',
+                recoveryCodes,
             });
         } catch (error) {
             logger.error(`Enable 2FA error: ${error.message}`);
@@ -369,6 +591,7 @@ class AuthController {
             user.twoFactorEnabled = false;
             user.twoFactorSecret = '';
             user.twoFactorTempSecret = '';
+            user.recoveryCodeHashes = [];
             user.updatedAt = new Date();
             await user.save();
 
@@ -510,6 +733,13 @@ class AuthController {
         try {
             const { currentPassword, newPassword } = req.body;
 
+            if (!this.isStrongPassword(newPassword)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Password must be at least 12 characters and include uppercase, lowercase, number, and symbol.',
+                });
+            }
+
             const user = await User.findById(req.user.userId);
             if (!user) {
                 return res.status(404).json({
@@ -527,6 +757,7 @@ class AuthController {
             }
 
             user.password = newPassword;
+            user.passwordChangedAt = new Date();
             user.updatedAt = new Date();
             await user.save();
 
@@ -552,3 +783,26 @@ class AuthController {
 }
 
 module.exports = new AuthController();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
