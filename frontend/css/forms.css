@@ -21,12 +21,19 @@
 .form-group textarea,
 .form-group select {
     padding: 0.8rem 0.9rem;
-    border: 1px solid #CBD5E0;
-    border-radius: var(--border-radius);
+    border: 1px solid #E8EAEF;
+    border-radius: 8px;
     font-size: var(--font-size-base);
     font-family: var(--font-family);
-    background-color: #FAFBFF;
-    transition: var(--transition);
+    background-color: rgba(255, 255, 255, 0.95);
+    color: var(--secondary-color);
+    transition: all var(--duration-normal) var(--ease-standard);
+}
+
+.form-group input:hover,
+.form-group textarea:hover,
+.form-group select:hover {
+    border-color: #CBD5E1;
 }
 
 .form-group input:focus,
@@ -34,8 +41,8 @@
 .form-group select:focus {
     outline: none;
     border-color: var(--primary-color);
-    background-color: #FFFFFF;
-    box-shadow: 0 0 0 4px rgba(64, 112, 255, 0.12);
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(64, 112, 255, 0.12), 0 0 0 1px rgba(64, 112, 255, 0.2);
 }
 
 .form-group textarea {
@@ -428,10 +435,28 @@ textarea {
 
 select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232c3e50' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234070FF' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.9rem center;
+    background-color: rgba(255, 255, 255, 0.95);
     padding-right: 2.5rem;
+    border: 1px solid #E8EAEF;
+    border-radius: 8px;
+    color: var(--secondary-color);
+    font-weight: 500;
+    transition: all var(--duration-normal) var(--ease-standard);
+}
+
+select:hover {
+    border-color: #CBD5E1;
+    background-color: white;
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(64, 112, 255, 0.12), 0 0 0 1px rgba(64, 112, 255, 0.2);
 }
 
 /* ============================================
@@ -447,7 +472,7 @@ select {
 .form-group.error input:focus,
 .form-group.error textarea:focus,
 .form-group.error select:focus {
-    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.12), 0 0 0 1px rgba(231, 76, 60, 0.2);
 }
 
 .form-group.success input,
@@ -459,7 +484,7 @@ select {
 .form-group.success input:focus,
 .form-group.success textarea:focus,
 .form-group.success select:focus {
-    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.12), 0 0 0 1px rgba(39, 174, 96, 0.2);
 }
 
 /* ============================================

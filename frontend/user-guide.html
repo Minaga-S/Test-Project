@@ -7,10 +7,11 @@
     <title>User Guide - Hotel Cybersecurity Governance</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/help-pages.css">
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="icon" type="image/svg+xml" href="assets/pwa-icon.svg">
 </head>
-<body>
+<body data-help-page="guide" data-breadcrumb-label="User Guide" data-breadcrumb-parent="Settings" data-breadcrumb-parent-href="settings.html">
     <!-- NOTE: This page combines static layout with data loaded by its matching script in frontend/js/. -->
     <div class="dashboard-container">
         <aside class="sidebar">
@@ -40,34 +41,181 @@
         <main class="main-content">
             <header class="top-header">
                 <div class="header-left">
-                    <h1>Settings</h1>
+                    <h1>User Guide</h1>
                 </div>
             </header>
 
-            <section class="detail-section">
-                <h3>1. Sign In And Overview</h3>
-                <p>Log in with your assigned account. Start from Dashboard to review total assets, active incidents, and risk highlights.</p>
+            <section class="detail-section help-toolbar" aria-label="User guide tools">
+                <label class="help-search" for="help-search-input">
+                    <span class="material-symbols-rounded" aria-hidden="true">search</span>
+                    <input
+                        id="help-search-input"
+                        type="search"
+                        placeholder="Search checklist steps, workflows, or controls"
+                        autocomplete="off"
+                    >
+                </label>
+                <div class="help-tabs" aria-label="Guide view tabs">
+                    <button type="button" class="help-tab-btn is-active" data-guide-tab-target="guide-tab-checklist" aria-selected="true">Quick Checklist</button>
+                    <button type="button" class="help-tab-btn" data-guide-tab-target="guide-tab-getting-started" aria-selected="false">Getting Started</button>
+                    <button type="button" class="help-tab-btn" data-guide-tab-target="guide-tab-incidents" aria-selected="false">Incidents</button>
+                    <button type="button" class="help-tab-btn" data-guide-tab-target="guide-tab-risk" aria-selected="false">Risk</button>
+                    <button type="button" class="help-tab-btn" data-guide-tab-target="guide-tab-reporting" aria-selected="false">Reporting</button>
+                </div>
             </section>
 
-            <section class="detail-section">
-                <h3>2. Report A Security Issue</h3>
-                <p>Go to Report Issue, choose affected asset, provide description, and submit. The AI analysis and risk score are generated automatically.</p>
-            </section>
+            <div id="guide-tab-checklist" class="guide-tab-panel is-active" data-guide-tab-panel>
+                <section class="detail-section help-progress" aria-label="Guide progress">
+                    <div class="help-progress-head">
+                        <h3>Quick Start Checklist</h3>
+                        <p id="help-checklist-status" aria-live="polite">0/0 completed</p>
+                    </div>
+                    <div class="help-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <span id="help-progress-fill"></span>
+                    </div>
+                </section>
 
-            <section class="detail-section">
-                <h3>3. Track Incident Progress</h3>
-                <p>Use Incidents to review status updates, notes, and recommendations. Filter by risk level to prioritize your work quickly.</p>
-            </section>
+                <section class="detail-section help-list" id="help-list" aria-label="User guide steps">
+                    <article class="help-item help-guide-item" data-help-item data-guide-url="dashboard.html">
+                    <div class="help-guide-top">
+                        <h3>1. Sign in and review dashboard health</h3>
+                        <label class="help-check-item">
+                            <input type="checkbox" data-guide-check="dashboard-review">
+                            <span>Done</span>
+                        </label>
+                    </div>
+                    <p>After login, use Dashboard to confirm incident totals, risk distribution, and any assets with critical exposure.</p>
+                    <button type="button" class="btn btn-secondary help-guide-action" data-guide-action="dashboard-review">Open Dashboard</button>
+                </article>
 
-            <section class="detail-section">
-                <h3>4. Review Risk Analysis</h3>
-                <p>Open Risk Analysis for matrix, trends, and asset-level risk summaries. Export a report when preparing daily or weekly briefings.</p>
-            </section>
+                    <article class="help-item help-guide-item" data-help-item data-guide-url="report-incident.html">
+                    <div class="help-guide-top">
+                        <h3>2. Report and analyze security incidents</h3>
+                        <label class="help-check-item">
+                            <input type="checkbox" data-guide-check="incident-report">
+                            <span>Done</span>
+                        </label>
+                    </div>
+                    <p>Open Report Issue, select an asset, and submit a detailed description. The workflow enriches data using scan context and CVE intelligence.</p>
+                    <button type="button" class="btn btn-secondary help-guide-action" data-guide-action="incident-report">Open Report Issue</button>
+                </article>
+
+                    <article class="help-item help-guide-item" data-help-item data-guide-url="incident-logs.html">
+                    <div class="help-guide-top">
+                        <h3>3. Track remediation in Incident Logs</h3>
+                        <label class="help-check-item">
+                            <input type="checkbox" data-guide-check="incident-tracking">
+                            <span>Done</span>
+                        </label>
+                    </div>
+                    <p>Use filters by status and risk level, add progress notes, and keep ownership clear for each mitigation task.</p>
+                    <button type="button" class="btn btn-secondary help-guide-action" data-guide-action="incident-tracking">Open Incident Logs</button>
+                </article>
+
+                    <article class="help-item help-guide-item" data-help-item data-guide-url="risk-analysis.html">
+                    <div class="help-guide-top">
+                        <h3>4. Validate decisions in Risk Analysis</h3>
+                        <label class="help-check-item">
+                            <input type="checkbox" data-guide-check="risk-review">
+                            <span>Done</span>
+                        </label>
+                    </div>
+                    <p>Open Risk Analysis to understand why a risk score is high and what controls to prioritize first.</p>
+                    <button type="button" class="btn btn-secondary help-guide-action" data-guide-action="risk-review">Open Risk Analysis</button>
+                </article>
+
+                    <article class="help-item help-guide-item" data-help-item data-guide-url="incident-logs.html">
+                    <div class="help-guide-top">
+                        <h3>5. Export reports for leadership and audit</h3>
+                        <label class="help-check-item">
+                            <input type="checkbox" data-guide-check="report-export">
+                            <span>Done</span>
+                        </label>
+                    </div>
+                    <p>Export incident and risk reports as CSV for leadership updates, audit evidence, and trend reviews.</p>
+                    <button type="button" class="btn btn-secondary help-guide-action" data-guide-action="report-export">Open Export Page</button>
+                    </article>
+                </section>
+
+                <section class="detail-section help-empty" id="help-empty" hidden>
+                    <h3>No matching guide steps</h3>
+                    <p>Try terms like <strong>incident</strong>, <strong>risk</strong>, or <strong>export</strong>.</p>
+                </section>
+            </div>
+
+            <div id="guide-tab-getting-started" class="guide-tab-panel" data-guide-tab-panel hidden>
+                <section class="detail-section help-list" aria-label="Getting started guide">
+                    <details class="help-item help-doc-item" open>
+                        <summary>Account Setup and First Login</summary>
+                        <div class="help-item-content">
+                            <p>Sign in with your assigned account, confirm profile settings, and review basic account security before operational use.</p>
+                        </div>
+                    </details>
+                    <details class="help-item help-doc-item">
+                        <summary>Dashboard Orientation</summary>
+                        <div class="help-item-content">
+                            <p>Use dashboard metrics to identify immediate hotspots, then open detailed pages to verify root causes before action.</p>
+                        </div>
+                    </details>
+                </section>
+            </div>
+
+            <div id="guide-tab-incidents" class="guide-tab-panel" data-guide-tab-panel hidden>
+                <section class="detail-section help-list" aria-label="Incidents guide">
+                    <details class="help-item help-doc-item" open>
+                        <summary>Incident Reporting Quality</summary>
+                        <div class="help-item-content">
+                            <p>Write clear, factual incident descriptions with timeline, observed impact, and affected systems to improve triage quality.</p>
+                        </div>
+                    </details>
+                    <details class="help-item help-doc-item">
+                        <summary>Incident Log Operations</summary>
+                        <div class="help-item-content">
+                            <p>Track status updates, assign ownership, and keep remediation notes current for operational continuity.</p>
+                        </div>
+                    </details>
+                </section>
+            </div>
+
+            <div id="guide-tab-risk" class="guide-tab-panel" data-guide-tab-panel hidden>
+                <section class="detail-section help-list" aria-label="Risk guide">
+                    <details class="help-item help-doc-item" open>
+                        <summary>Risk Score Interpretation</summary>
+                        <div class="help-item-content">
+                            <p>Risk combines likelihood and impact. Validate service exposure, vulnerability evidence, and business criticality before prioritizing remediation.</p>
+                        </div>
+                    </details>
+                    <details class="help-item help-doc-item">
+                        <summary>Prioritization Playbook</summary>
+                        <div class="help-item-content">
+                            <p>Triage critical risks first, then high-confidence medium risks that have direct operational or guest-impact pathways.</p>
+                        </div>
+                    </details>
+                </section>
+            </div>
+
+            <div id="guide-tab-reporting" class="guide-tab-panel" data-guide-tab-panel hidden>
+                <section class="detail-section help-list" aria-label="Reporting guide">
+                    <details class="help-item help-doc-item" open>
+                        <summary>Exporting Security Reports</summary>
+                        <div class="help-item-content">
+                            <p>Use Incident Logs and Risk Analysis exports for leadership updates, audit evidence, and weekly trend reporting.</p>
+                        </div>
+                    </details>
+                    <details class="help-item help-doc-item">
+                        <summary>Executive Communication Structure</summary>
+                        <div class="help-item-content">
+                            <p>Report unresolved critical items, remediation progress, and drift in risk posture between reporting windows.</p>
+                        </div>
+                    </details>
+                </section>
+            </div>
         </main>
     </div>
 
     <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/help-pages.js"></script>
     <script>
         if (!apiClient.isAuthenticated()) {
             window.location.href = 'login.html';

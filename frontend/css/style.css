@@ -617,10 +617,6 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     color: #94a3b8;
 }
 
-.dashboard-page .header-breadcrumb {
-    display: none;
-}
-
 .sidebar-toggle-btn {
     border: 1px solid #E8EAEF;
     background: #F7FAFC;
