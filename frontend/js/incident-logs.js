@@ -613,6 +613,30 @@ function displayIncidentDetails(incident) {
     document.getElementById('detail-os-info').textContent = osInfo;
     document.getElementById('detail-cpe-uri').textContent = cpeUri;
 
+    // Extract and display vendor, product, version, and services
+    const vendor = String(cveQuery.vendor || clientReportedCveQuery.vendor || '').trim() || 'N/A';
+    const product = String(cveQuery.product || clientReportedCveQuery.product || '').trim() || 'N/A';
+    const productVersion = String(cveQuery.productVersion || clientReportedCveQuery.productVersion || '').trim() || 'N/A';
+    const services = (liveScan.services || clientReportedLiveScan.services || []);
+    const servicesText = services.length > 0
+        ? [...new Set(services
+            .map((service) => String(service?.service || '').trim())
+            .filter(Boolean))].join(', ')
+        : 'None identified';
+
+    if (document.getElementById('detail-vendor')) {
+        document.getElementById('detail-vendor').textContent = vendor;
+    }
+    if (document.getElementById('detail-product')) {
+        document.getElementById('detail-product').textContent = product;
+    }
+    if (document.getElementById('detail-product-version')) {
+        document.getElementById('detail-product-version').textContent = productVersion;
+    }
+    if (document.getElementById('detail-services')) {
+        document.getElementById('detail-services').textContent = servicesText;
+    }
+
     renderIncidentCveDetails(incident);
 
     document.getElementById('update-status').value = incident.status;

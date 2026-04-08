@@ -420,8 +420,11 @@ function applyScanPreviewToForm(previewPayload = {}) {
     const services = Array.isArray(liveScan.services) && liveScan.services.length > 0
         ? liveScan.services
         : (Array.isArray(scanResult.services) ? scanResult.services : []);
-    const servicesText = services.length > 0
-        ? services.map((service) => `${service.port}/${service.protocol || 'tcp'}:${service.service || 'unknown'}`).join(', ')
+    const serviceNames = [...new Set(services
+        .map((service) => String(service?.service || '').trim())
+        .filter(Boolean))];
+    const servicesText = serviceNames.length > 0
+        ? serviceNames.join(', ')
         : 'None identified';
 
     const previewOpenPortsEl = document.getElementById('asset-preview-open-ports');
