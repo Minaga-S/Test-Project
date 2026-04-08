@@ -138,6 +138,8 @@ RUN cd backend && npm install
 
 COPY backend ./backend
 
+WORKDIR /app/backend
+
 CMD ["npm", "run", "agent:start"]
 ```
 
@@ -145,10 +147,19 @@ Build and run:
 
 ```bash
 docker build -f Dockerfile.agent -t scan-agent .
-docker run \
+docker run -d --name local-scan-agent --restart unless-stopped \
   -e BACKEND_URL=https://your-render-backend.onrender.com \
   -e AGENT_API_KEY=your-api-key \
+   -e AGENT_ID=hotel-lan-agent-01 \
   scan-agent
+```
+
+Useful Docker commands:
+
+```bash
+docker logs -f local-scan-agent
+docker stop local-scan-agent
+docker rm local-scan-agent
 ```
 
 #### Option B: Direct Node.js on Your Machine

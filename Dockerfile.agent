@@ -1,0 +1,15 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install nmap for network scanning
+RUN apk add --no-cache nmap
+
+COPY backend/package*.json ./backend/
+RUN cd backend && npm install
+
+COPY backend ./backend
+
+WORKDIR /app/backend
+
+CMD ["npm", "run", "agent:start"]
