@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/forms.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <link rel="icon" type="image/svg+xml" href="assets/pwa-icon.svg">
 </head>
 <body class="incident-logs-page">
     <!-- NOTE: This page combines static layout with data loaded by its matching script in frontend/js/. -->
@@ -193,6 +194,69 @@
                     </div>
                 </div>
 
+                <!-- Nmap Scan Findings -->
+                <div class="detail-section">
+                    <h3>Nmap Scan Findings</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Scanned IP</label>
+                            <p id="detail-scanned-ip">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Vulnerable Open Ports</label>
+                            <p id="detail-open-ports">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Operating System</label>
+                            <p id="detail-os-info">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>CPE URI</label>
+                            <p id="detail-cpe-uri">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Vendor / Manufacturer</label>
+                            <p id="detail-vendor">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Product Name</label>
+                            <p id="detail-product">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Product Version</label>
+                            <p id="detail-product-version">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Detected Services</label>
+                            <p id="detail-services">N/A</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CVE Intelligence -->
+                <div class="detail-section">
+                    <h3>CVE Intelligence (NIST)</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Enrichment Source</label>
+                            <p id="detail-enrichment-source">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Confidence</label>
+                            <p id="detail-enrichment-confidence">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Last Enriched</label>
+                            <p id="detail-enriched-at">N/A</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Total CVEs</label>
+                            <p id="detail-cve-count">0</p>
+                        </div>
+                    </div>
+                    <div id="detail-cve-list" class="recommendations-list"></div>
+                </div>
+
                 <!-- Threat Analysis -->
                 <div class="detail-section">
                     <h3>Threat Intelligence (NIST)</h3>
@@ -259,39 +323,6 @@
                         </div>
                     </div>
                 </div>
-
-
-                <!-- CVE Intelligence -->
-                <div class="detail-section">
-                    <h3>CVE Intelligence (NIST)</h3>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <label>Enrichment Source</label>
-                            <p id="detail-enrichment-source">N/A</p>
-                        </div>
-                        <div class="detail-item">
-                            <label>Confidence</label>
-                            <p id="detail-enrichment-confidence">N/A</p>
-                        </div>
-                        <div class="detail-item">
-                            <label>Last Enriched</label>
-                            <p id="detail-enriched-at">N/A</p>
-                        </div>
-                        <div class="detail-item">
-                            <label>Total CVEs</label>
-                            <p id="detail-cve-count">0</p>
-                        </div>
-                        <div class="detail-item">
-                            <label>Scanned IP</label>
-                            <p id="detail-scanned-ip">N/A</p>
-                        </div>
-                        <div class="detail-item">
-                            <label>Vulnerable Open Ports</label>
-                            <p id="detail-open-ports">N/A</p>
-                        </div>
-                    </div>
-                    <div id="detail-cve-list" class="recommendations-list"></div>
-                </div>
                 <!-- Recommendations -->
                 <div class="detail-section">
                     <h3>Mitigation Recommendations</h3>
@@ -352,3 +383,4 @@
     <script src="js/incident-logs.js"></script>
 </body>
 </html>
+

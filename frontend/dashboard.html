@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <link rel="icon" type="image/svg+xml" href="assets/pwa-icon.svg">
 </head>
 <body class="dashboard-page">
     <!-- NOTE: This page combines static layout with data loaded by its matching script in frontend/js/. -->
@@ -94,7 +95,7 @@
                         <div class="metric-sparkline">
                             <canvas id="sparkline-total-assets" class="sparkline-canvas" width="80" height="30"></canvas>
                         </div>
-                        <div class="metric-icon">🖥️</div>
+                        <div class="metric-icon">&#128421;&#65039;</div>
                     </div>
 
                     <div class="metric-card metric-card-warning">
@@ -107,7 +108,7 @@
                         <div class="metric-sparkline">
                             <canvas id="sparkline-open-incidents" class="sparkline-canvas" width="80" height="30"></canvas>
                         </div>
-                        <div class="metric-icon">⚠️</div>
+                        <div class="metric-icon">&#9888;&#65039;</div>
                     </div>
 
                     <div class="metric-card metric-card-danger pulse-indicator">
@@ -120,7 +121,7 @@
                         <div class="metric-sparkline">
                             <canvas id="sparkline-critical-risks" class="sparkline-canvas" width="80" height="30"></canvas>
                         </div>
-                        <div class="metric-icon pulse-dot">🔴</div>
+                        <div class="metric-icon pulse-dot">&#128308;</div>
                     </div>
 
                     <div class="metric-card metric-card-success">
@@ -133,7 +134,7 @@
                         <div class="metric-sparkline">
                             <canvas id="sparkline-resolved-issues" class="sparkline-canvas" width="80" height="30"></canvas>
                         </div>
-                        <div class="metric-icon">✅</div>
+                        <div class="metric-icon">&#9989;</div>
                     </div>
                 </section>
                 <div class="metric-carousel-dots" id="metric-carousel-dots" aria-label="Metric carousel pagination"></div>
@@ -142,7 +143,7 @@
                     <button class="collapsible-toggle" type="button" data-target="dashboard-risk-distribution-content" aria-expanded="false">
                         <span>Risk Distribution</span>
                         <span class="panel-meta" id="dashboard-risk-distribution-summary"></span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="dashboard-risk-distribution-content" class="collapsible-content">
                         <div class="chart-container chart-container-full">
@@ -155,7 +156,7 @@
                     <button class="collapsible-toggle" type="button" data-target="dashboard-threat-categories-content" aria-expanded="false">
                         <span>Threat Categories</span>
                         <span class="panel-meta" id="dashboard-threat-categories-summary"></span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="dashboard-threat-categories-content" class="collapsible-content">
                         <div class="chart-container chart-container-full">
@@ -168,7 +169,7 @@
                     <button class="collapsible-toggle" type="button" data-target="dashboard-vulnerable-assets-content" aria-expanded="false">
                         <span>Most Vulnerable Assets</span>
                         <span class="panel-meta" id="dashboard-vulnerable-assets-summary"></span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="dashboard-vulnerable-assets-content" class="collapsible-content">
                         <div class="chart-container chart-container-full">
@@ -182,7 +183,7 @@
                     <button class="collapsible-toggle" type="button" data-target="dashboard-recent-incidents-content" aria-expanded="false">
                         <span>Recent Incidents</span>
                         <span class="panel-meta" id="dashboard-recent-incidents-summary"></span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="dashboard-recent-incidents-content" class="collapsible-content">
                         <section class="incidents-section">
@@ -228,13 +229,7 @@
             </div>
         </main>
     </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="spinner"></div>
-    </div>
-
-    <script src="js/api-client.js"></script>
+<script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/dashboard.js"></script>
 </body>

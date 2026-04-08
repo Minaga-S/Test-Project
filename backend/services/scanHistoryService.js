@@ -23,18 +23,22 @@ function buildCveProfile(asset, scanResult = {}) {
     const vulnerabilityProfile = asset?.vulnerabilityProfile || {};
     const serviceNames = Array.isArray(scanResult.services)
         ? scanResult.services
-            .map((service) => service.service)
+            .map((service) => {
+                const name = String(service?.service || '').trim();
+                const version = String(service?.version || '').trim();
+                return version ? `${name} ${version}` : name;
+            })
             .filter((serviceName) => Boolean(serviceName))
         : [];
 
     return {
         assetName: asset?.assetName || '',
         assetType: asset?.assetType || '',
-        cpeUri: vulnerabilityProfile.cpeUri || '',
+        cpeUri: String(scanResult.osCpe || '').trim() || String(vulnerabilityProfile.cpeUri || '').trim(),
         vendor: vulnerabilityProfile.vendor || '',
         product: vulnerabilityProfile.product || '',
         productVersion: vulnerabilityProfile.productVersion || '',
-        osName: isLikelyOperatingSystem(vulnerabilityProfile.osName) ? vulnerabilityProfile.osName : '',
+        osName: String(scanResult.osInfo || '').trim() || (isLikelyOperatingSystem(vulnerabilityProfile.osName) ? vulnerabilityProfile.osName : ''),
         serviceNames: serviceNames.length > 0 ? serviceNames : vulnerabilityProfile.serviceNames || [],
     };
 }
@@ -53,6 +57,8 @@ function buildEmptyScanResult(asset, target = '') {
             state: 'unknown',
         },
         rawOutput: '',
+        osInfo: '',
+        osCpe: '',
     };
 }
 
@@ -83,24 +89,6 @@ function buildScanStatusReason(asset, target, scanError = null) {
 function shouldFallbackToEnrichment(error) {
     const message = String(error?.message || '').toLowerCase();
     return message.includes('nmap is not installed') || message.includes('nmap scan failed');
-}
-
-function inferVendorFromServices(serviceNames = []) {
-    const normalized = serviceNames.map((item) => String(item || '').toLowerCase());
-
-    if (normalized.some((service) => service.includes('microsoft'))) {
-        return 'Microsoft';
-    }
-
-    if (normalized.some((service) => service.includes('ssh'))) {
-        return 'OpenSSH';
-    }
-
-    if (normalized.some((service) => service.includes('http'))) {
-        return 'Web Service';
-    }
-
-    return '';
 }
 
 function isLikelyOperatingSystem(value) {
@@ -141,32 +129,22 @@ function inferProfileUpdates(asset, scanResult) {
     const currentOsName = String(existingProfile.osName || '').trim();
     const currentVendor = String(existingProfile.vendor || '').trim();
     const currentProduct = String(existingProfile.product || '').trim();
-
-    const detectedServices = Array.isArray(scanResult?.services)
-        ? scanResult.services
-            .map((service) => String(service?.service || '').trim())
-            .filter(Boolean)
-        : [];
-    const uniqueServices = [...new Set(detectedServices)];
+    const currentCpeUri = String(existingProfile.cpeUri || '').trim();
+    const detectedOsName = String(scanResult?.osInfo || '').trim();
+    const detectedCpeUri = String(scanResult?.osCpe || '').trim();
 
     const nextProfile = {
         ...existingProfile,
-        osName: currentOsName,
+        osName: currentOsName || detectedOsName,
         vendor: currentVendor,
         product: currentProduct,
+        cpeUri: currentCpeUri || detectedCpeUri,
     };
-
-    if (!nextProfile.product && uniqueServices.length > 0) {
-        nextProfile.product = uniqueServices.slice(0, 3).join(', ');
-    }
-
-    if (!nextProfile.vendor) {
-        nextProfile.vendor = inferVendorFromServices(uniqueServices);
-    }
 
     const hasChanges = nextProfile.osName !== currentOsName
         || nextProfile.vendor !== currentVendor
-        || nextProfile.product !== currentProduct;
+        || nextProfile.product !== currentProduct
+        || nextProfile.cpeUri !== currentCpeUri;
 
     return {
         hasChanges,

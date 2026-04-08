@@ -10,8 +10,17 @@ let pendingDeleteAssetIds = [];
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
 const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
+const ASSET_SCAN_PROGRESS_INTERVAL_MS = 420;
+const ASSET_SCAN_DURATION_METRICS_STORAGE_KEY = 'assetScan:durationMetrics';
+const ASSET_SCAN_DEFAULT_ESTIMATED_MS = 55000;
+const ASSET_SCAN_ESTIMATED_MIN_MS = 25000;
+const ASSET_SCAN_ESTIMATED_MAX_MS = 180000;
+const ASSET_SCAN_OVERRUN_BUFFER_MS = 15000;
 let assetScanTerminalTimer = null;
 let assetScanTerminalSequenceToken = 0;
+let assetScanProgressTimer = null;
+let assetScanStartTime = null;
+let assetScanEstimatedDuration = 0;
 let assetScanMeta = {
     target: null,
     securityContext: null,
@@ -345,13 +354,134 @@ function resetAssetScanWorkflow() {
     updateAssetScanStatus('Preparing asset security scan...', 8);
 }
 
+function toBoundedNumber(value, fallback = 0) {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+        return fallback;
+    }
+
+    return parsedValue;
+}
+
+function formatDurationMinutesSeconds(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds}s`;
+    }
+
+    return `${minutes}m ${seconds}s`;
+}
+
+function readAssetScanDurationMetrics() {
+    try {
+        const rawValue = localStorage.getItem(ASSET_SCAN_DURATION_METRICS_STORAGE_KEY);
+        if (!rawValue) {
+            return {};
+        }
+
+        return JSON.parse(rawValue) || {};
+    } catch (error) {
+        console.warn('Unable to read asset scan duration metrics:', error);
+        return {};
+    }
+}
+
+function writeAssetScanDurationMetrics(metrics = {}) {
+    try {
+        localStorage.setItem(ASSET_SCAN_DURATION_METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    } catch (error) {
+        console.warn('Unable to store asset scan duration metrics:', error);
+    }
+}
+
+function getEstimatedAssetScanDurationMs() {
+    const metrics = readAssetScanDurationMetrics();
+    const historicalAverageMs = toBoundedNumber(metrics.averageMs, ASSET_SCAN_DEFAULT_ESTIMATED_MS);
+    const paddedEstimateMs = historicalAverageMs * 1.15;
+
+    return Math.max(ASSET_SCAN_ESTIMATED_MIN_MS, Math.min(ASSET_SCAN_ESTIMATED_MAX_MS, paddedEstimateMs));
+}
+
+function recordAssetScanDuration(elapsedMs) {
+    if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
+        return;
+    }
+
+    const metrics = readAssetScanDurationMetrics();
+    const previousAverageMs = toBoundedNumber(metrics.averageMs, ASSET_SCAN_DEFAULT_ESTIMATED_MS);
+    const previousSamples = toBoundedNumber(metrics.samples, 0);
+    const smoothingFactor = 0.35;
+    const nextAverageMs = (previousAverageMs * (1 - smoothingFactor)) + (elapsedMs * smoothingFactor);
+
+    writeAssetScanDurationMetrics({
+        averageMs: Math.round(nextAverageMs),
+        samples: previousSamples + 1,
+    });
+}
+
+
+function beginAssetScanProgress() {
+    if (assetScanProgressTimer) {
+        window.clearInterval(assetScanProgressTimer);
+    }
+
+    assetScanStartTime = Date.now();
+    assetScanEstimatedDuration = getEstimatedAssetScanDurationMs();
+
+    let currentProgress = 5;
+    updateAssetScanStatus('Preparing asset security scan...', currentProgress);
+
+    const etaEl = document.getElementById('asset-scan-eta');
+    if (etaEl) {
+        etaEl.textContent = `Estimated time remaining: ~${formatDurationMinutesSeconds(assetScanEstimatedDuration / 1000)}`;
+    }
+
+    updateAssetScanTimer();
+
+    assetScanProgressTimer = window.setInterval(updateAssetScanTimer, 200);
+}
+
+function updateAssetScanTimer() {
+    const elapsedMs = Date.now() - assetScanStartTime;
+    if (elapsedMs > assetScanEstimatedDuration) {
+        assetScanEstimatedDuration = elapsedMs + ASSET_SCAN_OVERRUN_BUFFER_MS;
+    }
+
+    let currentProgress = Math.min((elapsedMs / assetScanEstimatedDuration) * 100, 90);
+    
+    const remainingMs = Math.max(0, assetScanEstimatedDuration - elapsedMs);
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    
+    const etaEl = document.getElementById('asset-scan-eta');
+    if (etaEl && remainingSeconds > 0) {
+        etaEl.textContent = `Estimated time remaining: ${formatDurationMinutesSeconds(remainingSeconds)}`;
+    }
+
+    if (currentProgress >= 89) {
+        updateAssetScanStatus('Finalizing scan results...', currentProgress);
+    } else {
+        updateAssetScanStatus('Scanning target and enriching vulnerability data...', currentProgress);
+    }
+}
+
+function stopAssetScanProgress() {
+    if (assetScanProgressTimer) {
+        window.clearInterval(assetScanProgressTimer);
+        assetScanProgressTimer = null;
+    }
+}
 function showAssetScanWorkflowModal() {
     resetAssetScanWorkflow();
     showModal('asset-scan-modal');
     startAssetScanTerminalSimulation();
+    beginAssetScanProgress();
 }
 
 function hideAssetScanWorkflowModal() {
+    stopAssetScanProgress();
     stopAssetScanTerminalSimulation(false);
     hideModal('asset-scan-modal');
 }
@@ -371,8 +501,11 @@ function applyScanPreviewToForm(previewPayload = {}) {
     const services = Array.isArray(liveScan.services) && liveScan.services.length > 0
         ? liveScan.services
         : (Array.isArray(scanResult.services) ? scanResult.services : []);
-    const servicesText = services.length > 0
-        ? services.map((service) => `${service.port}/${service.protocol || 'tcp'}:${service.service || 'unknown'}`).join(', ')
+    const serviceNames = [...new Set(services
+        .map((service) => String(service?.service || '').trim())
+        .filter(Boolean))];
+    const servicesText = serviceNames.length > 0
+        ? serviceNames.join(', ')
         : 'None identified';
 
     const previewOpenPortsEl = document.getElementById('asset-preview-open-ports');
@@ -387,25 +520,17 @@ function applyScanPreviewToForm(previewPayload = {}) {
 
     document.getElementById('asset-live-scan-enabled').checked = true;
 
-    if (!document.getElementById('asset-os-name').value) {
-        document.getElementById('asset-os-name').value = inferredProfile.osName || '';
-    }
+    const detectedOsName = liveScan.osInfo || scanResult.osInfo || inferredProfile.osName || '';
+    const detectedVendor = cveQuery.vendor || inferredProfile.vendor || '';
+    const detectedProduct = cveQuery.product || inferredProfile.product || '';
+    const detectedProductVersion = cveQuery.productVersion || inferredProfile.productVersion || '';
+    const detectedCpeUri = scanResult.osCpe || cveQuery.cpeUri || inferredProfile.cpeUri || '';
 
-    if (!document.getElementById('asset-vendor').value) {
-        document.getElementById('asset-vendor').value = inferredProfile.vendor || '';
-    }
-
-    if (!document.getElementById('asset-product').value) {
-        document.getElementById('asset-product').value = inferredProfile.product || '';
-    }
-
-    if (!document.getElementById('asset-product-version').value) {
-        document.getElementById('asset-product-version').value = inferredProfile.productVersion || '';
-    }
-
-    if (!document.getElementById('asset-cpe-uri').value) {
-        document.getElementById('asset-cpe-uri').value = inferredProfile.cpeUri || cveQuery.cpeUri || '';
-    }
+    document.getElementById('asset-os-name').value = detectedOsName;
+    document.getElementById('asset-vendor').value = detectedVendor;
+    document.getElementById('asset-product').value = detectedProduct;
+    document.getElementById('asset-product-version').value = detectedProductVersion;
+    document.getElementById('asset-cpe-uri').value = detectedCpeUri;
 
     applyDetectedCriticality(previewPayload);
 }
@@ -419,6 +544,20 @@ function resetScanPreviewFields() {
     if (previewServicesEl) {
         previewServicesEl.value = '';
     }
+}
+
+function normalizeCpeUri(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) {
+        return '';
+    }
+
+    const tokenMatch = rawValue.match(/(cpe:2\.3:[^\s,;]+|cpe:\/[^\s,;]+)/i);
+    if (!tokenMatch) {
+        return '';
+    }
+
+    return tokenMatch[1].replace(/[)\].,;\/]+$/, '');
 }
 
 function buildScanPreviewPayload() {
@@ -436,7 +575,7 @@ function buildScanPreviewPayload() {
             vendor: String(document.getElementById('asset-vendor').value || '').trim(),
             product: String(document.getElementById('asset-product').value || '').trim(),
             productVersion: String(document.getElementById('asset-product-version').value || '').trim(),
-            cpeUri: String(document.getElementById('asset-cpe-uri').value || '').trim(),
+            cpeUri: normalizeCpeUri(document.getElementById('asset-cpe-uri').value || ''),
         },
     };
 
@@ -449,6 +588,9 @@ function buildScanPreviewPayload() {
 
 async function runLiveScanPreview() {
     setScanDetailsVisibility(true);
+
+    // A fresh live scan should be allowed to refresh criticality from detected findings.
+    isCriticalityManuallyOverridden = false;
 
     const payload = buildScanPreviewPayload();
     if (!payload.liveScan.target) {
@@ -489,6 +631,8 @@ async function runLiveScanPreview() {
         setAssetScanStepState('asset-step-summary', 'done');
         updateAssetScanStatus('Scan complete. Asset data has been auto-filled.', 100);
 
+        recordAssetScanDuration(Date.now() - assetScanStartTime);
+
         setTimeout(() => {
             hideAssetScanWorkflowModal();
         }, 280);
@@ -496,6 +640,7 @@ async function runLiveScanPreview() {
         showNotification('Scan completed. Detected data has been auto-filled.', 'success');
     } catch (error) {
         console.error('Asset scan preview error:', error);
+        stopAssetScanProgress();
         stopAssetScanTerminalSimulation(false);
         hideAssetScanWorkflowModal();
         showNotification('Scan failed. You can still enter details manually.', 'warning');
@@ -777,7 +922,7 @@ async function editAsset(assetId) {
         document.getElementById('asset-location').value = asset.location || '';
         document.getElementById('asset-description').value = asset.description || '';
         document.getElementById('asset-criticality').value = asset.criticality;
-        isCriticalityManuallyOverridden = true;
+        isCriticalityManuallyOverridden = false;
         document.getElementById('asset-owner').value = asset.owner || '';
         document.getElementById('asset-status').value = asset.status;
 
@@ -940,5 +1085,7 @@ function setDeleteConfirmationMessage(message) {
         messageEl.textContent = message;
     }
 }
+
+
 
 

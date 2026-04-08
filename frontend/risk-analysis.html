@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/responsive.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <link rel="icon" type="image/svg+xml" href="assets/pwa-icon.svg">
 </head>
 <body class="risk-analysis-page">
     <!-- NOTE: This page combines static layout with data loaded by its matching script in frontend/js/. -->
@@ -112,7 +113,7 @@
                 <section class="recommendations-priority-section collapsible-panel mobile-collapsible-panel collapsed" id="risk-analysis-recommendations-panel">
                     <button class="collapsible-toggle" type="button" data-target="risk-analysis-recommendations-content" aria-expanded="false">
                         <span>Priority Mitigation Recommendations</span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="risk-analysis-recommendations-content" class="collapsible-content mobile-collapsible-content">
                         <div id="recommendations-priority-list" class="recommendations-priority-list">
@@ -126,7 +127,7 @@
                 <section class="risk-breakdown-section collapsible-panel mobile-collapsible-panel collapsed" id="risk-analysis-breakdown-panel">
                     <button class="collapsible-toggle" type="button" data-target="risk-analysis-breakdown-content" aria-expanded="false">
                         <span>Detailed Risk Breakdown</span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="risk-analysis-breakdown-content" class="collapsible-content mobile-collapsible-content">
                         <div class="table-responsive">
@@ -157,7 +158,7 @@
                 <section class="collapsible-panel collapsed" id="risk-analysis-matrix-panel">
                     <button class="collapsible-toggle" type="button" data-target="risk-analysis-matrix-content" aria-expanded="false">
                         <span>Risk Matrix</span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="risk-analysis-matrix-content" class="collapsible-content">
                         <section class="risk-matrix-section">
@@ -172,7 +173,7 @@
                 <section class="collapsible-panel collapsed" id="risk-analysis-distribution-panel">
                     <button class="collapsible-toggle" type="button" data-target="risk-analysis-distribution-content" aria-expanded="false">
                         <span>Risk Distribution</span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="risk-analysis-distribution-content" class="collapsible-content">
                         <div class="chart-container chart-container-full">
@@ -184,7 +185,7 @@
                 <section class="collapsible-panel collapsed" id="risk-analysis-trends-panel">
                     <button class="collapsible-toggle" type="button" data-target="risk-analysis-trends-content" aria-expanded="false">
                         <span>Risk Trends</span>
-                        <span class="toggle-icon">▾</span>
+                        <span class="toggle-icon">&#9662;</span>
                     </button>
                     <div id="risk-analysis-trends-content" class="collapsible-content">
                         <div class="chart-container chart-container-full">
@@ -195,14 +196,9 @@
             </div>
         </main>
     </div>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="spinner"></div>
-    </div>
-
-    <script src="js/api-client.js"></script>
+<script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/risk-analysis.js?v=20260401"></script>
 </body>
 </html>
+
