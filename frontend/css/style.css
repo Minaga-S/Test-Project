@@ -857,6 +857,7 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
 }
 
 .link:hover {
+    color: var(--primary-color);
     text-decoration: underline;
 }
 
