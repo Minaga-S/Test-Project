@@ -49,6 +49,11 @@ function mergeClientSecurityContext(securityContext, clientSecurityContext) {
     const clientOsInfo = normalizeText(clientSecurityContext?.liveScan?.osInfo);
     mergedLiveScan.osInfo = clientOsInfo || persistedOsInfo;
 
+    // Merge services (client services fallback to persisted)
+    const persistedServices = Array.isArray(persistedLiveScan.services) ? persistedLiveScan.services : [];
+    const clientServices = Array.isArray(clientSecurityContext?.liveScan?.services) ? clientSecurityContext.liveScan.services : [];
+    mergedLiveScan.services = clientServices.length > 0 ? clientServices : persistedServices;
+
     nextContext.liveScan = mergedLiveScan;
 
     const mergedCve = {
