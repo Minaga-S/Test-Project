@@ -68,8 +68,8 @@ describe('scanHistoryService', () => {
             requestedPorts: ['22', '443'],
             openPorts: [22, 443],
             services: [
-                { port: 22, service: 'ssh' },
-                { port: 443, service: 'https' },
+                { port: 22, service: 'ssh', version: 'OpenSSH 8.0' },
+                { port: 443, service: 'https', version: 'Apache 2.4' },
             ],
             hostState: { state: 'up', hostName: 'db-local' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
@@ -95,11 +95,13 @@ describe('scanHistoryService', () => {
             requestedPorts: ['22', '443'],
             openPorts: [22, 443],
             services: [
-                { port: 22, service: 'ssh' },
-                { port: 443, service: 'https' },
+                { port: 22, service: 'ssh', version: 'OpenSSH 8.0' },
+                { port: 443, service: 'https', version: 'Apache 2.4' },
             ],
             hostState: { state: 'up' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux 5.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:5',
         });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
@@ -110,9 +112,37 @@ describe('scanHistoryService', () => {
             vulnerabilityProfile: { vendor: 'nginx' },
         }, 'user-1', { ipAddress: '10.0.0.9' });
 
-        expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0].serviceNames).toEqual(['ssh', 'https']);
+        expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0]).toEqual(expect.objectContaining({
+            serviceNames: ['ssh OpenSSH 8.0', 'https Apache 2.4'],
+        }));
     });
 
+
+    it('should prioritize detected os cpe over stored cpe for enrichment', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        nmapScanService.runScan.mockResolvedValue({
+            command: 'nmap',
+            target: '10.0.0.10',
+            requestedPorts: ['22'],
+            openPorts: [22],
+            services: [{ port: 22, service: 'ssh', version: 'OpenSSH 8.0' }],
+            hostState: { state: 'up' },
+            rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux 6.6',
+            osCpe: 'cpe:/o:linux:linux_kernel:6.6',
+        });
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.runAssetScan({
+            _id: 'asset-1',
+            assetName: 'Production API Server',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22' },
+            vulnerabilityProfile: { cpeUri: 'cpe:/o:linux:linux_kernel:4.19' },
+        }, 'user-1', { ipAddress: '10.0.0.9' });
+
+        expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0].cpeUri).toBe('cpe:/o:linux:linux_kernel:6.6');
+    });
     it('should infer and persist missing vulnerability profile fields from scan output', async () => {
         ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Completed' });
         nmapScanService.isAllowedScanTarget.mockReturnValue(true);
@@ -122,11 +152,13 @@ describe('scanHistoryService', () => {
             requestedPorts: ['22', '443'],
             openPorts: [22, 443],
             services: [
-                { port: 22, service: 'ssh' },
-                { port: 443, service: 'https' },
+                { port: 22, service: 'ssh', version: 'OpenSSH 8.0' },
+                { port: 443, service: 'https', version: 'Apache 2.4' },
             ],
             hostState: { state: 'up', hostName: 'edge-gateway.local' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux 5.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:5',
         });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
@@ -148,12 +180,13 @@ describe('scanHistoryService', () => {
             requestedPorts: ['22', '443'],
             openPorts: [22, 443],
             services: [
-                { port: 22, service: 'ssh' },
-                { port: 443, service: 'https' },
+                { port: 22, service: 'ssh', version: 'OpenSSH 8.0' },
+                { port: 443, service: 'https', version: 'Apache 2.4' },
             ],
             hostState: { state: 'up' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
-            osInfo: 'Linux',
+            osInfo: 'Linux 5.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:5',
         });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
@@ -169,8 +202,10 @@ describe('scanHistoryService', () => {
             expect.objectContaining({
                 $set: expect.objectContaining({
                     vulnerabilityProfile: expect.objectContaining({
-                        vendor: 'OpenSSH',
-                        product: 'ssh, https',
+                        vendor: '',
+                        product: '',
+                        osName: 'Linux 5.x',
+                        cpeUri: 'cpe:/o:linux:linux_kernel:5',
                     }),
                 }),
             })
@@ -187,7 +222,8 @@ describe('scanHistoryService', () => {
             services: [{ port: 22, service: 'ssh' }],
             hostState: { state: 'up' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
-            osInfo: 'Linux',
+            osInfo: 'Linux 5.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:5',
         });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 

@@ -5,9 +5,19 @@
 
 let assets = [];
 let progressTimer = null;
+let analysisStartTime = null;
+let analysisEstimatedDuration = 0;
+let analysisUsesLiveScan = false;
 const ANALYSIS_TERMINAL_LINE_LIMIT = 18;
 const ANALYSIS_TERMINAL_STEP_DELAY_MS = 180;
-let scanTerminalTimer = null;
+const ANALYSIS_DURATION_METRICS_STORAGE_KEY = 'incidentAnalysis:durationMetrics';
+const ANALYSIS_DEFAULT_LIVE_SCAN_MS = 70000;
+const ANALYSIS_DEFAULT_CACHED_SCAN_MS = 35000;
+const ANALYSIS_ESTIMATED_MIN_LIVE_MS = 35000;
+const ANALYSIS_ESTIMATED_MAX_LIVE_MS = 180000;
+const ANALYSIS_ESTIMATED_MIN_CACHED_MS = 15000;
+const ANALYSIS_ESTIMATED_MAX_CACHED_MS = 90000;
+const ANALYSIS_OVERRUN_BUFFER_MS = 20000;
 let analysisTerminalSequenceToken = 0;
 
 let analysisMeta = {
@@ -112,7 +122,7 @@ function setStepState(stepId, state) {
     const stateEl = stepEl.querySelector('.analysis-step-state');
     const labelEl = stepEl.querySelector('.scan-step-text');
 
-    stepEl.classList.remove('is-pending', 'is-active', 'is-done');
+    stepEl.classList.remove('is-pending', 'is-active', 'is-done', 'is-failed');
     stepEl.classList.add(`is-${state}`);
 
     if (labelEl) {
@@ -133,7 +143,24 @@ function setStepState(stepId, state) {
         return;
     }
 
+    if (state === 'failed') {
+        stateEl.textContent = 'Failed';
+        return;
+    }
+
     stateEl.textContent = 'Waiting';
+}
+
+function setStepStateText(stepId, text) {
+    const stepEl = document.getElementById(stepId);
+    if (!stepEl) {
+        return;
+    }
+
+    const stateEl = stepEl.querySelector('.analysis-step-state');
+    if (stateEl) {
+        stateEl.textContent = text;
+    }
 }
 
 function ensureStepStructure(stepEl) {
@@ -184,23 +211,12 @@ function startScanTerminalSimulation() {
 
     const outputEl = document.getElementById('analysis-terminal-output');
     if (outputEl) {
-        outputEl.textContent = '[scan] Bootstrapping scan workflow...';
+        outputEl.textContent = '[scan] Preparing scan workflow...';
     }
-
-    let lineIndex = 0;
-    scanTerminalTimer = window.setInterval(() => {
-        appendScanTerminalLine(SIMULATED_SCAN_LINES[lineIndex % SIMULATED_SCAN_LINES.length]);
-        lineIndex += 1;
-    }, 780);
 }
 
 function stopScanTerminalSimulation(autoCloseTerminal = true) {
     analysisTerminalSequenceToken += 1;
-
-    if (scanTerminalTimer) {
-        window.clearInterval(scanTerminalTimer);
-        scanTerminalTimer = null;
-    }
 
     if (autoCloseTerminal) {
         const shellEl = document.getElementById('analysis-terminal-shell');
@@ -208,6 +224,157 @@ function stopScanTerminalSimulation(autoCloseTerminal = true) {
             shellEl.open = false;
         }
     }
+}
+
+function parseCommaSeparatedPorts(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) {
+        return [];
+    }
+
+    return rawValue
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535);
+}
+
+function getPreviewOpenPorts(previewPayload = {}) {
+    const liveScanPorts = previewPayload?.securityContext?.liveScan?.observedOpenPorts;
+    if (Array.isArray(liveScanPorts) && liveScanPorts.length > 0) {
+        return liveScanPorts;
+    }
+
+    const scanResultPorts = previewPayload?.scanResult?.openPorts;
+    return Array.isArray(scanResultPorts) ? scanResultPorts : [];
+}
+
+function getPreviewServices(previewPayload = {}) {
+    const liveScanServices = previewPayload?.securityContext?.liveScan?.services;
+    if (Array.isArray(liveScanServices) && liveScanServices.length > 0) {
+        return liveScanServices;
+    }
+
+    const scanResultServices = previewPayload?.scanResult?.services;
+    return Array.isArray(scanResultServices) ? scanResultServices : [];
+}
+
+function buildIncidentScanPreviewPayload(asset = {}) {
+    const liveScan = asset?.liveScan || {};
+    const profile = asset?.vulnerabilityProfile || {};
+
+    return {
+        assetId: String(asset?._id || '').trim(),
+        assetName: String(asset?.assetName || '').trim(),
+        assetType: String(asset?.assetType || '').trim(),
+        liveScan: {
+            target: String(liveScan?.target || '').trim(),
+            ports: String(liveScan?.ports || '').trim(),
+            frequency: String(liveScan?.frequency || 'OnDemand').trim() || 'OnDemand',
+        },
+        vulnerabilityProfile: {
+            osName: String(profile?.osName || '').trim(),
+            vendor: String(profile?.vendor || '').trim(),
+            product: String(profile?.product || '').trim(),
+            productVersion: String(profile?.productVersion || '').trim(),
+            cpeUri: String(profile?.cpeUri || '').trim(),
+        },
+    };
+}
+
+function buildClientSecurityContextFromPreview(previewPayload = {}) {
+    const securityContext = {
+        ...(previewPayload?.securityContext || {}),
+    };
+
+    const cveQuery = previewPayload?.cveResult?.query || {};
+    const scanResult = previewPayload?.scanResult || {};
+    const inferredProfile = previewPayload?.inferredProfile || {};
+    const previewOpenPorts = getPreviewOpenPorts(previewPayload);
+    const previewServices = getPreviewServices(previewPayload);
+
+    securityContext.liveScan = {
+        ...(securityContext?.liveScan || {}),
+        observedOpenPorts: previewOpenPorts,
+        services: previewServices,
+        osInfo: String(
+            securityContext?.liveScan?.osInfo
+            || scanResult?.osInfo
+            || inferredProfile?.osName
+            || ''
+        ).trim(),
+    };
+
+    securityContext.cve = {
+        ...(securityContext?.cve || {}),
+        query: {
+            ...(securityContext?.cve?.query || {}),
+            cpeUri: String(cveQuery?.cpeUri || scanResult?.osCpe || inferredProfile?.cpeUri || '').trim(),
+            vendor: String(cveQuery?.vendor || inferredProfile?.vendor || '').trim(),
+            product: String(cveQuery?.product || inferredProfile?.product || '').trim(),
+            productVersion: String(cveQuery?.productVersion || inferredProfile?.productVersion || '').trim(),
+            osName: String(cveQuery?.osName || inferredProfile?.osName || securityContext?.liveScan?.osInfo || '').trim(),
+        },
+    };
+
+    return securityContext;
+}
+
+async function persistAssetProfileFromPreview(asset, previewPayload = {}) {
+    if (!asset?._id) {
+        return asset;
+    }
+
+    const profile = asset?.vulnerabilityProfile || {};
+    const liveScan = asset?.liveScan || {};
+    const cveQuery = previewPayload?.cveResult?.query || {};
+    const scanResult = previewPayload?.scanResult || {};
+    const inferredProfile = previewPayload?.inferredProfile || {};
+    const previewOpenPorts = getPreviewOpenPorts(previewPayload);
+
+    const updatePayload = {
+        liveScan: {
+            enabled: Boolean(liveScan?.enabled),
+            target: String(liveScan?.target || '').trim(),
+            ports: previewOpenPorts.length > 0 ? previewOpenPorts.join(', ') : String(liveScan?.ports || '').trim(),
+            frequency: String(liveScan?.frequency || 'OnDemand').trim() || 'OnDemand',
+        },
+        vulnerabilityProfile: {
+            osName: String(scanResult?.osInfo || cveQuery?.osName || inferredProfile?.osName || profile?.osName || '').trim(),
+            vendor: String(cveQuery?.vendor || inferredProfile?.vendor || profile?.vendor || '').trim(),
+            product: String(cveQuery?.product || inferredProfile?.product || profile?.product || '').trim(),
+            productVersion: String(cveQuery?.productVersion || inferredProfile?.productVersion || profile?.productVersion || '').trim(),
+            cpeUri: String(scanResult?.osCpe || cveQuery?.cpeUri || inferredProfile?.cpeUri || profile?.cpeUri || '').trim(),
+        },
+    };
+
+    const response = await apiClient.updateAsset(asset._id, updatePayload);
+    const updatedAsset = response?.asset || asset;
+
+    assets = assets.map((item) => (item._id === updatedAsset._id ? updatedAsset : item));
+    return updatedAsset;
+}
+
+
+function collectAssetProfileData(asset = {}) {
+    const profile = asset?.vulnerabilityProfile || {};
+    const liveScan = asset?.liveScan || {};
+
+    return {
+        liveScan: {
+            osInfo: String(profile?.osName || '').trim(),
+            observedOpenPorts: parseCommaSeparatedPorts(liveScan?.ports),
+            services: [],
+        },
+        cve: {
+            query: {
+                cpeUri: String(profile?.cpeUri || '').trim(),
+                vendor: String(profile?.vendor || '').trim(),
+                product: String(profile?.product || '').trim(),
+                productVersion: String(profile?.productVersion || '').trim(),
+                osName: String(profile?.osName || '').trim(),
+            },
+        },
+    };
 }
 
 function resetAnalysisSteps() {
@@ -224,22 +391,125 @@ function resetAnalysisSteps() {
     setStepState('step-rec', 'pending');
 }
 
-function beginAnalysisProgress() {
+function toBoundedNumber(value, fallback = 0) {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+        return fallback;
+    }
+
+    return parsedValue;
+}
+
+function formatDurationMinutesSeconds(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+
+    if (minutes <= 0) {
+        return `${seconds}s`;
+    }
+
+    return `${minutes}m ${seconds}s`;
+}
+
+function readAnalysisDurationMetrics() {
+    try {
+        const rawValue = localStorage.getItem(ANALYSIS_DURATION_METRICS_STORAGE_KEY);
+        if (!rawValue) {
+            return {};
+        }
+
+        return JSON.parse(rawValue) || {};
+    } catch (error) {
+        console.warn('Unable to read analysis duration metrics:', error);
+        return {};
+    }
+}
+
+function writeAnalysisDurationMetrics(metrics = {}) {
+    try {
+        localStorage.setItem(ANALYSIS_DURATION_METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    } catch (error) {
+        console.warn('Unable to store analysis duration metrics:', error);
+    }
+}
+
+function getEstimatedAnalysisDurationMs(isLiveScanEnabled) {
+    const metrics = readAnalysisDurationMetrics();
+    const defaultDurationMs = isLiveScanEnabled ? ANALYSIS_DEFAULT_LIVE_SCAN_MS : ANALYSIS_DEFAULT_CACHED_SCAN_MS;
+    const averageKey = isLiveScanEnabled ? 'liveScanAverageMs' : 'cachedAverageMs';
+    const lowerBoundMs = isLiveScanEnabled ? ANALYSIS_ESTIMATED_MIN_LIVE_MS : ANALYSIS_ESTIMATED_MIN_CACHED_MS;
+    const upperBoundMs = isLiveScanEnabled ? ANALYSIS_ESTIMATED_MAX_LIVE_MS : ANALYSIS_ESTIMATED_MAX_CACHED_MS;
+    const historicalAverageMs = toBoundedNumber(metrics[averageKey], defaultDurationMs);
+    const paddedEstimateMs = historicalAverageMs * 1.15;
+
+    return Math.max(lowerBoundMs, Math.min(upperBoundMs, paddedEstimateMs));
+}
+
+function recordAnalysisDuration(elapsedMs, isLiveScanEnabled) {
+    if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
+        return;
+    }
+
+    const metrics = readAnalysisDurationMetrics();
+    const averageKey = isLiveScanEnabled ? 'liveScanAverageMs' : 'cachedAverageMs';
+    const sampleKey = isLiveScanEnabled ? 'liveScanSamples' : 'cachedSamples';
+    const defaultDurationMs = isLiveScanEnabled ? ANALYSIS_DEFAULT_LIVE_SCAN_MS : ANALYSIS_DEFAULT_CACHED_SCAN_MS;
+
+    const previousAverageMs = toBoundedNumber(metrics[averageKey], defaultDurationMs);
+    const previousSamples = toBoundedNumber(metrics[sampleKey], 0);
+    const smoothingFactor = 0.35;
+    const nextAverageMs = (previousAverageMs * (1 - smoothingFactor)) + (elapsedMs * smoothingFactor);
+
+    writeAnalysisDurationMetrics({
+        ...metrics,
+        [averageKey]: Math.round(nextAverageMs),
+        [sampleKey]: previousSamples + 1,
+    });
+}
+
+function beginAnalysisProgress(isLiveScanEnabled) {
     stopAnalysisProgress();
     resetAnalysisSteps();
 
+    analysisUsesLiveScan = isLiveScanEnabled;
+
+    analysisStartTime = Date.now();
+    analysisEstimatedDuration = getEstimatedAnalysisDurationMs(isLiveScanEnabled);
+
     const etaEl = document.getElementById('analysis-eta');
     if (etaEl) {
-        etaEl.textContent = 'Estimated completion: 5-12 seconds depending on scan results and analysis complexity.';
+        etaEl.textContent = `Estimated time remaining: ~${formatDurationMinutesSeconds(analysisEstimatedDuration / 1000)}`;
     }
 
-    let currentProgress = 8;
+    let currentProgress = 5;
     updateAnalysisStatus('Preparing security analysis workflow...', currentProgress);
+    updateAnalysisTimer();
 
-    progressTimer = window.setInterval(() => {
-        currentProgress = Math.min(currentProgress + Math.random() * 5, 90);
+    progressTimer = window.setInterval(updateAnalysisTimer, 200);
+}
+
+function updateAnalysisTimer() {
+    const elapsedMs = Date.now() - analysisStartTime;
+    if (elapsedMs > analysisEstimatedDuration) {
+        analysisEstimatedDuration = elapsedMs + ANALYSIS_OVERRUN_BUFFER_MS;
+    }
+
+    let currentProgress = Math.min((elapsedMs / analysisEstimatedDuration) * 100, 90);
+    
+    const remainingMs = Math.max(0, analysisEstimatedDuration - elapsedMs);
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    
+    const etaEl = document.getElementById('analysis-eta');
+    if (etaEl && remainingSeconds > 0) {
+        etaEl.textContent = `Estimated time remaining: ${formatDurationMinutesSeconds(remainingSeconds)}`;
+    }
+
+    if (currentProgress >= 89) {
+        updateAnalysisStatus('Finalizing threat analysis and generating recommendations...', currentProgress);
+    } else {
         updateAnalysisStatus('Enriching security context with vulnerability and threat data...', currentProgress);
-    }, 450);
+    }
 }
 
 function stopAnalysisProgress() {
@@ -272,10 +542,13 @@ async function handleIncidentSubmit(e) {
     }
 
     const selectedAsset = assets.find((a) => a._id === assetId);
+    const isLiveScanEnabled = selectedAsset?.liveScan?.enabled === true;
+    const hasLiveScanTarget = Boolean(String(selectedAsset?.liveScan?.target || '').trim());
+    const canRunLiveScan = isLiveScanEnabled && hasLiveScanTarget;
 
     setSubmitButtonState(true);
     showModal('analysis-modal');
-    beginAnalysisProgress();
+    beginAnalysisProgress(canRunLiveScan);
 
     try {
         let clientSecurityContext = null;
@@ -283,30 +556,82 @@ async function handleIncidentSubmit(e) {
         analysisMeta.assetId = assetId;
         analysisMeta.asset = selectedAsset || null;
 
-        const isLiveScanEnabled = selectedAsset?.liveScan?.enabled === true;
-        configureScanStep(isLiveScanEnabled);
+        // Collect asset profile data (CPE, OS, ports, services) for merge with scan results
+        let assetProfileData = collectAssetProfileData(selectedAsset);
 
-        if (isLiveScanEnabled) {
+        configureScanStep(isLiveScanEnabled, hasLiveScanTarget);
+
+        if (canRunLiveScan) {
             setStepState('step-scan', 'active');
             startScanTerminalSimulation();
             updateAnalysisStatus('Running security scan on selected asset...', 20);
 
-            const scanResponse = await apiClient.scanAssets([assetId]);
-            const scanResult = Array.isArray(scanResponse?.scans) ? scanResponse.scans[0] : null;
-            clientSecurityContext = scanResult?.securityContext || null;
+            const previewPayload = buildIncidentScanPreviewPayload(selectedAsset);
+            const previewResponse = await apiClient.previewAssetScan(previewPayload);
+            const preview = previewResponse?.preview || previewResponse;
+
+            clientSecurityContext = buildClientSecurityContextFromPreview(preview);
             analysisMeta.securityContext = clientSecurityContext;
 
             await generateTerminalOutputFromScan(clientSecurityContext);
+
+            try {
+                const updatedAsset = await persistAssetProfileFromPreview(selectedAsset, preview);
+                analysisMeta.asset = updatedAsset;
+                assetProfileData = collectAssetProfileData(updatedAsset);
+            } catch (assetUpdateError) {
+                console.warn('Unable to persist latest scan findings to asset profile:', assetUpdateError);
+            }
+
             stopScanTerminalSimulation(false);
             setStepState('step-scan', 'done');
         } else {
-            setStepState('step-scan', 'done');
-            updateAnalysisStatus('Retrieving cached security context...', 15);
+            setStepState('step-scan', 'failed');
+            setStepStateText('step-scan', 'Skipped');
+
+            updateAnalysisStatus(
+                isLiveScanEnabled
+                    ? 'Live scan skipped: no scan target (IP/hostname) configured on this asset.'
+                    : 'Live scan skipped: enable live scan on the asset to run Nmap.',
+                15
+            );
+
+            appendScanTerminalLine('[scan] Live scan skipped.');
+            appendScanTerminalLine(
+                isLiveScanEnabled
+                    ? '[scan] Reason: No scan target (IP/hostname) configured on this asset.'
+                    : '[scan] Reason: Live scan is disabled for this asset.'
+            );
+            appendScanTerminalLine('[scan] Continuing with cached security context for analysis.');
 
             const securityResponse = await apiClient.getAssetSecurityContext(assetId);
             clientSecurityContext = securityResponse?.securityContext || null;
             analysisMeta.securityContext = clientSecurityContext;
         }
+
+        // Merge asset profile data with client security context (fallback if scan didn't detect)
+        if (!clientSecurityContext) { clientSecurityContext = {}; }
+        if (!clientSecurityContext.liveScan) { clientSecurityContext.liveScan = {}; }
+        if (!clientSecurityContext.cve) { clientSecurityContext.cve = {}; }
+        if (!clientSecurityContext.cve.query) { clientSecurityContext.cve.query = {}; }
+
+        // Use asset profile as fallback for OS, ports, services, and CPE
+        if (!clientSecurityContext.liveScan.osInfo && assetProfileData.liveScan.osInfo) {
+            clientSecurityContext.liveScan.osInfo = assetProfileData.liveScan.osInfo;
+        }
+        if ((!clientSecurityContext.liveScan.observedOpenPorts || clientSecurityContext.liveScan.observedOpenPorts.length === 0) && assetProfileData.liveScan.observedOpenPorts.length > 0) {
+            clientSecurityContext.liveScan.observedOpenPorts = assetProfileData.liveScan.observedOpenPorts;
+        }
+        if ((!clientSecurityContext.liveScan.services || clientSecurityContext.liveScan.services.length === 0) && assetProfileData.liveScan.services.length > 0) {
+            clientSecurityContext.liveScan.services = assetProfileData.liveScan.services;
+        }
+        // Merge CPE query fields
+        const acpeQuery = assetProfileData.cve.query;
+        if (!clientSecurityContext.cve.query.cpeUri && acpeQuery.cpeUri) { clientSecurityContext.cve.query.cpeUri = acpeQuery.cpeUri; }
+        if (!clientSecurityContext.cve.query.vendor && acpeQuery.vendor) { clientSecurityContext.cve.query.vendor = acpeQuery.vendor; }
+        if (!clientSecurityContext.cve.query.product && acpeQuery.product) { clientSecurityContext.cve.query.product = acpeQuery.product; }
+        if (!clientSecurityContext.cve.query.productVersion && acpeQuery.productVersion) { clientSecurityContext.cve.query.productVersion = acpeQuery.productVersion; }
+        if (!clientSecurityContext.cve.query.osName && acpeQuery.osName) { clientSecurityContext.cve.query.osName = acpeQuery.osName; }
 
         setStepState('step-cve', 'active');
         updateAnalysisStatus('Querying vulnerability databases for identified services...', 44);
@@ -332,6 +657,8 @@ async function handleIncidentSubmit(e) {
         updateAnalysisStatus('Generating mitigation recommendations...', 90);
         setStepState('step-rec', 'done');
 
+        recordAnalysisDuration(Date.now() - analysisStartTime, analysisUsesLiveScan);
+
         stopAnalysisProgress();
         updateAnalysisStatus('Analysis complete. Details and recommendations are ready.', 100);
 
@@ -343,20 +670,47 @@ async function handleIncidentSubmit(e) {
         console.error('Error submitting incident:', error);
         stopAnalysisProgress();
         stopScanTerminalSimulation(false);
-        hideModal('analysis-modal');
-        showNotification(`Error submitting incident: ${error.message}`, 'error');
+        const errorMessage = String(error?.message || '').trim() || 'Unknown error';
+        const lowerErrorMessage = errorMessage.toLowerCase();
+
+        if (lowerErrorMessage.includes('ai') || lowerErrorMessage.includes('gemini')) {
+            setStepState('step-ai', 'failed');
+        }
+
+        if (lowerErrorMessage.includes('cve') || lowerErrorMessage.includes('vulnerab') || lowerErrorMessage.includes('nist')) {
+            setStepState('step-cve', 'failed');
+        }
+
+        if (lowerErrorMessage.includes('scan') || lowerErrorMessage.includes('target') || lowerErrorMessage.includes('nmap')) {
+            setStepState('step-scan', 'failed');
+        }
+
+        if (lowerErrorMessage.includes('recommend')) {
+            setStepState('step-rec', 'failed');
+        }
+
+        if (!lowerErrorMessage.includes('ai')
+            && !lowerErrorMessage.includes('cve')
+            && !lowerErrorMessage.includes('scan')
+            && !lowerErrorMessage.includes('recommend')) {
+            setStepState('step-ai', 'failed');
+        }
+
+        updateAnalysisStatus(`Analysis did not complete: ${errorMessage}`, 92);
+        appendScanTerminalLine(`[scan] Workflow failed: ${errorMessage}`);
+        showNotification(`Error submitting incident: ${errorMessage}`, 'error');
     } finally {
         setSubmitButtonState(false);
     }
 }
 
-function configureScanStep(isLiveScanEnabled) {
+function configureScanStep(isLiveScanEnabled, hasLiveScanTarget) {
     const stepEl = document.getElementById('step-scan');
     if (!stepEl) {
         return;
     }
 
-    if (isLiveScanEnabled) {
+    if (isLiveScanEnabled && hasLiveScanTarget) {
         stepEl.dataset.stepLabel = 'Running security scan on selected asset';
         const textEl = stepEl.querySelector('.scan-step-text');
         if (textEl) {
@@ -365,16 +719,32 @@ function configureScanStep(isLiveScanEnabled) {
             stepEl.textContent = 'Running security scan on selected asset';
         }
         stepEl.style.display = 'grid';
-    } else {
-        stepEl.dataset.stepLabel = 'Live scan: disabled for this asset';
+
+        return;
+    }
+
+    if (isLiveScanEnabled && !hasLiveScanTarget) {
+        stepEl.dataset.stepLabel = 'Live scan skipped: no scan target configured on this asset';
         const textEl = stepEl.querySelector('.scan-step-text');
         if (textEl) {
-            textEl.textContent = 'Live scan: disabled for this asset';
+            textEl.textContent = 'Live scan skipped: no scan target configured on this asset';
         } else {
-            stepEl.textContent = 'Live scan: disabled for this asset';
+            stepEl.textContent = 'Live scan skipped: no scan target configured on this asset';
         }
         stepEl.style.display = 'grid';
+
+        return;
     }
+
+    stepEl.dataset.stepLabel = 'Live scan skipped: disabled for this asset';
+    const textEl = stepEl.querySelector('.scan-step-text');
+    if (textEl) {
+        textEl.textContent = 'Live scan skipped: disabled for this asset';
+    } else {
+        stepEl.textContent = 'Live scan skipped: disabled for this asset';
+    }
+
+    stepEl.style.display = 'grid';
 }
 
 async function generateTerminalOutputFromScan(securityContext) {
@@ -385,6 +755,7 @@ async function generateTerminalOutputFromScan(securityContext) {
         ? securityContext.liveScan.services
         : [];
     const osInfo = securityContext?.liveScan?.osInfo || 'Unknown';
+    const detectedCpeUri = String(securityContext?.cve?.query?.cpeUri || '').trim();
     const target = String(securityContext?.liveScan?.target || 'selected asset').trim() || 'selected asset';
     const token = analysisTerminalSequenceToken;
     const sleep = (delayMs) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
@@ -460,8 +831,11 @@ async function generateTerminalOutputFromScan(securityContext) {
 
     await appendStep('[scan] Extracting OS fingerprint...');
     await appendStep(osInfo && osInfo !== 'Unknown'
-        ? `OS Detection: ${osInfo}`
+        ? 'OS Detection: ' + osInfo
         : 'OS Detection: Not enough fingerprint data to identify the OS.');
+    await appendStep(detectedCpeUri
+        ? 'CPE Fingerprint: ' + detectedCpeUri
+        : 'CPE Fingerprint: No CPE URI detected from scan profile.');
     await appendStep('[scan] Generating analysis summary...');
     await appendStep('Nmap analysis complete.');
 }

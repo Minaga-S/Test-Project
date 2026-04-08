@@ -17,7 +17,82 @@ const auditLogService = require('../services/auditLogService');
 const { validateIncident } = require('../utils/validators');
 const { generateIncidentId } = require('../utils/constants');
 const logger = require('../utils/logger');
+function normalizeText(value) {
+    return typeof value === 'string' ? value.trim() : '';
+}
 
+function mergeClientSecurityContext(securityContext, clientSecurityContext) {
+    if (!clientSecurityContext || typeof clientSecurityContext !== 'object') {
+        return securityContext;
+    }
+
+    const nextContext = {
+        ...(securityContext || {}),
+        clientReported: clientSecurityContext,
+    };
+
+    const persistedLiveScan = securityContext?.liveScan || {};
+    const mergedLiveScan = {
+        ...persistedLiveScan,
+        ...(clientSecurityContext?.liveScan || {}),
+    };
+
+    const persistedObservedOpenPorts = Array.isArray(persistedLiveScan.observedOpenPorts)
+        ? persistedLiveScan.observedOpenPorts
+        : [];
+    const clientObservedOpenPorts = Array.isArray(clientSecurityContext?.liveScan?.observedOpenPorts)
+        ? clientSecurityContext.liveScan.observedOpenPorts
+        : [];
+    mergedLiveScan.observedOpenPorts = clientObservedOpenPorts.length > 0 ? clientObservedOpenPorts : persistedObservedOpenPorts;
+
+    const persistedOsInfo = normalizeText(persistedLiveScan.osInfo);
+    const clientOsInfo = normalizeText(clientSecurityContext?.liveScan?.osInfo);
+    mergedLiveScan.osInfo = clientOsInfo || persistedOsInfo;
+
+    // Merge services (client services fallback to persisted)
+    const persistedServices = Array.isArray(persistedLiveScan.services) ? persistedLiveScan.services : [];
+    const clientServices = Array.isArray(clientSecurityContext?.liveScan?.services) ? clientSecurityContext.liveScan.services : [];
+    mergedLiveScan.services = clientServices.length > 0 ? clientServices : persistedServices;
+
+    nextContext.liveScan = mergedLiveScan;
+
+    const mergedCve = {
+        ...(securityContext?.cve || {}),
+        ...(clientSecurityContext?.cve || {}),
+    };
+
+    const clientCveMatches = Array.isArray(clientSecurityContext?.cve?.matches)
+        ? clientSecurityContext.cve.matches
+        : [];
+    if (clientCveMatches.length > 0) {
+        mergedCve.matches = clientCveMatches;
+        mergedCve.totalMatches = clientCveMatches.length;
+    }
+
+    const persistedQuery = securityContext?.cve?.query || {};
+    const mergedQuery = {
+        ...persistedQuery,
+        ...(clientSecurityContext?.cve?.query || {}),
+    };
+
+    mergedQuery.osName = normalizeText(mergedQuery.osName) || normalizeText(persistedQuery.osName);
+    mergedQuery.vendor = normalizeText(mergedQuery.vendor) || normalizeText(persistedQuery.vendor);
+    mergedQuery.product = normalizeText(mergedQuery.product) || normalizeText(persistedQuery.product);
+    mergedQuery.productVersion = normalizeText(mergedQuery.productVersion) || normalizeText(persistedQuery.productVersion);
+    mergedQuery.cpeUri = normalizeText(mergedQuery.cpeUri) || normalizeText(persistedQuery.cpeUri);
+
+    mergedCve.query = mergedQuery;
+    nextContext.cve = mergedCve;
+
+    if (clientSecurityContext.enrichment && typeof clientSecurityContext.enrichment === 'object') {
+        nextContext.enrichment = {
+            ...(securityContext?.enrichment || {}),
+            ...clientSecurityContext.enrichment,
+        };
+    }
+
+    return nextContext;
+}
 class IncidentController {
     async createIncident(req, res, next) {
         try {
@@ -72,56 +147,7 @@ class IncidentController {
             }
 
             const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
-            const securityContext = assetSecurityContextService.buildForAsset(asset, latestScanHistory);
-            if (clientSecurityContext && typeof clientSecurityContext === 'object') {
-                securityContext.clientReported = clientSecurityContext;
-
-                const existingCveMatches = Array.isArray(securityContext?.cve?.matches)
-                    ? securityContext.cve.matches
-                    : [];
-                const clientCveMatches = Array.isArray(clientSecurityContext?.cve?.matches)
-                    ? clientSecurityContext.cve.matches
-                    : [];
-
-                if (existingCveMatches.length === 0 && clientCveMatches.length > 0) {
-                    securityContext.cve = {
-                        ...(securityContext.cve || {}),
-                        ...(clientSecurityContext.cve || {}),
-                        matches: clientCveMatches,
-                        totalMatches: clientCveMatches.length,
-                    };
-
-                    if (clientSecurityContext.enrichment && typeof clientSecurityContext.enrichment === 'object') {
-                        securityContext.enrichment = {
-                            ...(securityContext.enrichment || {}),
-                            ...clientSecurityContext.enrichment,
-                        };
-                    }
-
-                    if (securityContext.dataSources && typeof securityContext.dataSources === 'object') {
-                        securityContext.dataSources.cve = 'NIST Enriched';
-                    }
-                }
-
-                const existingObservedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
-                    ? securityContext.liveScan.observedOpenPorts
-                    : [];
-                const clientObservedOpenPorts = Array.isArray(clientSecurityContext?.liveScan?.observedOpenPorts)
-                    ? clientSecurityContext.liveScan.observedOpenPorts
-                    : [];
-
-                if (existingObservedOpenPorts.length === 0 && clientObservedOpenPorts.length > 0) {
-                    securityContext.liveScan = {
-                        ...(securityContext.liveScan || {}),
-                        ...(clientSecurityContext.liveScan || {}),
-                        observedOpenPorts: clientObservedOpenPorts,
-                    };
-
-                    if (securityContext.dataSources && typeof securityContext.dataSources === 'object') {
-                        securityContext.dataSources.scan = securityContext.dataSources.scan || 'Live Nmap Scan';
-                    }
-                }
-            }
+            const securityContext = mergeClientSecurityContext(assetSecurityContextService.buildForAsset(asset, latestScanHistory), clientSecurityContext);
 
             const threatAnalysis = await threatService.classifyThreat(description, securityContext);
             const riskAssessment = riskService.calculateRisk(

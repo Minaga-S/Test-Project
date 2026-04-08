@@ -142,6 +142,25 @@ describe('ai-config (Gemini)', () => {
         expect(recommendations).toEqual(['Step 1', 'Step 2']);
     });
 
+
+    it('should include detected os and cpe context in ai prompt', async () => {
+        axios.post.mockResolvedValue({
+            data: {
+                candidates: [{
+                    content: {
+                        parts: [{ text: '{"threatType":"Malware","likelihood":3,"impact":3}' }],
+                    },
+                }],
+            },
+        });
+
+        await analyzeThreatWithAI('Suspicious process observed on host.', {
+            liveScan: { enabled: true, target: '10.0.0.10', osInfo: 'Linux 6.6', observedOpenPorts: [22] },
+            cve: { query: { cpeUri: 'cpe:/o:linux:linux_kernel:6.6', vendor: 'linux', product: 'linux_kernel', productVersion: '6.6' }, matches: [] },
+        });
+
+        expect(axios.post.mock.calls[0][1].contents[0].parts[0].text).toContain('Detected CPE URI: cpe:/o:linux:linux_kernel:6.6');
+    });
     it('should use deterministic temperature by default for analysis requests', async () => {
         axios.post.mockResolvedValue({
             data: {

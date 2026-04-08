@@ -278,6 +278,7 @@ function formatSecurityContextForPrompt(securityContext) {
 
     const liveScan = securityContext.liveScan || {};
     const cve = securityContext.cve || {};
+    const cveQuery = cve.query || {};
     const cveMatches = Array.isArray(cve.matches) ? cve.matches : [];
 
     const cveSummary = cveMatches.length > 0
@@ -287,6 +288,11 @@ function formatSecurityContextForPrompt(securityContext) {
     return [
         `Live scan enabled: ${Boolean(liveScan.enabled)}`,
         `Live scan target: ${liveScan.target || 'Unknown'}`,
+        `Detected OS: ${liveScan.osInfo || cveQuery.osName || 'Unknown'}`,
+        `Detected CPE URI: ${cveQuery.cpeUri || 'None'}`,
+        `Detected vendor: ${cveQuery.vendor || 'Unknown'}`,
+        `Detected product: ${cveQuery.product || 'Unknown'}`,
+        `Detected product version: ${cveQuery.productVersion || 'Unknown'}`,
         `Observed open ports: ${(liveScan.observedOpenPorts || []).join(', ') || 'None'}`,
         `Service count: ${(liveScan.services || []).length || 0}`,
         `CVE matches: ${cveSummary}`,

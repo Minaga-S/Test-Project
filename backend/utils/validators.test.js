@@ -101,7 +101,7 @@ describe('validateAsset', () => {
             },
         });
 
-        expect(result.errors.cpeUri).toBe('CPE URI must use cpe:2.3 format');
+        expect(result.errors.cpeUri).toBe('CPE URI must use cpe:2.3 or cpe:/ format');
     });
 
 
@@ -117,6 +117,32 @@ describe('validateAsset', () => {
 
         expect(result.errors.product).toBeUndefined();
     });
+    it('should pass when OS name contains Nmap punctuation and confidence', () => {
+        const result = validateAsset({
+            assetName: 'Core Server',
+            assetType: 'Server',
+            criticality: 'High',
+            vulnerabilityProfile: {
+                osName: 'Linux 3.X|4.X (95%)',
+            },
+        });
+
+        expect(result.errors.osName).toBeUndefined();
+    });
+
+    it('should pass when legacy cpe:/ format is provided', () => {
+        const result = validateAsset({
+            assetName: 'Core Server',
+            assetType: 'Server',
+            criticality: 'High',
+            vulnerabilityProfile: {
+                cpeUri: 'cpe:/o:linux:linux_kernel:5',
+            },
+        });
+
+        expect(result.errors.cpeUri).toBeUndefined();
+    });
+
     it('should pass for valid live scan details', () => {
         const result = validateAsset({
             assetName: 'Core Server',
@@ -139,3 +165,4 @@ describe('validateAsset', () => {
         expect(result.isValid).toBe(true);
     });
 });
+

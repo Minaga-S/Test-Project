@@ -9,11 +9,30 @@ const { enrichmentLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
 const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
-const CPE_URI_PATTERN = /^cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}$/i;
-const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 .,_\-/]{0,80}$/;
+const CPE_URI_PATTERN = /^(cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}|cpe:\/[aho]:[a-z0-9._-]+:[a-z0-9._-]+(:[a-z0-9*._-]*){0,7})$/i;
+const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 .,_\-/():|+%]{0,160}$/;
 const PROFILE_VERSION_PATTERN = /^[a-zA-Z0-9 ._\-]{0,40}$/;
 
 const withController = (controller, methodName) => (req, res, next) => controller[methodName](req, res, next);
+
+function normalizeCpeUri(value) {
+    const rawValue = String(value || '').trim();
+    if (!rawValue) {
+        return '';
+    }
+
+    const tokenMatch = rawValue.match(/(cpe:2\.3:[^\s,;]+|cpe:\/[^\s,;]+)/i);
+    if (!tokenMatch) {
+        return '';
+    }
+
+    return tokenMatch[1].replace(/[)\].,;\/]+$/, '');
+}
+
+function isValidCpeUri(value) {
+    const normalized = normalizeCpeUri(value);
+    return normalized === '' || CPE_URI_PATTERN.test(normalized);
+}
 
 const objectIdValidation = [
     param('id').isMongoId().withMessage('Invalid asset id'),
@@ -31,7 +50,14 @@ const assetBodyValidation = [
     body('vulnerabilityProfile.vendor').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Vendor contains invalid characters'),
     body('vulnerabilityProfile.product').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Product contains invalid characters'),
     body('vulnerabilityProfile.productVersion').optional().trim().matches(PROFILE_VERSION_PATTERN).withMessage('Product version contains invalid characters'),
-    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value) => value === '' || CPE_URI_PATTERN.test(value)).withMessage('CPE URI must use cpe:2.3 format'),
+    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value, { req }) => {
+        const normalizedCpeUri = normalizeCpeUri(value);
+        if (req.body?.vulnerabilityProfile) {
+            req.body.vulnerabilityProfile.cpeUri = normalizedCpeUri;
+        }
+
+        return isValidCpeUri(normalizedCpeUri);
+    }).withMessage('CPE URI must use cpe:2.3 or cpe:/ format'),
     validateRequest,
 ];
 
@@ -54,7 +80,14 @@ const scanPreviewValidation = [
     body('vulnerabilityProfile.vendor').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Vendor contains invalid characters'),
     body('vulnerabilityProfile.product').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Product contains invalid characters'),
     body('vulnerabilityProfile.productVersion').optional().trim().matches(PROFILE_VERSION_PATTERN).withMessage('Product version contains invalid characters'),
-    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value) => value === '' || CPE_URI_PATTERN.test(value)).withMessage('CPE URI must use cpe:2.3 format'),
+    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value, { req }) => {
+        const normalizedCpeUri = normalizeCpeUri(value);
+        if (req.body?.vulnerabilityProfile) {
+            req.body.vulnerabilityProfile.cpeUri = normalizedCpeUri;
+        }
+
+        return isValidCpeUri(normalizedCpeUri);
+    }).withMessage('CPE URI must use cpe:2.3 or cpe:/ format'),
     validateRequest,
 ];
 
@@ -72,4 +105,8 @@ router.put('/:id', objectIdValidation, assetBodyValidation, withController(asset
 router.delete('/:id', objectIdValidation, withController(assetController, 'deleteAsset'));
 
 module.exports = router;
+
+
+
+
 

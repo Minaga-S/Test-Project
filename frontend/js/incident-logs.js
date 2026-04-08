@@ -565,6 +565,10 @@ function displayIncidentDetails(incident) {
         ? liveScan.observedOpenPorts
         : (Array.isArray(clientReportedLiveScan.observedOpenPorts) ? clientReportedLiveScan.observedOpenPorts : []);
     const openPortsText = openPorts.length > 0 ? openPorts.join(', ') : 'None identified';
+    const cveQuery = securityContext?.cve?.query || {};
+    const clientReportedCveQuery = securityContext?.clientReported?.cve?.query || {};
+    const osInfo = String(liveScan.osInfo || clientReportedLiveScan.osInfo || cveQuery.osName || clientReportedCveQuery.osName || '').trim() || 'N/A';
+    const cpeUri = String(cveQuery.cpeUri || clientReportedCveQuery.cpeUri || '').trim() || 'N/A';
 
     document.getElementById('detail-incident-id').textContent = incident.incidentId;
     document.getElementById('detail-status').textContent = incident.status;
@@ -606,6 +610,32 @@ function displayIncidentDetails(incident) {
 
     document.getElementById('detail-scanned-ip').textContent = scanTarget;
     document.getElementById('detail-open-ports').textContent = openPortsText;
+    document.getElementById('detail-os-info').textContent = osInfo;
+    document.getElementById('detail-cpe-uri').textContent = cpeUri;
+
+    // Extract and display vendor, product, version, and services
+    const vendor = String(cveQuery.vendor || clientReportedCveQuery.vendor || '').trim() || 'N/A';
+    const product = String(cveQuery.product || clientReportedCveQuery.product || '').trim() || 'N/A';
+    const productVersion = String(cveQuery.productVersion || clientReportedCveQuery.productVersion || '').trim() || 'N/A';
+    const services = (liveScan.services || clientReportedLiveScan.services || []);
+    const servicesText = services.length > 0
+        ? [...new Set(services
+            .map((service) => String(service?.service || '').trim())
+            .filter(Boolean))].join(', ')
+        : 'None identified';
+
+    if (document.getElementById('detail-vendor')) {
+        document.getElementById('detail-vendor').textContent = vendor;
+    }
+    if (document.getElementById('detail-product')) {
+        document.getElementById('detail-product').textContent = product;
+    }
+    if (document.getElementById('detail-product-version')) {
+        document.getElementById('detail-product-version').textContent = productVersion;
+    }
+    if (document.getElementById('detail-services')) {
+        document.getElementById('detail-services').textContent = servicesText;
+    }
 
     renderIncidentCveDetails(incident);
 
