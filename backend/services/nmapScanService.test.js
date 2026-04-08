@@ -39,6 +39,18 @@ describe('nmapScanService', () => {
         expect(childProcess.execFile.mock.calls[1][1].includes('-O')).toBe(true);
     });
 
+
+    it('should skip second OS scan when primary scan already has OS and CPE', async () => {
+        childProcess.execFile.mockImplementationOnce((command, args, options, callback) => {
+            callback(null, {
+                stdout: 'Host: 10.0.0.10 () Status: Up\nPorts: 22/open/tcp//ssh//OpenSSH 4.7p1 Debian 8ubuntu1/\nOS details: Linux 2.6.9 - 2.6.33\nOS CPE: cpe:/o:linux:linux_kernel:2.6',
+            });
+        });
+
+        await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
+
+        expect(childProcess.execFile).toHaveBeenCalledTimes(1);
+    });
     it('should parse open services from grepable output', async () => {
         const result = await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
 

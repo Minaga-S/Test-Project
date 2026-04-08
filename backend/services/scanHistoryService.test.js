@@ -114,8 +114,6 @@ describe('scanHistoryService', () => {
 
         expect(cveEnrichmentService.enrichForAsset.mock.calls[0][0]).toEqual(expect.objectContaining({
             serviceNames: ['ssh OpenSSH 8.0', 'https Apache 2.4'],
-            osName: 'Linux 5.x',
-            cpeUri: 'cpe:/o:linux:linux_kernel:5',
         }));
     });
 
@@ -133,6 +131,8 @@ describe('scanHistoryService', () => {
             ],
             hostState: { state: 'up', hostName: 'edge-gateway.local' },
             rawOutput: 'Host: 10.0.0.10 () Status: Up',
+            osInfo: 'Linux 5.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:5',
         });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
@@ -176,8 +176,8 @@ describe('scanHistoryService', () => {
             expect.objectContaining({
                 $set: expect.objectContaining({
                     vulnerabilityProfile: expect.objectContaining({
-                        vendor: 'OpenSSH',
-                        product: 'ssh OpenSSH 8.0, https Apache 2.4',
+                        vendor: '',
+                        product: '',
                         osName: 'Linux 5.x',
                         cpeUri: 'cpe:/o:linux:linux_kernel:5',
                     }),

@@ -277,20 +277,22 @@ async function runScan({ target, ports, requestIp } = {}) {
 
         const openServices = parsePortsLine(stdout);
         const hostState = parseHostState(stdout);
-        let osInfo = '';
-        let osCpe = '';
+        let osInfo = parseOsInfo(stdout);
+        let osCpe = parseOsCpe(stdout);
 
-        try {
-            const osArgs = buildOsDetectionArgs(normalizedTarget);
-            const { stdout: osStdout = '' } = await execFileAsync('nmap', osArgs, {
-                maxBuffer: 5 * 1024 * 1024,
-                timeout: DEFAULT_NMAP_TIMEOUT_MS,
-            });
-            osInfo = parseOsInfo(osStdout);
-            osCpe = parseOsCpe(osStdout);
-        } catch (osError) {
-            osInfo = '';
-            osCpe = '';
+        if (!osInfo || !osCpe) {
+            try {
+                const osArgs = buildOsDetectionArgs(normalizedTarget);
+                const { stdout: osStdout = '' } = await execFileAsync('nmap', osArgs, {
+                    maxBuffer: 5 * 1024 * 1024,
+                    timeout: DEFAULT_NMAP_TIMEOUT_MS,
+                });
+                osInfo = osInfo || parseOsInfo(osStdout);
+                osCpe = osCpe || parseOsCpe(osStdout);
+            } catch (osError) {
+                osInfo = osInfo || '';
+                osCpe = osCpe || '';
+            }
         }
 
         return {

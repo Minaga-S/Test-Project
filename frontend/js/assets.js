@@ -388,9 +388,9 @@ function applyScanPreviewToForm(previewPayload = {}) {
     document.getElementById('asset-live-scan-enabled').checked = true;
 
     const detectedOsName = inferredProfile.osName || liveScan.osInfo || scanResult.osInfo || '';
-    const detectedVendor = inferredProfile.vendor || cveQuery.vendor || '';
-    const detectedProduct = inferredProfile.product || cveQuery.product || '';
-    const detectedProductVersion = inferredProfile.productVersion || cveQuery.productVersion || '';
+    const detectedVendor = inferredProfile.vendor || '';
+    const detectedProduct = inferredProfile.product || '';
+    const detectedProductVersion = inferredProfile.productVersion || '';
     const detectedCpeUri = inferredProfile.cpeUri || cveQuery.cpeUri || scanResult.osCpe || '';
 
     if (!document.getElementById('asset-os-name').value) {

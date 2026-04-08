@@ -91,24 +91,6 @@ function shouldFallbackToEnrichment(error) {
     return message.includes('nmap is not installed') || message.includes('nmap scan failed');
 }
 
-function inferVendorFromServices(serviceNames = []) {
-    const normalized = serviceNames.map((item) => String(item || '').toLowerCase());
-
-    if (normalized.some((service) => service.includes('microsoft'))) {
-        return 'Microsoft';
-    }
-
-    if (normalized.some((service) => service.includes('ssh'))) {
-        return 'OpenSSH';
-    }
-
-    if (normalized.some((service) => service.includes('http'))) {
-        return 'Web Service';
-    }
-
-    return '';
-}
-
 function isLikelyOperatingSystem(value) {
     const normalized = String(value || '').trim().toLowerCase();
     if (!normalized) {
@@ -151,17 +133,6 @@ function inferProfileUpdates(asset, scanResult) {
     const detectedOsName = String(scanResult?.osInfo || '').trim();
     const detectedCpeUri = String(scanResult?.osCpe || '').trim();
 
-    const detectedServices = Array.isArray(scanResult?.services)
-        ? scanResult.services
-            .map((service) => {
-                const name = String(service?.service || '').trim();
-                const version = String(service?.version || '').trim();
-                return name && version ? `${name} ${version}` : name;
-            })
-            .filter(Boolean)
-        : [];
-    const uniqueServices = [...new Set(detectedServices)];
-
     const nextProfile = {
         ...existingProfile,
         osName: currentOsName || detectedOsName,
@@ -169,14 +140,6 @@ function inferProfileUpdates(asset, scanResult) {
         product: currentProduct,
         cpeUri: currentCpeUri || detectedCpeUri,
     };
-
-    if (!nextProfile.product && uniqueServices.length > 0) {
-        nextProfile.product = uniqueServices.slice(0, 3).join(', ');
-    }
-
-    if (!nextProfile.vendor) {
-        nextProfile.vendor = inferVendorFromServices(uniqueServices);
-    }
 
     const hasChanges = nextProfile.osName !== currentOsName
         || nextProfile.vendor !== currentVendor
