@@ -422,8 +422,7 @@ function generateTerminalOutputFromScan(securityContext) {
         appendScanTerminalLine('');
         appendScanTerminalLine('Identified Services:');
         services.slice(0, 5).forEach((svc) => {
-            const serviceName = typeof svc === 'object' && svc !== null ? (svc.name || svc.service || JSON.stringify(svc)) : String(svc);
-            appendScanTerminalLine(`  • ${serviceName}`);
+            appendScanTerminalLine(`  • ${svc}`);
         });
         if (services.length > 5) {
             appendScanTerminalLine(`  ... and ${services.length - 5} more`);
