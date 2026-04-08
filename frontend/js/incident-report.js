@@ -202,6 +202,50 @@ function stopScanTerminalSimulation(autoCloseTerminal = true) {
     }
 }
 
+
+function collectAssetProfileData(assetId) {
+    const osName = String(document.getElementById("asset-os-name")?.value || "").trim();
+    const vendor = String(document.getElementById("asset-vendor")?.value || "").trim();
+    const product = String(document.getElementById("asset-product")?.value || "").trim();
+    const productVersion = String(document.getElementById("asset-product-version")?.value || "").trim();
+    const cpeUri = String(document.getElementById("asset-cpe-uri")?.value || "").trim();
+    const openPortsText = String(document.getElementById("asset-preview-open-ports")?.value || "").trim();
+    const servicesText = String(document.getElementById("asset-preview-services")?.value || "").trim();
+    
+    // Parse open ports
+    const observedOpenPorts = openPortsText && openPortsText !== "None identified"
+        ? openPortsText.split(",").map(p => Number(p.trim())).filter(p => !isNaN(p) && p > 0 && p <= 65535)
+        : [];
+    
+    // Parse services
+    const services = [];
+    if (servicesText && servicesText !== "None identified") {
+        servicesText.split(",").forEach(svc => {
+            const match = svc.trim().match(/^(d+)/(tcp|udp):(.+)$/i);
+            if (match) {
+                services.push({ port: Number(match[1]), protocol: match[2], service: match[3] });
+            }
+        });
+    }
+    
+    return {
+        liveScan: {
+            osInfo: osName || "",
+            observedOpenPorts,
+            services,
+        },
+        cve: {
+            query: {
+                cpeUri,
+                vendor,
+                product,
+                productVersion,
+                osName,
+            },
+        },
+    };
+}
+
 function resetAnalysisSteps() {
     ['step-scan', 'step-cve', 'step-ai', 'step-rec'].forEach((stepId) => {
         const stepEl = document.getElementById(stepId);
@@ -294,6 +338,9 @@ async function handleIncidentSubmit(e) {
 
         analysisMeta.assetId = assetId;
         analysisMeta.asset = selectedAsset || null;
+
+        // Collect asset profile data (CPE, OS, ports, services) for merge with scan results
+        const assetProfileData = collectAssetProfileData(assetId);
 
         const isLiveScanEnabled = selectedAsset?.liveScan?.enabled === true;
         configureScanStep(isLiveScanEnabled);
