@@ -15,7 +15,7 @@ const DETERMINISTIC_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE || 0);
 const JSON_REPAIR_TEMPERATURE = Number(process.env.GEMINI_REPAIR_TEMPERATURE || 0);
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 300;
-const DEFAULT_MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+const DEFAULT_MODEL_FALLBACKS = ['gemini-2.0-flash-001', 'gemini-2.0-flash-lite-001'];
 
 function getGeminiApiUrl(modelName) {
     return `${GEMINI_API_BASE_URL}/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
@@ -127,7 +127,16 @@ function isInvalidArgumentError(error) {
 
 function getCandidateModels() {
     const configuredModel = String(GEMINI_MODEL || '').trim();
-    const modelList = [configuredModel, ...DEFAULT_MODEL_FALLBACKS].filter(Boolean);
+    const configuredFallbacks = String(process.env.GEMINI_MODEL_FALLBACKS || '')
+        .split(',')
+        .map((modelName) => modelName.trim())
+        .filter(Boolean);
+
+    const fallbackModels = configuredFallbacks.length > 0
+        ? configuredFallbacks
+        : DEFAULT_MODEL_FALLBACKS;
+
+    const modelList = [configuredModel, ...fallbackModels].filter(Boolean);
     return [...new Set(modelList)];
 }
 

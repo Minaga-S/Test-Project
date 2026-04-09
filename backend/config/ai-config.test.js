@@ -1,6 +1,7 @@
 process.env.GEMINI_API_KEY = 'test-gemini-key-' + Date.now();
 process.env.GEMINI_MODEL = 'gemini-2.5-flash';
 process.env.GEMINI_MODEL_VERSION = 'v1beta';
+delete process.env.GEMINI_MODEL_FALLBACKS;
 
 const axios = require('axios');
 jest.mock('axios');
@@ -44,6 +45,27 @@ describe('ai-config (Gemini)', () => {
         const malformed = __private.isMalformedJsonError(new SyntaxError('Unterminated string in JSON'));
 
         expect(malformed).toBe(true);
+    });
+
+    it('should prioritize gemini-2.0-flash-001 as fallback after configured model', () => {
+        const candidates = __private.getCandidateModels();
+
+        expect(candidates[0]).toBe('gemini-2.5-flash');
+        expect(candidates[1]).toBe('gemini-2.0-flash-001');
+        expect(candidates[2]).toBe('gemini-2.0-flash-lite-001');
+    });
+
+    it('should use GEMINI_MODEL_FALLBACKS when provided', () => {
+        process.env.GEMINI_MODEL_FALLBACKS = 'gemini-2.0-flash-001, gemini-2.0-flash-lite-001';
+        jest.resetModules();
+        const reloaded = require('./ai-config');
+
+        const candidates = reloaded.__private.getCandidateModels();
+
+        expect(candidates).toEqual(['gemini-2.5-flash', 'gemini-2.0-flash-001', 'gemini-2.0-flash-lite-001']);
+
+        delete process.env.GEMINI_MODEL_FALLBACKS;
+        jest.resetModules();
     });
 
     it('should return parsed analysis from Gemini response', async () => {

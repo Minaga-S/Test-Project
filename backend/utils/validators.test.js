@@ -164,5 +164,21 @@ describe('validateAsset', () => {
 
         expect(result.isValid).toBe(true);
     });
+
+    it('should pass when scan ports include spaces after commas', () => {
+        const result = validateAsset({
+            assetName: 'Core Server',
+            assetType: 'Server',
+            criticality: 'High',
+            liveScan: {
+                enabled: true,
+                target: '192.168.1.15',
+                ports: '22, 80, 443',
+                frequency: 'Daily',
+            },
+        });
+
+        expect(result.errors.scanPorts).toBeUndefined();
+    });
 });
 
