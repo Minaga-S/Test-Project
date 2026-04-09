@@ -233,13 +233,18 @@ function toggleModal(modalId) {
 }
 
 function showNotification(message, type = 'info') {
+    let notificationContainer = document.getElementById('notification-container');
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.className = 'notification-container';
+        document.body.appendChild(notificationContainer);
+    }
+
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
     notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
         padding: 1rem;
         border-radius: 8px;
         background-color: ${
@@ -250,11 +255,10 @@ function showNotification(message, type = 'info') {
         };
         color: white;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 10000;
         animation: slideIn 0.3s ease;
     `;
 
-    document.body.appendChild(notification);
+    notificationContainer.appendChild(notification);
 
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';

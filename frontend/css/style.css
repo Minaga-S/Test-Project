@@ -129,6 +129,51 @@
     --font-size-xl: 24px;
 }
 
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-end;
+    z-index: var(--z-toast);
+    pointer-events: none;
+    width: min(100vw - 40px, 380px);
+}
+
+.notification-container .notification {
+    pointer-events: auto;
+    width: 100%;
+    max-width: 380px;
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--radius-md);
+    box-sizing: border-box;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(16px) translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(16px) translateY(-6px);
+    }
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -187,7 +232,20 @@ a {
 }
 
 a:hover {
-    color: #1e8449;
+    color: #365FDD;
+    text-decoration: none;
+}
+
+button,
+.link,
+[role="button"] {
+    text-decoration: none !important;
+}
+
+button:hover,
+.link:hover,
+[role="button"]:hover {
+    text-decoration: none !important;
 }
 
 small {

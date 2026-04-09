@@ -30,6 +30,7 @@ async function initializeSettings() {
     setupUserInfo();
     setupLogoutButton();
     setupTabHandlers();
+    setupTermsAndConditionsLink();
     setupFormHandlers();
     setupDepartmentSelects();
     setupTwoFactorCodeFormatting();
@@ -263,6 +264,57 @@ function setupTabHandlers() {
             activateTab(tabName);
         });
     });
+}
+
+function setupTermsAndConditionsLink() {
+    const termsBtn = document.getElementById('open-terms-from-settings-btn');
+    const closeBtn = document.getElementById('close-terms-btn');
+    const modal = document.getElementById('terms-and-conditions-modal');
+    const overlay = modal?.querySelector('.modal-overlay');
+    
+    if (termsBtn) {
+        termsBtn.addEventListener('click', () => {
+            openTermsAndConditionsModalFromSettings();
+        });
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            closeTermsAndConditionsModal();
+        });
+    }
+    
+    if (overlay) {
+        overlay.addEventListener('click', () => {
+            closeTermsAndConditionsModal();
+        });
+    }
+}
+
+function openTermsAndConditionsModalFromSettings() {
+    const modal = document.getElementById('terms-and-conditions-modal');
+    if (!modal) {
+        return;
+    }
+    
+    const cancelBtn = document.getElementById('cancel-terms-btn');
+    const agreeBtn = document.getElementById('complete-terms-btn');
+    const closeBtn = document.getElementById('close-terms-btn');
+    
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (agreeBtn) agreeBtn.style.display = 'none';
+    if (closeBtn) closeBtn.style.display = 'block';
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTermsAndConditionsModal() {
+    const modal = document.getElementById('terms-and-conditions-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
 }
 
 function activateTab(tabName) {
