@@ -10,6 +10,8 @@ const GUIDE_TASK_ROUTES = {
     'report-export': 'incident-logs.html',
 };
 
+let applyGuideTabOrder = null;
+
 function getHelpPageElements() {
     return {
         pageType: document.body.dataset.helpPage || '',
@@ -122,6 +124,33 @@ function setupGuideTabs(elements) {
         return;
     }
 
+    const tabOrder = ['guide-tab-checklist', 'guide-tab-getting-started', 'guide-tab-incidents', 'guide-tab-risk', 'guide-tab-reporting'];
+
+    const applyTabOrder = (checklistIsComplete) => {
+        const tabContainer = elements.tabButtons[0]?.parentElement;
+        const panelContainer = elements.tabPanels[0]?.parentElement;
+
+        if (!tabContainer || !panelContainer) {
+            return;
+        }
+
+        const orderedTabs = checklistIsComplete
+            ? tabOrder.filter((tabId) => tabId !== 'guide-tab-checklist').concat('guide-tab-checklist')
+            : tabOrder;
+
+        orderedTabs.forEach((tabId) => {
+            const button = elements.tabButtons.find((entry) => entry.dataset.guideTabTarget === tabId);
+            if (button) {
+                tabContainer.appendChild(button);
+            }
+
+            const panel = elements.tabPanels.find((entry) => entry.id === tabId);
+            if (panel) {
+                panelContainer.appendChild(panel);
+            }
+        });
+    };
+
     const activateTab = (targetId) => {
         elements.tabButtons.forEach((button) => {
             const isActive = button.dataset.guideTabTarget === targetId;
@@ -147,6 +176,10 @@ function setupGuideTabs(elements) {
     if (initialTarget) {
         activateTab(initialTarget);
     }
+
+    applyTabOrder(false);
+
+    applyGuideTabOrder = applyTabOrder;
 }
 
 function readChecklistState() {
@@ -225,6 +258,7 @@ function updateChecklistProgress() {
     const completedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
     const totalCount = checkboxes.length;
     const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const checklistIsComplete = totalCount > 0 && completedCount === totalCount;
 
     const statusEl = document.getElementById('help-checklist-status');
     if (statusEl) {
@@ -239,6 +273,10 @@ function updateChecklistProgress() {
     const progressBar = document.querySelector('.help-progress-bar[role="progressbar"]');
     if (progressBar) {
         progressBar.setAttribute('aria-valuenow', String(percentage));
+    }
+
+    if (typeof applyGuideTabOrder === 'function') {
+        applyGuideTabOrder(checklistIsComplete);
     }
 
     syncGuideItemStates();

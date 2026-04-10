@@ -12,7 +12,6 @@ const nistService = require('../services/nistMappingService');
 const assetSecurityContextService = require('../services/assetSecurityContextService');
 const scanHistoryService = require('../services/scanHistoryService');
 const nmapScanService = require('../services/nmapScanService');
-const pushNotificationService = require('../services/pushNotificationService');
 const auditLogService = require('../services/auditLogService');
 const { validateIncident } = require('../utils/validators');
 const { generateIncidentId } = require('../utils/constants');
@@ -219,12 +218,6 @@ class IncidentController {
                 },
                 ipAddress: req.ip || '',
             });
-
-            try {
-                await pushNotificationService.notifyIncidentCreated(req.user.userId, incident, asset);
-            } catch (notificationError) {
-                logger.error(`Push notification error: ${notificationError.message}`);
-            }
 
             logger.info(`Incident created: ${incident.incidentId} for user ${req.user.userId}`);
 

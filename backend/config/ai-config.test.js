@@ -1,6 +1,7 @@
 process.env.GEMINI_API_KEY = 'test-gemini-key-' + Date.now();
 process.env.GEMINI_MODEL = 'gemini-2.5-flash';
 process.env.GEMINI_MODEL_VERSION = 'v1beta';
+delete process.env.GEMINI_MODEL_FALLBACKS;
 
 const axios = require('axios');
 jest.mock('axios');
@@ -44,6 +45,27 @@ describe('ai-config (Gemini)', () => {
         const malformed = __private.isMalformedJsonError(new SyntaxError('Unterminated string in JSON'));
 
         expect(malformed).toBe(true);
+    });
+
+    it('should prioritize gemini-2.5-flash-lite as fallback after configured model', () => {
+        const candidates = __private.getCandidateModels();
+
+        expect(candidates[0]).toBe('gemini-2.5-flash');
+        expect(candidates[1]).toBe('gemini-2.5-flash-lite');
+        expect(candidates[2]).toBe('gemini-2-flash-lite');
+    });
+
+    it('should use GEMINI_MODEL_FALLBACKS when provided', () => {
+        process.env.GEMINI_MODEL_FALLBACKS = 'gemini-2.5-flash-lite, gemini-2-flash-lite';
+        jest.resetModules();
+        const reloaded = require('./ai-config');
+
+        const candidates = reloaded.__private.getCandidateModels();
+
+        expect(candidates).toEqual(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2-flash-lite']);
+
+        delete process.env.GEMINI_MODEL_FALLBACKS;
+        jest.resetModules();
     });
 
     it('should return parsed analysis from Gemini response', async () => {
@@ -91,6 +113,35 @@ describe('ai-config (Gemini)', () => {
 
         expect(result.threatType).toBe('Phishing');
         expect(axios.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('should switch to the next model when the primary model returns high-demand 503', async () => {
+        axios.post
+            .mockRejectedValueOnce({
+                response: {
+                    status: 503,
+                    data: {
+                        error: {
+                            message: 'This model is currently experiencing high demand. Please try again later.',
+                        },
+                    },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    candidates: [{
+                        content: {
+                            parts: [{ text: '{"threatType":"Malware","likelihood":3,"impact":3}' }],
+                        },
+                    }],
+                },
+            });
+
+        const result = await analyzeThreatWithAI('Endpoint is showing signs of malicious behavior.');
+
+        expect(result.threatType).toBe('Malware');
+        expect(axios.post.mock.calls[0][0]).toContain('/models/gemini-2.5-flash:generateContent');
+        expect(axios.post.mock.calls[1][0]).toContain('/models/gemini-2.5-flash-lite:generateContent');
     });
 
     it('should repair malformed JSON when first model output is invalid', async () => {

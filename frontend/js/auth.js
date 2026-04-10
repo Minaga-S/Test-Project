@@ -76,6 +76,7 @@ function initializeAuth() {
     setupTwoFactorCodeFormatting();
     setupPasswordGuidance();
     setupResetPasswordGuidance();
+    setupTermsAndConditions();
 }
 
 function setupRecoveryCodeCopyButtons() {
@@ -398,6 +399,8 @@ function toggleForms() {
         const loginVisible = loginSection.style.display !== 'none';
         loginSection.style.display = loginVisible ? 'none' : 'block';
         signupSection.style.display = loginVisible ? 'block' : 'none';
+        
+        closeTermsAndConditionsModal();
     }
 }
 
@@ -819,6 +822,7 @@ async function handleSignup(e) {
     const password = document.getElementById('signup-password').value;
     const confirmPassword = document.getElementById('signup-confirm').value;
     const department = document.getElementById('signup-department').value;
+    const termsAccepted = document.getElementById('terms-and-conditions-accept')?.checked;
 
     clearFormError('signup-error');
     clearFormError('signup-department');
@@ -849,6 +853,12 @@ async function handleSignup(e) {
         return;
     }
 
+    if (!termsAccepted) {
+        document.getElementById('signup-error').textContent = 'You must agree to the Terms and Conditions to create an account';
+        showNotification('Please read and accept the Terms and Conditions', 'warning');
+        return;
+    }
+
     showLoading(true);
 
     try {
@@ -866,6 +876,107 @@ async function handleSignup(e) {
         const errorMsg = error.message || 'Signup failed. Please try again.';
         document.getElementById('signup-error').textContent = errorMsg;
         showNotification(errorMsg, 'error');
+    }
+}
+
+/**
+ * TERMS AND CONDITIONS HANDLERS
+ */
+function setupTermsAndConditions() {
+    const termsCheckbox = document.getElementById('terms-and-conditions-accept');
+    const createAccountBtn = document.getElementById('create-account-btn');
+    const openTermsBtn = document.getElementById('open-terms-modal-btn');
+    const cancelTermsBtn = document.getElementById('cancel-terms-btn');
+    const completeTermsBtn = document.getElementById('complete-terms-btn');
+    const closeTermsBtn = document.getElementById('close-terms-btn');
+    const termsModal = document.getElementById('terms-and-conditions-modal');
+    const termsOverlay = termsModal?.querySelector('.modal-overlay');
+
+    if (termsCheckbox) {
+        termsCheckbox.addEventListener('click', (e) => {
+            e.preventDefault();
+            openTermsAndConditionsModal('signup');
+        });
+    }
+
+    if (openTermsBtn) {
+        openTermsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openTermsAndConditionsModal('signup');
+        });
+    }
+
+    if (cancelTermsBtn) {
+        cancelTermsBtn.addEventListener('click', () => {
+            closeTermsAndConditionsModal();
+        });
+    }
+
+    if (completeTermsBtn) {
+        completeTermsBtn.addEventListener('click', () => {
+            autoCheckTermsCheckbox();
+            closeTermsAndConditionsModal();
+        });
+    }
+
+    if (closeTermsBtn) {
+        closeTermsBtn.addEventListener('click', () => {
+            closeTermsAndConditionsModal();
+        });
+    }
+
+    if (termsOverlay) {
+        termsOverlay.addEventListener('click', () => {
+            closeTermsAndConditionsModal();
+        });
+    }
+
+    updateCreateAccountButtonState();
+}
+
+function openTermsAndConditionsModal(context = 'signup') {
+    const modal = document.getElementById('terms-and-conditions-modal');
+    const cancelBtn = document.getElementById('cancel-terms-btn');
+    const agreeBtn = document.getElementById('complete-terms-btn');
+    const closeBtn = document.getElementById('close-terms-btn');
+    
+    if (modal) {
+        if (context === 'settings') {
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            if (agreeBtn) agreeBtn.style.display = 'none';
+            if (closeBtn) closeBtn.style.display = 'block';
+        } else {
+            if (cancelBtn) cancelBtn.style.display = 'block';
+            if (agreeBtn) agreeBtn.style.display = 'block';
+            if (closeBtn) closeBtn.style.display = 'none';
+        }
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeTermsAndConditionsModal() {
+    const modal = document.getElementById('terms-and-conditions-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+function autoCheckTermsCheckbox() {
+    const checkbox = document.getElementById('terms-and-conditions-accept');
+    if (checkbox && !checkbox.checked) {
+        checkbox.checked = true;
+        updateCreateAccountButtonState();
+    }
+}
+
+function updateCreateAccountButtonState() {
+    const checkbox = document.getElementById('terms-and-conditions-accept');
+    const button = document.getElementById('create-account-btn');
+    
+    if (checkbox && button) {
+        button.disabled = !checkbox.checked;
     }
 }
 

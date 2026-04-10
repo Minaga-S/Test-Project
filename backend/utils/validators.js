@@ -6,7 +6,7 @@
 const LIVE_SCAN_FREQUENCIES = ['OnDemand', 'Daily', 'Weekly'];
 const HOSTNAME_PATTERN = /^[a-zA-Z0-9.-]+$/;
 const IPV4_PATTERN = /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/;
-const PORT_LIST_PATTERN = /^$|^\d{1,5}(,\d{1,5})*$/;
+const PORT_LIST_PATTERN = /^$|^\d{1,5}(,\s*\d{1,5})*$/;
 const PROFILE_TEXT_PATTERN = /^[a-zA-Z0-9 .,_\-/():|+%]{0,160}$/;
 const PROFILE_VERSION_PATTERN = /^[a-zA-Z0-9 ._\-]{0,40}$/;
 const CPE_URI_PATTERN = /^$|^(cpe:2\.3:[aho]:[a-z0-9._-]+:[a-z0-9._-]+:[a-z0-9*._-]*(:[a-z0-9*._-]*){0,7}|cpe:\/[aho]:[a-z0-9._-]+:[a-z0-9._-]+(:[a-z0-9*._-]*){0,7})$/i;

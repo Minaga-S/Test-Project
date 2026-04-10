@@ -13,7 +13,7 @@ const DEFAULT_RESULTS_PER_PAGE = 10;
 const REQUEST_TIMEOUT_MS = 10000;
 const DEFAULT_CACHE_TTL_MS = Number(process.env.NVD_CACHE_TTL_MS || 15 * 60 * 1000);
 const MAX_RETRIES = Number(process.env.NVD_MAX_RETRIES || 2);
-const ENABLE_FALLBACK_TERM_SEARCH = process.env.NVD_ENABLE_FALLBACK_TERMS === 'true';
+const ENABLE_FALLBACK_TERM_SEARCH = process.env.NVD_ENABLE_FALLBACK_TERMS !== 'false';
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 const enrichmentCache = new Map();

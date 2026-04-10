@@ -98,4 +98,29 @@ describe('threatClassificationService', () => {
 
         expect(result.likelihood).toBe(3);
     });
+
+    it('should use cve-backed fallback classification when ai analysis fails', async () => {
+        analyzeThreatWithAI.mockRejectedValue(new Error('gemini unavailable'));
+        nistThreatIntelService.getNISTMapping.mockReturnValue({
+            functions: ['Detect', 'Respond'],
+            controls: ['DE.CM', 'RS.MI'],
+        });
+        nistThreatIntelService.getThreatCharacteristics.mockReturnValue({
+            likelihood: 3,
+            impact: 3,
+            assets: ['Server'],
+        });
+
+        const result = await threatClassificationService.classifyThreat('unknown activity detected', {
+            cve: {
+                matches: [{ cveId: 'CVE-2026-0001', severity: 'CRITICAL' }],
+            },
+            liveScan: {
+                services: [{ service: 'ssh' }],
+            },
+        });
+
+        expect(result.source).toBe('fallback_cve_intel');
+        expect(result.cveCount).toBe(1);
+    });
 });

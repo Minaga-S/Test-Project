@@ -341,28 +341,6 @@ class APIClient {
         return this.get(`/assets/${assetId}/security-context`);
     }
 
-    async getPushPublicKey() {
-        const response = await this.get('/notifications/public-key');
-        return response?.publicKey || '';
-    }
-
-    async subscribeToPushNotifications(subscription, deviceName = 'Browser') {
-        return this.post('/notifications/subscriptions', {
-            subscription,
-            deviceName,
-        });
-    }
-
-    async unsubscribeFromPushNotifications(endpoint) {
-        return this.delete('/notifications/subscriptions', {
-            body: { endpoint },
-        });
-    }
-
-    async sendPushTest() {
-        return this.post('/notifications/test', {});
-    }
-
     async createIncident(incidentData) {
         const response = await this.post('/incidents', incidentData);
         return response?.incident || response;

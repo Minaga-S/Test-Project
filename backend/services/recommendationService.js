@@ -26,6 +26,12 @@ class RecommendationService {
                 }
             }
 
+            const databaseRecommendations = this.getDatabaseDrivenRecommendations(threatType, threatDetails);
+            if (databaseRecommendations.length > 0) {
+                logger.info(`Using CVE database-driven recommendations for threat: ${threatType}`);
+                return this.prioritizeRecommendations(threatType, databaseRecommendations);
+            }
+
             logger.info(`Using threat intelligence recommendations for threat: ${threatType}`);
             const fallbackRecommendations = this.getThreatIntelRecommendations(threatType);
             const normalizedFallback = this.toRecommendationArray(fallbackRecommendations);
@@ -46,6 +52,63 @@ class RecommendationService {
 
             return this.getGenericRecommendations();
         }
+    }
+
+    getDatabaseDrivenRecommendations(threatType, threatDetails = {}) {
+        const cveMatches = Array.isArray(threatDetails?.securityContext?.cve?.matches)
+            ? threatDetails.securityContext.cve.matches
+            : [];
+
+        if (cveMatches.length === 0) {
+            return [];
+        }
+
+        const sortedMatches = [...cveMatches]
+            .sort((first, second) => {
+                const firstSeverity = this.getSeverityWeight(first.severity);
+                const secondSeverity = this.getSeverityWeight(second.severity);
+                if (firstSeverity !== secondSeverity) {
+                    return secondSeverity - firstSeverity;
+                }
+
+                const firstScore = Number(first.cvssScore || first.baseScore || 0);
+                const secondScore = Number(second.cvssScore || second.baseScore || 0);
+                return secondScore - firstScore;
+            })
+            .slice(0, 3);
+
+        const cveIds = sortedMatches
+            .map((match) => String(match.cveId || '').trim())
+            .filter(Boolean);
+
+        if (cveIds.length === 0) {
+            return [];
+        }
+
+        const topCve = cveIds[0];
+        const groupedCves = cveIds.join(', ');
+        const liveScanServices = Array.isArray(threatDetails?.securityContext?.liveScan?.services)
+            ? threatDetails.securityContext.liveScan.services
+            : [];
+        const prioritizedService = String(liveScanServices[0]?.service || '').trim();
+        const serviceText = prioritizedService ? `${prioritizedService} service` : 'affected exposed services';
+
+        return [
+            `[NIST | PR.IP | Protect] Apply vendor patches or compensating controls for ${groupedCves} on the ${serviceText}.`,
+            `[NIST | DE.CM | Detect] Add monitoring and alert rules for exploit attempts targeting ${topCve}.`,
+            `[NIST | RS.MI | Respond] Isolate systems tied to ${groupedCves} and validate remediation with a follow-up vulnerability scan.`,
+            `[NIST | PR.AC | Protect] Restrict network exposure and administrative access to components impacted by ${groupedCves}.`,
+            `[NIST | RC.RP | Recover] Verify backups and recovery procedures for assets affected by ${groupedCves} before returning to production.`,
+        ];
+    }
+
+    getSeverityWeight(severity) {
+        const normalizedSeverity = String(severity || '').toUpperCase();
+        if (normalizedSeverity === 'CRITICAL') return 4;
+        if (normalizedSeverity === 'HIGH') return 3;
+        if (normalizedSeverity === 'MEDIUM') return 2;
+        if (normalizedSeverity === 'LOW') return 1;
+        return 0;
     }
 
     prioritizeRecommendations(threatType, recommendations) {

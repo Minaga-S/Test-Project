@@ -15,7 +15,7 @@ const DETERMINISTIC_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE || 0);
 const JSON_REPAIR_TEMPERATURE = Number(process.env.GEMINI_REPAIR_TEMPERATURE || 0);
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 300;
-const DEFAULT_MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+const DEFAULT_MODEL_FALLBACKS = ['gemini-2.5-flash-lite', 'gemini-2-flash-lite'];
 
 function getGeminiApiUrl(modelName) {
     return `${GEMINI_API_BASE_URL}/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
@@ -125,9 +125,24 @@ function isInvalidArgumentError(error) {
     return error?.response?.status === 400;
 }
 
+function isHighDemandError(error) {
+    const statusCode = error?.response?.status;
+    const message = String(error?.response?.data?.error?.message || error?.message || '');
+    return statusCode === 503 && /high demand|try again later|temporar/i.test(message);
+}
+
 function getCandidateModels() {
     const configuredModel = String(GEMINI_MODEL || '').trim();
-    const modelList = [configuredModel, ...DEFAULT_MODEL_FALLBACKS].filter(Boolean);
+    const configuredFallbacks = String(process.env.GEMINI_MODEL_FALLBACKS || '')
+        .split(',')
+        .map((modelName) => modelName.trim())
+        .filter(Boolean);
+
+    const fallbackModels = configuredFallbacks.length > 0
+        ? configuredFallbacks
+        : DEFAULT_MODEL_FALLBACKS;
+
+    const modelList = [configuredModel, ...fallbackModels].filter(Boolean);
     return [...new Set(modelList)];
 }
 
@@ -255,6 +270,13 @@ async function generateJsonWithGemini(prompt) {
                     }
                 }
 
+                if (isHighDemandError(error)) {
+                    const statusCode = error?.response?.status;
+                    const errorMessage = error?.response?.data?.error?.message || error.message;
+                    modelErrors.push(`${modelName}: ${statusCode || 'unknown'} ${errorMessage}`);
+                    break;
+                }
+
                 if (isTransientError(error) && !isLastAttempt) {
                     await waitBeforeRetry(attempt);
                     continue;
@@ -375,6 +397,7 @@ module.exports = {
         extractTextFromGeminiResponse,
         isTransientError,
         isMalformedJsonError,
+        isHighDemandError,
         getCandidateModels,
     },
 };

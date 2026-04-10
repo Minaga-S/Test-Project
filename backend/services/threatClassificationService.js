@@ -49,7 +49,7 @@ class ThreatClassificationService {
             return classification;
         } catch (error) {
             logger.error('Threat classification error:', error.message);
-            return this.fallbackClassification(description);
+            return await this.fallbackClassification(description, securityContext);
         }
     }
 
@@ -201,8 +201,37 @@ class ThreatClassificationService {
         };
     }
 
-    fallbackClassification(description) {
+    async fallbackClassification(description, securityContext = null) {
         logger.warn('Using fallback threat classification');
+        const cveList = this.extractCVEsFromContext(securityContext);
+
+        if (cveList.length > 0) {
+            const intelClassification = await nistThreatIntelService.classifyThreatFromCVEs(cveList, description);
+            const threatType = intelClassification.threatType || 'Unauthorized Access';
+            const nistMapping = nistThreatIntelService.getNISTMapping(threatType);
+            const threatCharacteristics = nistThreatIntelService.getThreatCharacteristics(threatType);
+            const deterministicRisk = this.deriveRiskFromCveSeverity(
+                cveList,
+                threatCharacteristics.likelihood || 2,
+                threatCharacteristics.impact || 2
+            );
+
+            return {
+                threatType,
+                threatCategory: threatType,
+                confidence: Math.max(65, intelClassification.confidence || 0),
+                likelihood: deterministicRisk.likelihood,
+                impact: deterministicRisk.impact,
+                nistFunctions: nistMapping.functions || [],
+                nistControls: nistMapping.controls || [],
+                mitigationSteps: [],
+                liveContextApplied: true,
+                discoveredServices: securityContext?.liveScan?.services || [],
+                cveCount: cveList.length,
+                source: 'fallback_cve_intel',
+            };
+        }
+
         const lowerDesc = String(description || '').toLowerCase();
 
         if (lowerDesc.includes('email') || lowerDesc.includes('link') || lowerDesc.includes('clicked')) {
