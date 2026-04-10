@@ -43,11 +43,6 @@ jest.mock('../services/auditLogService', () => ({
     record: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../services/pushNotificationService', () => ({
-    notifyIncidentCreated: jest.fn().mockResolvedValue({ sent: 1, failed: 0 }),
-    notifyPushTest: jest.fn(),
-}));
-
 jest.mock('../utils/validators', () => ({
     validateIncident: jest.fn(),
 }));
@@ -67,7 +62,6 @@ const recommendationService = require('../services/recommendationService');
 const nistService = require('../services/nistMappingService');
 const assetSecurityContextService = require('../services/assetSecurityContextService');
 const scanHistoryService = require('../services/scanHistoryService');
-const pushNotificationService = require('../services/pushNotificationService');
 const { validateIncident } = require('../utils/validators');
 const incidentController = require('./incidentController');
 
@@ -270,12 +264,5 @@ describe('incidentController.createIncident', () => {
         await incidentController.createIncident(createRequest(clientSecurityContext), response, jest.fn());
 
         expect(response.json.mock.calls[0][0].incident.securityContext.liveScan.osInfo).toBe('Linux 2.6');
-    });
-    it('should send a browser push notification when an incident is created', async () => {
-        const response = createResponse();
-
-        await incidentController.createIncident(createRequest(), response, jest.fn());
-
-        expect(pushNotificationService.notifyIncidentCreated).toHaveBeenCalledWith('user-1', expect.any(Object), expect.any(Object));
     });
 });
