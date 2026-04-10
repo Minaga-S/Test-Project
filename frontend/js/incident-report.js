@@ -18,6 +18,8 @@ const ANALYSIS_ESTIMATED_MAX_LIVE_MS = 180000;
 const ANALYSIS_ESTIMATED_MIN_CACHED_MS = 15000;
 const ANALYSIS_ESTIMATED_MAX_CACHED_MS = 90000;
 const ANALYSIS_OVERRUN_BUFFER_MS = 20000;
+const LOCAL_SCANNER_BASE_URL = 'http://127.0.0.1:47633';
+const LOCAL_SCANNER_REPO_URL = 'https://github.com/dev-pahan/NmapLocalScanner';
 let analysisTerminalSequenceToken = 0;
 
 let analysisMeta = {
@@ -279,6 +281,61 @@ function buildIncidentScanPreviewPayload(asset = {}) {
             cpeUri: String(profile?.cpeUri || '').trim(),
         },
     };
+}
+
+function isLocalScannerFetchAllowed() {
+    const host = String(window.location.hostname || '').toLowerCase();
+    const isLoopbackHost = host === 'localhost' || host === '127.0.0.1';
+    return window.isSecureContext || isLoopbackHost;
+}
+
+async function isLocalScannerReachable() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+
+    try {
+        const response = await fetch(`${LOCAL_SCANNER_BASE_URL}/health`, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            return false;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        return payload?.status === 'ok';
+    } catch (error) {
+        return false;
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+}
+
+async function runLocalScannerPreview(payload) {
+    const requestResponse = await apiClient.requestLocalScannerScan(payload);
+    const scanRequest = requestResponse?.scanRequest || requestResponse;
+
+    const scannerResponse = await fetch(`${LOCAL_SCANNER_BASE_URL}/scan`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            bridgeToken: scanRequest.bridgeToken,
+            uploadUrl: scanRequest.uploadUrl,
+            backendOrigin: apiClient.getApiOrigin(),
+            target: scanRequest.target,
+            ports: scanRequest.ports,
+        }),
+    });
+
+    const scannerPayload = await scannerResponse.json().catch(() => ({}));
+    if (!scannerResponse.ok) {
+        throw new Error(scannerPayload?.message || 'Local scanner request failed');
+    }
+
+    return scannerPayload?.preview || scannerPayload;
 }
 
 function buildClientSecurityContextFromPreview(previewPayload = {}) {
@@ -562,18 +619,26 @@ async function handleIncidentSubmit(e) {
         configureScanStep(isLiveScanEnabled, hasLiveScanTarget);
 
         if (canRunLiveScan) {
+            if (!isLocalScannerFetchAllowed()) {
+                throw new Error('Live scan requires HTTPS (Render URL) or localhost because it runs through the local scanner app');
+            }
+
+            const isScannerOnline = await isLocalScannerReachable();
+            if (!isScannerOnline) {
+                throw new Error(`Local scanner app is offline. Start it and retry. Download: ${LOCAL_SCANNER_REPO_URL}`);
+            }
+
             setStepState('step-scan', 'active');
             startScanTerminalSimulation();
             updateAnalysisStatus('Running security scan on selected asset...', 20);
 
             const previewPayload = buildIncidentScanPreviewPayload(selectedAsset);
-            const previewResponse = await apiClient.previewAssetScan(previewPayload);
-            const preview = previewResponse?.preview || previewResponse;
+            const preview = await runLocalScannerPreview(previewPayload);
 
             clientSecurityContext = buildClientSecurityContextFromPreview(preview);
             analysisMeta.securityContext = clientSecurityContext;
 
-            await generateTerminalOutputFromScan(clientSecurityContext);
+            await generateTerminalOutputFromScan(clientSecurityContext, preview?.scanResult || {});
 
             try {
                 const updatedAsset = await persistAssetProfileFromPreview(selectedAsset, preview);
@@ -747,7 +812,7 @@ function configureScanStep(isLiveScanEnabled, hasLiveScanTarget) {
     stepEl.style.display = 'grid';
 }
 
-async function generateTerminalOutputFromScan(securityContext) {
+async function generateTerminalOutputFromScan(securityContext, scanResult = {}) {
     const observedOpenPorts = Array.isArray(securityContext?.liveScan?.observedOpenPorts)
         ? securityContext.liveScan.observedOpenPorts
         : [];
@@ -783,6 +848,24 @@ async function generateTerminalOutputFromScan(securityContext) {
     };
 
     await appendStep('');
+    await appendStep('[scan] Source: Local Scanner app bridge');
+
+    const rawOutput = String(scanResult?.rawOutput || '').trim();
+    if (rawOutput) {
+        const normalizedLines = rawOutput
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .slice(0, 8);
+
+        if (normalizedLines.length > 0) {
+            await appendStep('[scan] Raw nmap output (truncated):');
+            for (const line of normalizedLines) {
+                await appendStep(`[nmap] ${line}`, 120);
+            }
+        }
+    }
+
     await appendStep(`[scan] Reviewing ${target}...`);
     await appendStep('[scan] Nmap host discovery complete.');
 

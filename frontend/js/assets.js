@@ -16,6 +16,8 @@ const ASSET_SCAN_DEFAULT_ESTIMATED_MS = 55000;
 const ASSET_SCAN_ESTIMATED_MIN_MS = 25000;
 const ASSET_SCAN_ESTIMATED_MAX_MS = 180000;
 const ASSET_SCAN_OVERRUN_BUFFER_MS = 15000;
+const LOCAL_SCANNER_BASE_URL = 'http://127.0.0.1:47633';
+const LOCAL_SCANNER_REPO_URL = 'https://github.com/dev-pahan/NmapLocalScanner';
 let assetScanTerminalTimer = null;
 let assetScanTerminalSequenceToken = 0;
 let assetScanProgressTimer = null;
@@ -586,8 +588,72 @@ function buildScanPreviewPayload() {
     return payload;
 }
 
+function isLocalScannerFetchAllowed() {
+    const host = String(window.location.hostname || '').toLowerCase();
+    const isLoopbackHost = host === 'localhost' || host === '127.0.0.1';
+    return window.isSecureContext || isLoopbackHost;
+}
+
+async function isLocalScannerReachable() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+
+    try {
+        const response = await fetch(`${LOCAL_SCANNER_BASE_URL}/health`, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            return false;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        return payload?.status === 'ok';
+    } catch (error) {
+        return false;
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+}
+
+function redirectToLocalScannerSetup() {
+    window.location.href = 'settings.html?tab=local-scanner&scanSetup=1';
+}
+
+async function runLocalScannerPreview(payload) {
+    const requestResponse = await apiClient.requestLocalScannerScan(payload);
+    const scanRequest = requestResponse?.scanRequest || requestResponse;
+
+    const scannerResponse = await fetch(`${LOCAL_SCANNER_BASE_URL}/scan`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            bridgeToken: scanRequest.bridgeToken,
+            uploadUrl: scanRequest.uploadUrl,
+            backendOrigin: apiClient.getApiOrigin(),
+            target: scanRequest.target,
+            ports: scanRequest.ports,
+        }),
+    });
+
+    const scannerPayload = await scannerResponse.json().catch(() => ({}));
+    if (!scannerResponse.ok) {
+        throw new Error(scannerPayload?.message || 'Local scanner request failed');
+    }
+
+    return scannerPayload?.preview || scannerPayload;
+}
+
 async function runLiveScanPreview() {
     setScanDetailsVisibility(true);
+
+    if (!isLocalScannerFetchAllowed()) {
+        showNotification('Local scanner access requires HTTPS (Render URL) or localhost. Open the secure app URL and retry.', 'warning');
+        return;
+    }
 
     // A fresh live scan should be allowed to refresh criticality from detected findings.
     isCriticalityManuallyOverridden = false;
@@ -603,6 +669,19 @@ async function runLiveScanPreview() {
         return;
     }
 
+    const isScannerOnline = await isLocalScannerReachable();
+    if (!isScannerOnline) {
+        const shouldRedirectToSetup = window.confirm(
+            `Local scanner app is offline. Open Settings to set it up?\n\nYou can also download it here: ${LOCAL_SCANNER_REPO_URL}`
+        );
+
+        if (shouldRedirectToSetup) {
+            redirectToLocalScannerSetup();
+        }
+
+        return;
+    }
+
     showAssetScanWorkflowModal();
 
     try {
@@ -613,8 +692,7 @@ async function runLiveScanPreview() {
         setAssetScanStepState('asset-step-probe', 'active');
         updateAssetScanStatus('Retrieving vulnerability profile for asset...', 44);
 
-        const response = await apiClient.previewAssetScan(payload);
-        const preview = response?.preview || response;
+        const preview = await runLocalScannerPreview(payload);
 
         await generateAssetTerminalOutput(preview);
         stopAssetScanTerminalSimulation(false);

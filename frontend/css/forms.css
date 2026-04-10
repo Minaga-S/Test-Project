@@ -677,6 +677,12 @@ label {
     color: var(--secondary-color);
 }
 
+.form-group .field-label {
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+    color: var(--secondary-color);
+}
+
 /* ============================================
    RANGE INPUT
    ============================================ */
