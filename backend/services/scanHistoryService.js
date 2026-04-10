@@ -43,29 +43,6 @@ function buildCveProfile(asset, scanResult = {}) {
     };
 }
 
-function buildEmptyScanResult(asset, target = '') {
-    return {
-        command: 'nmap',
-        args: [],
-        target,
-        requestedPorts: [],
-        openPorts: [],
-        services: [],
-        hostState: {
-            hostAddress: target,
-            hostName: String(asset?.assetName || ''),
-            state: 'unknown',
-        },
-        rawOutput: '',
-        osInfo: '',
-        osCpe: '',
-    };
-}
-
-function shouldRunNmap(asset, target) {
-    return Boolean(asset?.liveScan?.enabled && target && nmapScanService.isAllowedScanTarget(target));
-}
-
 function buildScanStatusReason(asset, target, scanError = null) {
     if (!asset?.liveScan?.enabled) {
         return 'Live scan disabled.';
@@ -141,11 +118,6 @@ function sanitizeLocalScanResult(asset, scanResultInput = {}) {
         osCpe: String(scanResultInput?.osCpe || '').trim(),
         rawOutput: String(scanResultInput?.rawOutput || '').trim(),
     };
-}
-
-function shouldFallbackToEnrichment(error) {
-    const message = String(error?.message || '').toLowerCase();
-    return message.includes('nmap is not installed') || message.includes('nmap scan failed');
 }
 
 function isLikelyOperatingSystem(value) {
@@ -229,71 +201,6 @@ async function persistInferredProfile(asset, userId, scanResult) {
 }
 
 class ScanHistoryService {
-    async runAssetScan(asset, userId, requestMeta = {}) {
-        const target = String(asset?.liveScan?.target || '').trim();
-        const requestedPortsText = String(asset?.liveScan?.ports || '').trim();
-        const requesterIp = requestMeta.ipAddress || '';
-        const startedAt = new Date();
-        const canRunNmap = shouldRunNmap(asset, target);
-        let scanResult = buildEmptyScanResult(asset, target);
-        let scanError = null;
-
-        if (canRunNmap) {
-            try {
-                scanResult = await nmapScanService.runScan({ target, ports: requestedPortsText, requestIp: requesterIp });
-            } catch (error) {
-                if (!shouldFallbackToEnrichment(error)) {
-                    throw error;
-                }
-
-                scanError = error;
-            }
-        }
-
-        const cveResult = await cveEnrichmentService.enrichForAsset(
-            buildCveProfile(asset, scanResult),
-            target,
-            {
-                userId,
-                assetId: String(asset?._id || ''),
-                ipAddress: requesterIp,
-            }
-        );
-
-        const ranLiveScan = canRunNmap && !scanError;
-        if (ranLiveScan) {
-            await persistInferredProfile(asset, userId, scanResult);
-        }
-
-        const securityContext = ranLiveScan
-            ? assetSecurityContextService.buildFromScanResult(asset, scanResult, cveResult)
-            : assetSecurityContextService.buildFallbackContext(asset, buildScanStatusReason(asset, target, scanError), cveResult);
-
-        const scanHistory = await ScanHistory.create({
-            assetId: asset._id,
-            userId,
-            assetSnapshot: buildAssetSnapshot(asset),
-            status: ranLiveScan ? 'Completed' : 'Skipped',
-            target,
-            ports: requestedPortsText,
-            command: ranLiveScan ? 'nmap' : 'cve-enrichment',
-            startedAt,
-            completedAt: new Date(),
-            scanDurationMs: ranLiveScan ? Date.now() - startedAt.getTime() : 0,
-            nmapResult: scanResult,
-            cveResult,
-            securityContext,
-            errorMessage: '',
-            initiatedBy: 'asset-scan',
-        });
-
-        return {
-            scanHistory,
-            securityContext,
-            skipped: !ranLiveScan,
-        };
-    }
-
     async buildOnDemandSecurityContext(asset, userId, requestMeta = {}) {
         const target = String(asset?.liveScan?.target || '').trim();
         const requesterIp = requestMeta.ipAddress || '';
@@ -313,78 +220,6 @@ class ScanHistoryService {
             buildScanStatusReason(asset, target),
             cveResult
         );
-    }
-
-    async runPreviewScan(assetDraft = {}, userId, requestMeta = {}) {
-        const target = String(assetDraft?.liveScan?.target || '').trim();
-        const requestedPortsText = String(assetDraft?.liveScan?.ports || '').trim();
-        const requesterIp = requestMeta.ipAddress || '';
-
-        if (!target) {
-            throw new Error('Scan target is required for preview');
-        }
-
-        if (!nmapScanService.isAllowedScanTarget(target)) {
-            throw new Error('Nmap scans are restricted to localhost and private-network targets');
-        }
-
-        nmapScanService.assertTargetWithinRequesterNetwork(target, requesterIp);
-
-        const scanResult = await nmapScanService.runScan({
-            target,
-            ports: requestedPortsText,
-            requestIp: requesterIp,
-        });
-
-        let cveResult;
-        try {
-            cveResult = await cveEnrichmentService.enrichForAsset(
-                buildCveProfile(assetDraft, scanResult),
-                target,
-                {
-                    userId,
-                    assetId: String(assetDraft?._id || ''),
-                    ipAddress: requesterIp,
-                }
-            );
-        } catch (error) {
-            cveResult = {
-                source: 'NIST NVD API',
-                query: {},
-                matches: [],
-                totalMatches: 0,
-                retrievedAt: new Date().toISOString(),
-                error: error.message,
-            };
-        }
-
-        const inferred = inferProfileUpdates(assetDraft, scanResult);
-        const enrichedAssetDraft = {
-            ...assetDraft,
-            vulnerabilityProfile: inferred.nextProfile,
-        };
-
-        if (assetDraft?._id) {
-            await persistInferredProfile(assetDraft, userId, scanResult);
-        }
-
-        const securityContext = assetSecurityContextService.buildFromScanResult(
-            enrichedAssetDraft,
-            scanResult,
-            cveResult,
-            {
-                _id: '',
-                status: 'Completed',
-                completedAt: new Date().toISOString(),
-            }
-        );
-
-        return {
-            scanResult,
-            cveResult,
-            inferredProfile: inferred.nextProfile,
-            securityContext,
-        };
     }
 
     async ingestLocalScanResult(assetDraft = {}, userId, scanResultInput = {}, requestMeta = {}) {
