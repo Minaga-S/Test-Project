@@ -11,7 +11,6 @@
  */
 
 const USER_TABS = ['profile', 'password', 'security', 'notifications'];
-const PUSH_SERVICE_WORKER_PATH = '/service-worker.js';
 
 let isTwoFactorEnabled = false;
 let shouldShowTwoFactorRecoveryCodes = false;
@@ -36,7 +35,6 @@ async function initializeSettings() {
     setupTwoFactorCodeFormatting();
     setupPasswordToggles();
     setupPasswordGuidance();
-    setupPushNotificationHandlers();
     await loadUserSettings();
 }
 
@@ -232,21 +230,6 @@ function setupFormHandlers() {
             }
         });
     }
-
-    const enablePushButton = document.getElementById('enable-browser-push-btn');
-    if (enablePushButton) {
-        enablePushButton.addEventListener('click', handleEnableBrowserNotifications);
-    }
-
-    const disablePushButton = document.getElementById('disable-browser-push-btn');
-    if (disablePushButton) {
-        disablePushButton.addEventListener('click', handleDisableBrowserNotifications);
-    }
-
-    const testPushButton = document.getElementById('test-browser-push-btn');
-    if (testPushButton) {
-        testPushButton.addEventListener('click', handleTestBrowserNotifications);
-    }
 }
 
 function getInitialSettingsTab() {
@@ -361,7 +344,6 @@ async function loadUserSettings() {
         renderTwoFactorStatus();
 
         activateTab(getInitialSettingsTab());
-        await loadPushNotificationState();
     } catch (error) {
         console.error('Error loading settings:', error);
         showNotification('Error loading settings', 'error');
@@ -731,171 +713,6 @@ function clearTwoFactorFieldError(inputId, errorId) {
 
     if (formGroup) {
         formGroup.classList.remove('error');
-    }
-}
-function setupPushNotificationHandlers() {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        setPushNotificationStatus('Browser push notifications are not supported in this browser.', true);
-        updatePushNotificationButtons(false);
-        return;
-    }
-
-    updatePushNotificationButtons(false);
-}
-
-function updatePushNotificationButtons(isEnabled) {
-    const enableButton = document.getElementById('enable-browser-push-btn');
-    const disableButton = document.getElementById('disable-browser-push-btn');
-    const testButton = document.getElementById('test-browser-push-btn');
-
-    if (enableButton) {
-        enableButton.disabled = isEnabled;
-    }
-
-    if (disableButton) {
-        disableButton.disabled = !isEnabled;
-    }
-
-    if (testButton) {
-        testButton.disabled = !isEnabled;
-    }
-}
-
-function setPushNotificationStatus(message, isError = false) {
-    const statusEl = document.getElementById('browser-push-status');
-    if (!statusEl) {
-        return;
-    }
-
-    statusEl.textContent = message;
-    statusEl.className = isError ? 'error-message' : 'success-message';
-}
-
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let index = 0; index < rawData.length; index += 1) {
-        outputArray[index] = rawData.charCodeAt(index);
-    }
-
-    return outputArray;
-}
-
-async function registerPushServiceWorker() {
-    return navigator.serviceWorker.register(PUSH_SERVICE_WORKER_PATH, { scope: '/' });
-}
-
-async function getActivePushSubscription() {
-    const registration = await navigator.serviceWorker.getRegistration(PUSH_SERVICE_WORKER_PATH);
-    if (!registration) {
-        return null;
-    }
-
-    return registration.pushManager.getSubscription();
-}
-
-async function loadPushNotificationState() {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        setPushNotificationStatus('Browser push notifications are not supported in this browser.', true);
-        updatePushNotificationButtons(false);
-        return;
-    }
-
-    if (Notification.permission === 'denied') {
-        setPushNotificationStatus('Notifications are blocked. Enable them in your browser settings first.', true);
-        updatePushNotificationButtons(false);
-        return;
-    }
-
-    const subscription = await getActivePushSubscription();
-    if (subscription) {
-        setPushNotificationStatus('Browser push notifications are enabled for this device.');
-        updatePushNotificationButtons(true);
-        return;
-    }
-
-    setPushNotificationStatus('Browser push notifications are currently disabled.');
-    updatePushNotificationButtons(false);
-}
-
-async function handleEnableBrowserNotifications() {
-    try {
-        if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-            throw new Error('This browser does not support web push notifications.');
-        }
-
-        const permission = Notification.permission === 'default'
-            ? await Notification.requestPermission()
-            : Notification.permission;
-
-        if (permission !== 'granted') {
-            throw new Error('Notification permission is required to enable browser push alerts.');
-        }
-
-        const publicKeyResponse = await apiClient.get('/notifications/public-key');
-        const publicKey = publicKeyResponse?.publicKey || ''; 
-        if (!publicKey) {
-            throw new Error('Push notifications are not configured on the server.');
-        }
-
-        const registration = await registerPushServiceWorker();
-        const existingSubscription = await registration.pushManager.getSubscription();
-        const subscription = existingSubscription || await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicKey),
-        });
-
-        await apiClient.post('/notifications/subscriptions', {
-            subscription: subscription.toJSON(),
-            deviceName: navigator.userAgentData?.platform || navigator.platform || 'Browser',
-        });
-        setPushNotificationStatus('Browser push notifications enabled for this device.');
-        updatePushNotificationButtons(true);
-        showNotification('Browser notifications enabled', 'success');
-    } catch (error) {
-        setPushNotificationStatus(error.message || 'Could not enable browser push notifications.', true);
-        showNotification(error.message || 'Could not enable browser push notifications.', 'error');
-    }
-}
-
-async function handleDisableBrowserNotifications() {
-    try {
-        const registration = await navigator.serviceWorker.getRegistration(PUSH_SERVICE_WORKER_PATH);
-        if (!registration) {
-            setPushNotificationStatus('Browser push notifications are currently disabled.', true);
-            updatePushNotificationButtons(false);
-            return;
-        }
-
-        const subscription = await registration.pushManager.getSubscription();
-
-        if (subscription) {
-            await apiClient.delete('/notifications/subscriptions', {
-                body: { endpoint: subscription.endpoint },
-            });
-            await subscription.unsubscribe();
-        }
-
-        setPushNotificationStatus('Browser push notifications disabled for this device.');
-        updatePushNotificationButtons(false);
-        showNotification('Browser notifications disabled', 'success');
-    } catch (error) {
-        setPushNotificationStatus(error.message || 'Could not disable browser push notifications.', true);
-        showNotification(error.message || 'Could not disable browser push notifications.', 'error');
-    }
-}
-
-async function handleTestBrowserNotifications() {
-    try {
-        await apiClient.post('/notifications/test', {});
-        setPushNotificationStatus('Test notification sent. Check your browser or phone notification tray.');
-        showNotification('Test notification sent', 'success');
-    } catch (error) {
-        setPushNotificationStatus(error.message || 'Could not send a test notification.', true);
-        showNotification(error.message || 'Could not send a test notification.', 'error');
     }
 }
 
