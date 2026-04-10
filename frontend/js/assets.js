@@ -12,8 +12,8 @@ const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
 const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
 const ASSET_SCAN_PROGRESS_INTERVAL_MS = 420;
 const ASSET_SCAN_DURATION_METRICS_STORAGE_KEY = 'assetScan:durationMetrics';
-const ASSET_SCAN_DEFAULT_ESTIMATED_MS = 55000;
-const ASSET_SCAN_ESTIMATED_MIN_MS = 25000;
+const ASSET_SCAN_DEFAULT_ESTIMATED_MS = 75000;
+const ASSET_SCAN_ESTIMATED_MIN_MS = 35000;
 const ASSET_SCAN_ESTIMATED_MAX_MS = 180000;
 const ASSET_SCAN_OVERRUN_BUFFER_MS = 15000;
 const CRITICALITY_HIGH_RISK_PORTS = new Set([21, 23, 25, 53, 79, 110, 111, 135, 137, 138, 139, 143, 161, 389, 443, 445, 512, 513, 514, 1524, 2049, 3306, 3389, 5432, 5900, 6379, 8080]);
@@ -73,6 +73,26 @@ let assetScanMeta = {
 };
 let isCriticalityManuallyOverridden = false;
 let isApplyingDetectedCriticality = false;
+
+async function updateAssetScannerBadge() {
+    const badgeEl = document.getElementById('asset-scanner-badge');
+    const statusEl = document.getElementById('asset-scanner-status');
+    
+    if (!badgeEl || !statusEl) {
+        return;
+    }
+
+    const isConnected = await isLocalScannerReachable();
+    badgeEl.style.display = 'flex';
+    
+    if (isConnected) {
+        badgeEl.classList.remove('live-badge-warning');
+        statusEl.textContent = 'Scanner connected';
+    } else {
+        badgeEl.classList.add('live-badge-warning');
+        statusEl.textContent = 'Scanner disconnected';
+    }
+}
 
 function isIpv4Address(value) {
     return /^(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(\.(25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$/.test(String(value || '').trim());
@@ -1139,6 +1159,7 @@ function openAssetModal() {
     resetScanPreviewFields();
     isCriticalityManuallyOverridden = false;
     setAssetModalMode(false);
+    updateAssetScannerBadge();
     showModal('asset-modal');
 }
 

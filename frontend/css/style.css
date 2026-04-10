@@ -1179,13 +1179,15 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     border-radius: 999px;
     white-space: nowrap;
     margin-top: 0.35rem;
+    flex-shrink: 0;
 }
 
 .live-badge-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #718096;
+    background: #10B981;
+    flex-shrink: 0;
 }
 
 .live-badge.live-badge-warning {
