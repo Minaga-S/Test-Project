@@ -99,6 +99,16 @@ describe('nmapScanService', () => {
         expect(childProcess.execFile).toHaveBeenCalledTimes(2);
     });
 
+    it('should allow private target when requester ip is localhost', async () => {
+        await nmapScanService.runScan({
+            target: '192.168.1.25',
+            ports: '22',
+            requestIp: '127.0.0.1',
+        });
+
+        expect(childProcess.execFile).toHaveBeenCalledTimes(2);
+    });
+
     it('should throw when scan target is missing', async () => {
         await expect(nmapScanService.runScan({})).rejects.toThrow('Nmap scan target is required');
 

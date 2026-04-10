@@ -90,6 +90,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Auth routes (no authentication required)
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/local-scanner', require('./routes/localScanner'));
 
 // Protected routes (authentication required)
 app.use('/api/assets', authMiddleware, require('./routes/assets'));
@@ -130,7 +131,7 @@ app.use(errorHandler);
 // ============== SERVER STARTUP ==============
 
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
 
 async function startServer() {
     try {

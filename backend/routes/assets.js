@@ -67,33 +67,7 @@ const createAssetValidation = [
     ...assetBodyValidation,
 ];
 
-const scanAssetsValidation = [
-    body('assetIds').isArray({ min: 1 }).withMessage('assetIds must be a non-empty array'),
-    body('assetIds.*').isMongoId().withMessage('Each asset id must be a valid ObjectId'),
-    validateRequest,
-];
-
-const scanPreviewValidation = [
-    body('liveScan.target').isString().trim().notEmpty().withMessage('liveScan.target is required for scan preview'),
-    body('liveScan.ports').optional().isString().trim(),
-    body('vulnerabilityProfile.osName').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('OS name contains invalid characters'),
-    body('vulnerabilityProfile.vendor').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Vendor contains invalid characters'),
-    body('vulnerabilityProfile.product').optional().trim().matches(PROFILE_TEXT_PATTERN).withMessage('Product contains invalid characters'),
-    body('vulnerabilityProfile.productVersion').optional().trim().matches(PROFILE_VERSION_PATTERN).withMessage('Product version contains invalid characters'),
-    body('vulnerabilityProfile.cpeUri').optional().trim().custom((value, { req }) => {
-        const normalizedCpeUri = normalizeCpeUri(value);
-        if (req.body?.vulnerabilityProfile) {
-            req.body.vulnerabilityProfile.cpeUri = normalizedCpeUri;
-        }
-
-        return isValidCpeUri(normalizedCpeUri);
-    }).withMessage('CPE URI must use cpe:2.3 or cpe:/ format'),
-    validateRequest,
-];
-
 router.post('/', createAssetValidation, withController(assetController, 'createAsset'));
-router.post('/scan', enrichmentLimiter, scanAssetsValidation, withController(assetController, 'scanAssets'));
-router.post('/scan-preview', enrichmentLimiter, scanPreviewValidation, withController(assetController, 'scanAssetPreview'));
 router.get('/', withController(assetController, 'getAssets'));
 router.get('/asset-types', withController(assetController, 'getAssetTypes'));
 router.get('/search', withController(assetController, 'searchAssets'));

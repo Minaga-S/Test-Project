@@ -86,6 +86,63 @@ function buildScanStatusReason(asset, target, scanError = null) {
     return 'On-demand CVE enrichment.';
 }
 
+function sanitizeOpenPorts(openPortsInput = []) {
+    if (!Array.isArray(openPortsInput)) {
+        return [];
+    }
+
+    return openPortsInput
+        .map((port) => Number(port))
+        .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535);
+}
+
+function sanitizeServiceList(servicesInput = []) {
+    if (!Array.isArray(servicesInput)) {
+        return [];
+    }
+
+    return servicesInput
+        .map((service) => {
+            const port = Number(service?.port);
+            if (!Number.isInteger(port) || port < 1 || port > 65535) {
+                return null;
+            }
+
+            return {
+                port,
+                state: 'open',
+                protocol: String(service?.protocol || 'tcp').trim() || 'tcp',
+                service: String(service?.service || 'unknown').trim() || 'unknown',
+                version: String(service?.version || '').trim(),
+            };
+        })
+        .filter((service) => Boolean(service));
+}
+
+function sanitizeLocalScanResult(asset, scanResultInput = {}) {
+    const target = String(scanResultInput?.target || asset?.liveScan?.target || '').trim();
+    const requestedPortsText = String(scanResultInput?.requestedPorts || asset?.liveScan?.ports || '').trim();
+    const services = sanitizeServiceList(scanResultInput?.services || []);
+    const openPorts = sanitizeOpenPorts(scanResultInput?.openPorts || services.map((service) => service.port));
+
+    return {
+        command: 'nmap',
+        args: [],
+        target,
+        requestedPorts: requestedPortsText,
+        openPorts,
+        services,
+        hostState: {
+            hostAddress: target,
+            hostName: String(scanResultInput?.hostState?.hostName || asset?.assetName || '').trim(),
+            state: String(scanResultInput?.hostState?.state || 'up').trim() || 'up',
+        },
+        osInfo: String(scanResultInput?.osInfo || '').trim(),
+        osCpe: String(scanResultInput?.osCpe || '').trim(),
+        rawOutput: String(scanResultInput?.rawOutput || '').trim(),
+    };
+}
+
 function shouldFallbackToEnrichment(error) {
     const message = String(error?.message || '').toLowerCase();
     return message.includes('nmap is not installed') || message.includes('nmap scan failed');
@@ -240,57 +297,6 @@ class ScanHistoryService {
     async buildOnDemandSecurityContext(asset, userId, requestMeta = {}) {
         const target = String(asset?.liveScan?.target || '').trim();
         const requesterIp = requestMeta.ipAddress || '';
-        const canRunNmap = shouldRunNmap(asset, target);
-
-        if (canRunNmap) {
-            try {
-                const scanResult = await nmapScanService.runScan({
-                    target,
-                    ports: asset?.liveScan?.ports || '',
-                    requestIp: requesterIp,
-                });
-                const cveResult = await cveEnrichmentService.enrichForAsset(
-                    buildCveProfile(asset, scanResult),
-                    target,
-                    {
-                        userId,
-                        assetId: String(asset?._id || ''),
-                        ipAddress: requesterIp,
-                    }
-                );
-
-                return assetSecurityContextService.buildFromScanResult(
-                    asset,
-                    scanResult,
-                    cveResult,
-                    {
-                        _id: '',
-                        status: 'Completed',
-                        completedAt: new Date().toISOString(),
-                    }
-                );
-            } catch (error) {
-                if (!shouldFallbackToEnrichment(error)) {
-                    throw error;
-                }
-
-                const cveResult = await cveEnrichmentService.enrichForAsset(
-                    buildCveProfile(asset),
-                    target,
-                    {
-                        userId,
-                        assetId: String(asset?._id || ''),
-                        ipAddress: requesterIp,
-                    }
-                );
-
-                return assetSecurityContextService.buildFallbackContext(
-                    asset,
-                    buildScanStatusReason(asset, target, error),
-                    cveResult
-                );
-            }
-        }
 
         const cveResult = await cveEnrichmentService.enrichForAsset(
             buildCveProfile(asset),
@@ -380,6 +386,92 @@ class ScanHistoryService {
             securityContext,
         };
     }
+
+    async ingestLocalScanResult(assetDraft = {}, userId, scanResultInput = {}, requestMeta = {}) {
+        const target = String(assetDraft?.liveScan?.target || '').trim();
+        const requesterIp = requestMeta.ipAddress || '';
+
+        if (!target) {
+            throw new Error('Scan target is required for local scanner ingestion');
+        }
+
+        if (!nmapScanService.isAllowedScanTarget(target)) {
+            throw new Error('Nmap scans are restricted to localhost and private-network targets');
+        }
+
+        nmapScanService.assertTargetWithinRequesterNetwork(target, requesterIp);
+
+        const scanResult = sanitizeLocalScanResult(assetDraft, scanResultInput);
+        const cveResult = await cveEnrichmentService.enrichForAsset(
+            buildCveProfile(assetDraft, scanResult),
+            target,
+            {
+                userId,
+                assetId: String(assetDraft?._id || assetDraft?.assetId || ''),
+                ipAddress: requesterIp,
+            }
+        );
+
+        const inferred = inferProfileUpdates(assetDraft, scanResult);
+        const enrichedAssetDraft = {
+            ...assetDraft,
+            vulnerabilityProfile: inferred.nextProfile,
+        };
+
+        const securityContext = assetSecurityContextService.buildFromScanResult(
+            enrichedAssetDraft,
+            scanResult,
+            cveResult,
+            {
+                _id: '',
+                status: 'Completed',
+                completedAt: new Date().toISOString(),
+            }
+        );
+
+        const assetId = String(assetDraft?._id || assetDraft?.assetId || '').trim();
+        if (!assetId) {
+            return {
+                scanResult,
+                cveResult,
+                inferredProfile: inferred.nextProfile,
+                securityContext,
+                scanHistory: null,
+                persisted: false,
+            };
+        }
+
+        await persistInferredProfile({ ...assetDraft, _id: assetId }, userId, scanResult);
+
+        const startedAt = new Date();
+        const scanHistory = await ScanHistory.create({
+            assetId,
+            userId,
+            assetSnapshot: buildAssetSnapshot(assetDraft),
+            status: 'Completed',
+            target,
+            ports: String(assetDraft?.liveScan?.ports || '').trim(),
+            command: 'nmap',
+            startedAt,
+            completedAt: new Date(),
+            scanDurationMs: Number(scanResultInput?.scanDurationMs) || 0,
+            nmapResult: scanResult,
+            cveResult,
+            securityContext,
+            errorMessage: '',
+            initiatedBy: requestMeta.initiatedBy || 'local-scanner',
+        });
+
+        return {
+            scanResult,
+            cveResult,
+            inferredProfile: inferred.nextProfile,
+            securityContext,
+            scanHistory,
+            persisted: true,
+        };
+    }
+
     async getLatestScanHistory(assetId, userId) {
         return ScanHistory.findOne({ assetId, userId }).sort({ createdAt: -1 });
     }

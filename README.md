@@ -115,7 +115,7 @@ Backend will run on `http://localhost:5000` and health check is `http://localhos
 From `frontend`, run any static server. Example with Node:
 
 ```bash
-npx serve .
+npx serve -l tcp://127.0.0.1:3000 .
 ```
 
 Open the shown local URL (commonly `http://localhost:3000` or similar).

@@ -63,6 +63,12 @@ class APIClient {
         this.token = null;
     }
 
+    getApiOrigin() {
+        return this.baseURL.endsWith('/api')
+            ? this.baseURL.slice(0, -4)
+            : this.baseURL;
+    }
+
     isSessionValid() {
         const token = this.getToken();
         if (!token) {
@@ -329,16 +335,34 @@ class APIClient {
         return this.get('/assets/asset-types');
     }
 
-    async scanAssets(assetIds) {
-        return this.post('/assets/scan', { assetIds });
-    }
-
-    async previewAssetScan(payload) {
-        return this.post('/assets/scan-preview', payload);
+    async requestLocalScannerScan(payload) {
+        return this.post('/local-scanner/requests', payload);
     }
 
     async getAssetSecurityContext(assetId) {
         return this.get(`/assets/${assetId}/security-context`);
+    }
+
+    async getPushPublicKey() {
+        const response = await this.get('/notifications/public-key');
+        return response?.publicKey || '';
+    }
+
+    async subscribeToPushNotifications(subscription, deviceName = 'Browser') {
+        return this.post('/notifications/subscriptions', {
+            subscription,
+            deviceName,
+        });
+    }
+
+    async unsubscribeFromPushNotifications(endpoint) {
+        return this.delete('/notifications/subscriptions', {
+            body: { endpoint },
+        });
+    }
+
+    async sendPushTest() {
+        return this.post('/notifications/test', {});
     }
 
     async createIncident(incidentData) {

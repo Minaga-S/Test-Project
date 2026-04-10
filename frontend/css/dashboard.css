@@ -1040,6 +1040,64 @@
     text-align: center;
 }
 
+.settings-page .local-scanner-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    border-radius: 14px;
+    box-shadow: var(--box-shadow);
+    padding: 1rem;
+}
+
+.settings-page .local-scanner-summary {
+    margin-bottom: 0.85rem;
+    color: var(--gray-color);
+}
+
+.settings-page .local-scanner-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 0.7rem;
+}
+
+.settings-page .local-scanner-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.settings-page .local-scanner-status-online {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
+}
+
+.settings-page .local-scanner-status-offline {
+    color: #9f1239;
+    background: #ffe4e6;
+    border-color: #fecdd3;
+}
+
+.settings-page .local-scanner-health-message {
+    margin-bottom: 0.85rem;
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}
+
+.settings-page .local-scanner-steps {
+    margin: 0 0 0.9rem 1rem;
+    padding-left: 0.3rem;
+    display: grid;
+    gap: 0.4rem;
+}
+
 .detail-item label {
     font-size: var(--font-size-sm);
     color: var(--gray-color);

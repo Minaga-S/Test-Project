@@ -236,6 +236,61 @@ describe('scanHistoryService', () => {
 
         expect(Asset.updateOne).not.toHaveBeenCalled();
     });
+
+    it('should ingest local scanner result and return preview context for draft asset', async () => {
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        const result = await scanHistoryService.ingestLocalScanResult({
+            assetId: '',
+            assetName: 'Draft Gateway',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22,80' },
+            vulnerabilityProfile: {},
+        }, 'user-1', {
+            target: '10.0.0.10',
+            requestedPorts: '22,80',
+            openPorts: [22, 80],
+            services: [
+                { port: 22, protocol: 'tcp', service: 'ssh', version: 'OpenSSH 8.0' },
+                { port: 80, protocol: 'tcp', service: 'http', version: 'nginx 1.24' },
+            ],
+            osInfo: 'Linux 6.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:6',
+        }, {
+            ipAddress: '10.0.0.20',
+            initiatedBy: 'local-scanner',
+        });
+
+        expect(result.persisted).toBe(false);
+    });
+
+    it('should persist local scanner result when asset id exists', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-local-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        const result = await scanHistoryService.ingestLocalScanResult({
+            _id: 'asset-1',
+            assetName: 'Persisted Gateway',
+            liveScan: { enabled: true, target: '10.0.0.10', ports: '22,80' },
+            vulnerabilityProfile: {},
+        }, 'user-1', {
+            target: '10.0.0.10',
+            requestedPorts: '22,80',
+            openPorts: [22],
+            services: [
+                { port: 22, protocol: 'tcp', service: 'ssh', version: 'OpenSSH 8.0' },
+            ],
+            osInfo: 'Linux 6.x',
+            osCpe: 'cpe:/o:linux:linux_kernel:6',
+        }, {
+            ipAddress: '10.0.0.20',
+            initiatedBy: 'local-scanner',
+        });
+
+        expect(result.persisted).toBe(true);
+    });
+
     it('should fall back to enrichment when Nmap is unavailable', async () => {
         ScanHistory.create.mockResolvedValue({ _id: 'history-1', status: 'Skipped' });
         nmapScanService.isAllowedScanTarget.mockReturnValue(true);
@@ -252,20 +307,8 @@ describe('scanHistoryService', () => {
         expect(cveEnrichmentService.enrichForAsset).toHaveBeenCalled();
     });
 
-    it('should include observed open ports when on-demand live scan succeeds', async () => {
+    it('should return enrichment fallback context for on-demand security context', async () => {
         nmapScanService.isAllowedScanTarget.mockReturnValue(true);
-        nmapScanService.runScan.mockResolvedValue({
-            command: 'nmap',
-            target: '192.168.1.100',
-            requestedPorts: ['22', '80'],
-            openPorts: [22, 80],
-            services: [
-                { port: 22, service: 'ssh' },
-                { port: 80, service: 'http' },
-            ],
-            hostState: { state: 'up' },
-            rawOutput: 'Host: 192.168.1.100 () Status: Up',
-        });
         cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
 
         const context = await scanHistoryService.buildOnDemandSecurityContext({
@@ -275,7 +318,8 @@ describe('scanHistoryService', () => {
             vulnerabilityProfile: {},
         }, 'user-1', { ipAddress: '192.168.1.22' });
 
-        expect(context.liveScan.observedOpenPorts).toEqual([22, 80]);
+        expect(context.liveScan.status).toContain('On-demand CVE enrichment');
+        expect(nmapScanService.runScan).not.toHaveBeenCalled();
     });
 
     it('should not persist hostname as osName when scan output only includes host name', async () => {

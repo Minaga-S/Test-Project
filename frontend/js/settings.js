@@ -10,7 +10,8 @@
  * 4) Feedback: displays success/error notifications for each update.
  */
 
-const USER_TABS = ['profile', 'password', 'security', 'notifications'];
+const USER_TABS = ['profile', 'password', 'security', 'local-scanner', 'notifications'];
+const LOCAL_SCANNER_HEALTH_URL = 'http://127.0.0.1:47633/health';
 
 let isTwoFactorEnabled = false;
 let shouldShowTwoFactorRecoveryCodes = false;
@@ -35,7 +36,75 @@ async function initializeSettings() {
     setupTwoFactorCodeFormatting();
     setupPasswordToggles();
     setupPasswordGuidance();
+    setupLocalScannerPanel();
     await loadUserSettings();
+}
+
+function setupLocalScannerPanel() {
+    const refreshButton = document.getElementById('local-scanner-refresh-btn');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', async () => {
+            await refreshLocalScannerStatus();
+        });
+    }
+}
+
+function isLocalScannerFetchAllowed() {
+    const host = String(window.location.hostname || '').toLowerCase();
+    const isLoopbackHost = host === 'localhost' || host === '127.0.0.1';
+    return window.isSecureContext || isLoopbackHost;
+}
+
+async function isLocalScannerReachable() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+
+    try {
+        const response = await fetch(LOCAL_SCANNER_HEALTH_URL, {
+            method: 'GET',
+            signal: controller.signal,
+        });
+
+        if (!response.ok) {
+            return false;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        return payload?.status === 'ok';
+    } catch (error) {
+        return false;
+    } finally {
+        window.clearTimeout(timeoutId);
+    }
+}
+
+async function refreshLocalScannerStatus() {
+    const badge = document.getElementById('local-scanner-status-badge');
+    const message = document.getElementById('local-scanner-health-message');
+    if (!badge || !message) {
+        return;
+    }
+
+    badge.textContent = 'Checking...';
+    badge.className = 'local-scanner-status local-scanner-status-offline';
+
+    if (!isLocalScannerFetchAllowed()) {
+        badge.textContent = 'Unavailable';
+        message.textContent = 'Use HTTPS (for example your Render URL) or localhost to enable local scanner connectivity checks.';
+        return;
+    }
+
+    const isReachable = await isLocalScannerReachable();
+    if (isReachable) {
+        badge.textContent = 'Connected';
+        badge.className = 'local-scanner-status local-scanner-status-online';
+        message.textContent = 'Scanner is running locally and ready to receive scan requests.';
+        return;
+    }
+
+    badge.textContent = 'Disconnected';
+    badge.className = 'local-scanner-status local-scanner-status-offline';
+    message.textContent = 'Scanner is not reachable. Start the local scanner app and test again.';
 }
 
 function setupPasswordToggles() {
@@ -342,6 +411,7 @@ async function loadUserSettings() {
 
         isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
         renderTwoFactorStatus();
+        await refreshLocalScannerStatus();
 
         activateTab(getInitialSettingsTab());
     } catch (error) {

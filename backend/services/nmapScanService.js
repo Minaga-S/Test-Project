@@ -91,6 +91,15 @@ function isPrivateIpv4Address(value) {
     });
 }
 
+function isLoopbackIpv4Address(value) {
+    const octets = parseIpv4Address(value);
+    if (!octets) {
+        return false;
+    }
+
+    return octets[0] === 127;
+}
+
 function isLocalHostname(target) {
     const normalizedTarget = String(target || '').trim().toLowerCase();
     if (ALLOWED_HOSTNAMES.has(normalizedTarget)) {
@@ -141,6 +150,12 @@ function areInSameIpv4Subnet(target, requestIp, subnetMaskBits = 24) {
 function assertTargetWithinRequesterNetwork(target, requestIp) {
     const normalizedRequesterIp = normalizeRequesterIp(requestIp);
     if (!normalizedRequesterIp || !isPrivateIpv4Address(normalizedRequesterIp)) {
+        return;
+    }
+
+    // Requests originating from localhost are trusted to scan any allowed private target
+    // reachable by the local scanner host.
+    if (isLoopbackIpv4Address(normalizedRequesterIp)) {
         return;
     }
 
@@ -327,6 +342,7 @@ module.exports = {
     parseOsCpe,
     isAllowedScanTarget,
     isPrivateIpv4Address,
+    isLoopbackIpv4Address,
     isLocalHostname,
     normalizeRequesterIp,
     areInSameIpv4Subnet,
