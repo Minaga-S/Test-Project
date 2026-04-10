@@ -134,15 +134,6 @@ class IncidentController {
                         message: 'Scan target must be internal/private. External targets are not allowed.',
                     });
                 }
-
-                try {
-                    nmapScanService.assertTargetWithinRequesterNetwork(liveScanTarget, req.ip || '');
-                } catch (scopeError) {
-                    return res.status(400).json({
-                        success: false,
-                        message: scopeError.message,
-                    });
-                }
             }
 
             const latestScanHistory = await scanHistoryService.getLatestScanHistory(asset._id, req.user.userId);
