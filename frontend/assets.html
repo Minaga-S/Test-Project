@@ -199,9 +199,10 @@
                     <div class="form-group">
                     <label for="asset-criticality">Criticality Level</label>
                     <select id="asset-criticality" name="criticality">
+                        <option value="" selected>Select level</option>
                         <option value="Low">Low</option>
                         <option value="Medium">Medium</option>
-                        <option value="High" selected>High</option>
+                        <option value="High">High</option>
                         <option value="Critical">Critical</option>
                     </select>
                 </div>
@@ -243,6 +244,10 @@
                         placeholder="e.g., 22,80,443,3389"
                     >
                     <small>Optional comma-separated port list. Leave empty for default profile.</small>
+                    <div class="live-badge" id="asset-scanner-badge" style="margin-top: 0.5rem; display: none;">
+                        <span class="live-badge-dot"></span>
+                        <span id="asset-scanner-status">Scanner disconnected</span>
+                    </div>
                 </div>
 
                     <div class="form-group">
@@ -386,7 +391,7 @@
                 <div class="progress-bar">
                     <div class="progress-fill" id="asset-scan-progress-fill"></div>
                 </div>
-                <p id="asset-scan-eta" class="small">Estimated completion: 5-12 seconds depending on target responsiveness.</p>
+                <p id="asset-scan-eta" class="small">Estimated completion: 15-45 seconds depending on target responsiveness.</p>
                 <div id="asset-scan-steps" class="scan-step-list" role="list" aria-label="Asset scan workflow">
                     <div id="asset-step-discovery" class="scan-step-item" role="listitem">Running security scan on target asset</div>
                     <div id="asset-step-probe" class="scan-step-item" role="listitem">Retrieving vulnerability profile</div>

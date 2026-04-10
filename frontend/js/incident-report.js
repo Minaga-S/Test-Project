@@ -28,6 +28,26 @@ let analysisMeta = {
     securityContext: null,
 };
 
+async function updateIncidentScannerBadge() {
+    const badgeEl = document.getElementById('incident-scanner-badge');
+    const statusEl = document.getElementById('incident-scanner-status');
+    
+    if (!badgeEl || !statusEl) {
+        return;
+    }
+
+    const isConnected = await isLocalScannerReachable();
+    badgeEl.style.display = 'flex';
+    
+    if (isConnected) {
+        badgeEl.classList.remove('live-badge-warning');
+        statusEl.textContent = 'Scanner Connected';
+    } else {
+        badgeEl.classList.add('live-badge-warning');
+        statusEl.textContent = 'Scanner Offline';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentReport();
 });
@@ -63,6 +83,11 @@ function setupEventListeners() {
         timeInput.value = localTime;
     }
 
+    const assetSelect = document.getElementById('affected-asset');
+    if (assetSelect) {
+        assetSelect.addEventListener('change', updateIncidentScannerBadge);
+    }
+
     document.querySelectorAll('[id$="-overlay"]').forEach((overlay) => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
@@ -70,6 +95,8 @@ function setupEventListeners() {
             }
         });
     });
+
+    updateIncidentScannerBadge();
 }
 
 async function loadAssets() {

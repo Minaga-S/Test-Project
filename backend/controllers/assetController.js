@@ -43,12 +43,7 @@ function getLiveScanScopeError(liveScanInput = {}, requestIp = '') {
         return 'Live scan target must be localhost or a private-network address';
     }
 
-    try {
-        nmapScanService.assertTargetWithinRequesterNetwork(liveScan.target, requestIp);
-        return '';
-    } catch (error) {
-        return error.message;
-    }
+    return '';
 }
 
 class AssetController {

@@ -1,117 +1,35 @@
-const childProcess = require('child_process');
 const nmapScanService = require('./nmapScanService');
 
-jest.mock('child_process', () => ({
-    execFile: jest.fn((command, args, options, callback) => {
-        if (args.includes('-O')) {
-            callback(null, {
-                stdout: 'OS details: Linux 2.6.9 - 2.6.33\nOS CPE: cpe:/o:linux:linux_kernel:2.6\nRunning: Linux 2.6.X',
-            });
-            return;
-        }
-
-        callback(null, {
-            stdout: 'Host: 10.0.0.10 () Status: Up\nPorts: 22/open/tcp//ssh//OpenSSH 4.7p1 Debian 8ubuntu1/, 443/open/tcp//https//Apache httpd 2.2.8/',
-        });
-    }),
-}));
-
 describe('nmapScanService', () => {
-    beforeEach(() => {
-        childProcess.execFile.mockClear();
+    it('should allow localhost target', () => {
+        expect(nmapScanService.isAllowedScanTarget('localhost')).toBe(true);
     });
 
-    it('should build Nmap arguments with requested ports', async () => {
-        await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(childProcess.execFile.mock.calls[0][1].includes('-p')).toBe(true);
+    it('should allow private IPv4 target', () => {
+        expect(nmapScanService.isAllowedScanTarget('192.168.1.20')).toBe(true);
     });
 
-    it('should not include OS fingerprinting flags in the service scan command', async () => {
-        await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(childProcess.execFile.mock.calls[0][1].includes('-O')).toBe(false);
+    it('should reject public IPv4 target', () => {
+        expect(nmapScanService.isAllowedScanTarget('8.8.8.8')).toBe(false);
     });
 
-    it('should run a separate OS detection command', async () => {
-        await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(childProcess.execFile.mock.calls[1][1].includes('-O')).toBe(true);
+    it('should allow local hostname suffix', () => {
+        expect(nmapScanService.isAllowedScanTarget('edge-gateway.local')).toBe(true);
     });
 
-
-    it('should skip second OS scan when primary scan already has OS and CPE', async () => {
-        childProcess.execFile.mockImplementationOnce((command, args, options, callback) => {
-            callback(null, {
-                stdout: 'Host: 10.0.0.10 () Status: Up\nPorts: 22/open/tcp//ssh//OpenSSH 4.7p1 Debian 8ubuntu1/\nOS details: Linux 2.6.9 - 2.6.33\nOS CPE: cpe:/o:linux:linux_kernel:2.6',
-            });
-        });
-
-        await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(childProcess.execFile).toHaveBeenCalledTimes(1);
-    });
-    it('should parse open services from grepable output', async () => {
-        const result = await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(result.services.length).toBe(2);
+    it('should normalize requester localhost IPv6 address', () => {
+        expect(nmapScanService.normalizeRequesterIp('::1')).toBe('127.0.0.1');
     });
 
-    it('should include service version in parsed service data', async () => {
-        const result = await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(result.services[0].version).toBe('OpenSSH 4.7p1 Debian 8ubuntu1');
+    it('should allow same-subnet target for private requester', () => {
+        expect(() => nmapScanService.assertTargetWithinRequesterNetwork('10.0.0.10', '10.0.0.50')).not.toThrow();
     });
 
-    it('should parse OS details from OS scan output', async () => {
-        const result = await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(result.osInfo).toBe('Linux 2.6.9 - 2.6.33');
+    it('should reject cross-subnet target for private requester', () => {
+        expect(() => nmapScanService.assertTargetWithinRequesterNetwork('10.0.0.10', '10.0.1.25')).toThrow('Scan target must be on the same private subnet as the requester');
     });
 
-    it('should parse OS CPE from OS scan output', async () => {
-        const result = await nmapScanService.runScan({ target: '10.0.0.10', ports: '22,443' });
-
-        expect(result.osCpe).toBe('cpe:/o:linux:linux_kernel:2.6');
-    });
-
-    it('should reject public targets before invoking Nmap', async () => {
-        await expect(nmapScanService.runScan({ target: '8.8.8.8', ports: '22' })).rejects.toThrow('Nmap scans are restricted to localhost and private-network targets');
-
-        expect(childProcess.execFile).not.toHaveBeenCalled();
-    });
-
-    it('should reject target outside requester subnet for private requester IP', async () => {
-        await expect(nmapScanService.runScan({
-            target: '10.0.0.10',
-            ports: '22',
-            requestIp: '10.0.1.25',
-        })).rejects.toThrow('Scan target must be on the same private subnet as the requester');
-    });
-
-    it('should allow target in same requester subnet', async () => {
-        await nmapScanService.runScan({
-            target: '10.0.0.10',
-            ports: '22',
-            requestIp: '10.0.0.8',
-        });
-
-        expect(childProcess.execFile).toHaveBeenCalledTimes(2);
-    });
-
-    it('should allow private target when requester ip is localhost', async () => {
-        await nmapScanService.runScan({
-            target: '192.168.1.25',
-            ports: '22',
-            requestIp: '127.0.0.1',
-        });
-
-        expect(childProcess.execFile).toHaveBeenCalledTimes(2);
-    });
-
-    it('should throw when scan target is missing', async () => {
-        await expect(nmapScanService.runScan({})).rejects.toThrow('Nmap scan target is required');
-
-        expect.assertions(1);
+    it('should bypass subnet check for localhost requester', () => {
+        expect(() => nmapScanService.assertTargetWithinRequesterNetwork('192.168.1.25', '127.0.0.1')).not.toThrow();
     });
 });

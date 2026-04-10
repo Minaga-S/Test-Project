@@ -123,13 +123,13 @@ async function refreshLocalScannerStatus() {
 
     const isReachable = await isLocalScannerReachable();
     if (isReachable) {
-        badge.textContent = 'Connected';
+        badge.textContent = 'Online';
         badge.className = 'local-scanner-status local-scanner-status-online';
         message.textContent = 'Scanner is running locally and ready to receive scan requests.';
         return;
     }
 
-    badge.textContent = 'Disconnected';
+    badge.textContent = 'Offline';
     badge.className = 'local-scanner-status local-scanner-status-offline';
     message.textContent = 'Scanner is not reachable. Start the local scanner app and allow loopback/local network access in Chrome if prompted.';
 }

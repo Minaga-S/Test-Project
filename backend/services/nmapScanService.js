@@ -1,13 +1,7 @@
 /**
  * Nmap Scan Service
  */
-// NOTE: Runs Nmap only against localhost/private-network targets and normalizes grepable output.
-
-const { execFile } = require('child_process');
-const util = require('util');
-
-const execFileAsync = util.promisify(execFile);
-const DEFAULT_NMAP_TIMEOUT_MS = Number(process.env.NMAP_SCAN_TIMEOUT_MS) || 60000;
+// NOTE: Provides target-scope validation helpers for local/private scanning.
 const ALLOWED_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
 const PRIVATE_IPV4_RANGES = [
     [10, 0, 0, 0, 8],
@@ -17,26 +11,6 @@ const PRIVATE_IPV4_RANGES = [
     [192, 168, 0, 0, 16],
     [100, 64, 0, 0, 10],
 ];
-
-function normalizePorts(portsInput) {
-    if (Array.isArray(portsInput)) {
-        return portsInput
-            .map((port) => Number(port))
-            .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535)
-            .join(',');
-    }
-
-    const rawPorts = String(portsInput || '').trim();
-    if (!rawPorts) {
-        return '';
-    }
-
-    return rawPorts
-        .split(',')
-        .map((port) => Number(port.trim()))
-        .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535)
-        .join(',');
-}
 
 function parseIpv4Address(value) {
     const octets = String(value || '').trim().split('.').map(Number);
@@ -170,176 +144,7 @@ function assertTargetWithinRequesterNetwork(target, requestIp) {
     throw new Error('Scan target must be on the same private subnet as the requester');
 }
 
-function parsePortsLine(output) {
-    const portsLineMatch = output.match(/Ports:\s+([^\n]+)/);
-    if (!portsLineMatch) {
-        return [];
-    }
-
-    return portsLineMatch[1]
-        .split(', ')
-        .map((entry) => {
-            const parts = entry.split('/');
-            const port = Number(parts[0]);
-            const version = parts.slice(5).join('/').replace(/^\/+|\/+$/g, '').trim();
-
-            return {
-                port: Number.isInteger(port) ? port : null,
-                state: parts[1] || '',
-                protocol: parts[2] || '',
-                service: parts[4] || 'unknown',
-                version,
-            };
-        })
-        .filter((entry) => entry.port !== null && entry.state === 'open');
-}
-
-function parseHostState(output) {
-    const hostLineMatch = output.match(/Host:\s+([^\s]+)\s+\((.*?)\)\s+Status:\s+([^\n]+)/);
-    if (!hostLineMatch) {
-        return {
-            hostAddress: '',
-            hostName: '',
-            state: 'unknown',
-        };
-    }
-
-    return {
-        hostAddress: hostLineMatch[1] || '',
-        hostName: hostLineMatch[2] || '',
-        state: hostLineMatch[3] || 'unknown',
-    };
-}
-
-function parseOsInfo(output) {
-    const normalizedOutput = String(output || '');
-    if (!normalizedOutput) {
-        return '';
-    }
-
-    const osDetailsMatch = normalizedOutput.match(/OS details:\s*([^\n]+)/i);
-    if (osDetailsMatch?.[1]) {
-        return osDetailsMatch[1].trim();
-    }
-
-    const osGuessMatch = normalizedOutput.match(/Aggressive OS guesses:\s*([^\n]+)/i);
-    if (osGuessMatch?.[1]) {
-        return osGuessMatch[1]
-            .split(',')
-            .map((entry) => entry.trim())
-            .filter(Boolean)[0] || '';
-    }
-
-    const runningMatch = normalizedOutput.match(/Running:\s*([^\n]+)/i);
-    if (runningMatch?.[1]) {
-        return runningMatch[1].trim();
-    }
-
-    if (/Too many fingerprints match/i.test(normalizedOutput)) {
-        return 'Unable to determine (inconclusive fingerprints)';
-    }
-
-    return '';
-}
-
-
-function parseOsCpe(output) {
-    const normalizedOutput = String(output || '');
-    if (!normalizedOutput) {
-        return '';
-    }
-
-    const cpeMatch = normalizedOutput.match(/OS CPE:\s*([^\n]+)/i);
-    return cpeMatch?.[1] ? cpeMatch[1].trim() : '';
-}
-function buildCommandArgs(target, portsInput) {
-    const args = ['-Pn', '-sV', '--version-light', '--open'];
-    const normalizedPorts = normalizePorts(portsInput);
-
-    if (normalizedPorts) {
-        args.push('-p', normalizedPorts);
-    }
-
-    args.push('-oG', '-', target);
-    return args;
-}
-
-function buildOsDetectionArgs(target) {
-    return ['-Pn', '-O', '--osscan-guess', '--max-os-tries', '1', target];
-}
-
-function buildUnavailableErrorMessage(normalizedTarget, error) {
-    const deploymentHint = process.env.RENDER ? ' Deploy with the backend Dockerfile so Nmap is installed in the image.' : ' Install Nmap locally and ensure it is on PATH.';
-    return new Error(`Nmap scan failed for ${normalizedTarget}: ${error.message}.${deploymentHint}`);
-}
-
-async function runScan({ target, ports, requestIp } = {}) {
-    const normalizedTarget = String(target || '').trim();
-    if (!normalizedTarget) {
-        throw new Error('Nmap scan target is required');
-    }
-
-    assertAllowedTarget(normalizedTarget);
-    assertTargetWithinRequesterNetwork(normalizedTarget, requestIp);
-
-    const args = buildCommandArgs(normalizedTarget, ports);
-
-    try {
-        const { stdout = '' } = await execFileAsync('nmap', args, {
-            maxBuffer: 5 * 1024 * 1024,
-            timeout: DEFAULT_NMAP_TIMEOUT_MS,
-        });
-
-        const openServices = parsePortsLine(stdout);
-        const hostState = parseHostState(stdout);
-        let osInfo = parseOsInfo(stdout);
-        let osCpe = parseOsCpe(stdout);
-
-        if (!osInfo || !osCpe) {
-            try {
-                const osArgs = buildOsDetectionArgs(normalizedTarget);
-                const { stdout: osStdout = '' } = await execFileAsync('nmap', osArgs, {
-                    maxBuffer: 5 * 1024 * 1024,
-                    timeout: DEFAULT_NMAP_TIMEOUT_MS,
-                });
-                osInfo = osInfo || parseOsInfo(osStdout);
-                osCpe = osCpe || parseOsCpe(osStdout);
-            } catch (osError) {
-                osInfo = osInfo || '';
-                osCpe = osCpe || '';
-            }
-        }
-
-        return {
-            command: 'nmap',
-            args,
-            target: normalizedTarget,
-            requestedPorts: normalizePorts(ports),
-            openPorts: openServices.map((entry) => entry.port),
-            services: openServices,
-            hostState,
-            osInfo,
-            osCpe,
-            rawOutput: stdout,
-        };
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            throw buildUnavailableErrorMessage(normalizedTarget, error);
-        }
-
-        throw new Error(`Nmap scan failed for ${normalizedTarget}: ${error.message}`);
-    }
-}
-
 module.exports = {
-    runScan,
-    buildCommandArgs,
-    buildOsDetectionArgs,
-    normalizePorts,
-    parsePortsLine,
-    parseHostState,
-    parseOsInfo,
-    parseOsCpe,
     isAllowedScanTarget,
     isPrivateIpv4Address,
     isLoopbackIpv4Address,

@@ -15,9 +15,12 @@
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
 const MOBILE_BREAKPOINT = 768;
 const METRIC_ANIMATION_DURATION_MS = 800;
+const DASHBOARD_BADGE_ROTATION_MS = 30000;
 let chartJsLoadPromise = null;
 let dashboardCharts = {};
 let isTwoFactorEnabled = false;
+let dashboardBadgeTimer = null;
+let shouldShowTwoFactorStatus = true;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeDashboard();
@@ -33,7 +36,26 @@ async function initializeDashboard() {
     setupLogoutButton();
     setupCollapsiblePanels();
     setupMetricCarousel();
+    startDashboardBadgeRotation();
     await loadDashboardData();
+}
+
+function startDashboardBadgeRotation() {
+    if (dashboardBadgeTimer) {
+        window.clearInterval(dashboardBadgeTimer);
+    }
+
+    dashboardBadgeTimer = window.setInterval(() => {
+        shouldShowTwoFactorStatus = !shouldShowTwoFactorStatus;
+        updateBadgeDisplay();
+    }, DASHBOARD_BADGE_ROTATION_MS);
+
+    window.addEventListener('beforeunload', () => {
+        if (dashboardBadgeTimer) {
+            window.clearInterval(dashboardBadgeTimer);
+            dashboardBadgeTimer = null;
+        }
+    }, { once: true });
 }
 
 async function displayUserInfo() {
@@ -46,7 +68,7 @@ async function displayUserInfo() {
             const initial = (user.fullName || user.email)[0].toUpperCase();
             document.getElementById('user-initial').textContent = initial;
             isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
-            updateLiveBadgeState();
+            await updateLiveBadgeState();
             setLocalStorage('user', user);
         }
     } catch (error) {
@@ -54,18 +76,56 @@ async function displayUserInfo() {
     }
 }
 
-function updateLiveBadgeState() {
-    const lastUpdatedEl = document.getElementById('last-updated-text');
-    const liveBadge = lastUpdatedEl ? lastUpdatedEl.closest('.live-badge') : null;
+async function updateBadgeDisplay() {
+    const statusEl = document.getElementById('dashboard-status-text');
+    const badgeEl = document.getElementById('dashboard-scanner-badge');
 
-    if (!lastUpdatedEl || !liveBadge) {
+    if (!statusEl || !badgeEl) {
         return;
     }
 
-    liveBadge.classList.toggle('live-badge-warning', !isTwoFactorEnabled);
+    const isConnected = await isLocalScannerReachable();
+    if (!isTwoFactorEnabled && shouldShowTwoFactorStatus) {
+        badgeEl.classList.add('live-badge-warning');
+        statusEl.textContent = '2FA Not Enabled';
+        return;
+    }
 
-    if (!isTwoFactorEnabled) {
-        lastUpdatedEl.textContent = '2FA not enabled';
+    if (isConnected) {
+        badgeEl.classList.remove('live-badge-warning');
+        statusEl.textContent = 'Scanner Connected';
+    } else {
+        badgeEl.classList.add('live-badge-warning');
+        statusEl.textContent = 'Scanner Offline';
+    }
+}
+
+async function updateLiveBadgeState() {
+    await updateBadgeDisplay();
+}
+
+async function isLocalScannerReachable() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+
+    try {
+        const response = await fetch('http://127.0.0.1:47633/health', {
+            method: 'GET',
+            signal: controller.signal,
+            mode: 'cors',
+            credentials: 'omit',
+        });
+
+        if (!response.ok) {
+            return false;
+        }
+
+        const payload = await response.json().catch(() => ({}));
+        return payload?.status === 'ok';
+    } catch (error) {
+        return false;
+    } finally {
+        window.clearTimeout(timeoutId);
     }
 }
 
