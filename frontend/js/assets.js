@@ -87,10 +87,10 @@ async function updateAssetScannerBadge() {
     
     if (isConnected) {
         badgeEl.classList.remove('live-badge-warning');
-        statusEl.textContent = 'Scanner connected';
+        statusEl.textContent = 'Scanner Connected';
     } else {
         badgeEl.classList.add('live-badge-warning');
-        statusEl.textContent = 'Scanner disconnected';
+        statusEl.textContent = 'Scanner Offline';
     }
 }
 

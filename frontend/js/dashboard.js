@@ -15,9 +15,12 @@
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
 const MOBILE_BREAKPOINT = 768;
 const METRIC_ANIMATION_DURATION_MS = 800;
+const DASHBOARD_BADGE_ROTATION_MS = 30000;
 let chartJsLoadPromise = null;
 let dashboardCharts = {};
 let isTwoFactorEnabled = false;
+let dashboardBadgeTimer = null;
+let shouldShowTwoFactorStatus = true;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeDashboard();
@@ -33,7 +36,26 @@ async function initializeDashboard() {
     setupLogoutButton();
     setupCollapsiblePanels();
     setupMetricCarousel();
+    startDashboardBadgeRotation();
     await loadDashboardData();
+}
+
+function startDashboardBadgeRotation() {
+    if (dashboardBadgeTimer) {
+        window.clearInterval(dashboardBadgeTimer);
+    }
+
+    dashboardBadgeTimer = window.setInterval(() => {
+        shouldShowTwoFactorStatus = !shouldShowTwoFactorStatus;
+        updateBadgeDisplay();
+    }, DASHBOARD_BADGE_ROTATION_MS);
+
+    window.addEventListener('beforeunload', () => {
+        if (dashboardBadgeTimer) {
+            window.clearInterval(dashboardBadgeTimer);
+            dashboardBadgeTimer = null;
+        }
+    }, { once: true });
 }
 
 async function displayUserInfo() {
@@ -62,19 +84,19 @@ async function updateBadgeDisplay() {
         return;
     }
 
-    if (!isTwoFactorEnabled) {
+    const isConnected = await isLocalScannerReachable();
+    if (!isTwoFactorEnabled && shouldShowTwoFactorStatus) {
         badgeEl.classList.add('live-badge-warning');
-        statusEl.textContent = '2FA not enabled';
+        statusEl.textContent = '2FA Not Enabled';
         return;
     }
 
-    const isConnected = await isLocalScannerReachable();
     if (isConnected) {
         badgeEl.classList.remove('live-badge-warning');
-        statusEl.textContent = 'Scanner connected';
+        statusEl.textContent = 'Scanner Connected';
     } else {
         badgeEl.classList.add('live-badge-warning');
-        statusEl.textContent = 'Scanner offline';
+        statusEl.textContent = 'Scanner Offline';
     }
 }
 
