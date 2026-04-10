@@ -67,4 +67,24 @@ describe('recommendationService', () => {
 
         expect(result[0]).toContain('no critical findings reported.');
     });
+
+    it('should return CVE database-driven recommendations when AI returns empty and CVE context exists', async () => {
+        generateRecommendations.mockResolvedValue([]);
+
+        const result = await recommendationService.generateRecommendations('Unauthorized Access', {
+            securityContext: {
+                cve: {
+                    matches: [
+                        { cveId: 'CVE-2026-0001', severity: 'CRITICAL', cvssScore: 9.8 },
+                        { cveId: 'CVE-2026-0002', severity: 'HIGH', cvssScore: 7.5 },
+                    ],
+                },
+                liveScan: {
+                    services: [{ service: 'ssh' }],
+                },
+            },
+        });
+
+        expect(result[0]).toContain('CVE-2026-0001');
+    });
 });
