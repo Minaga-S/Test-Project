@@ -91,9 +91,26 @@ const scanPreviewValidation = [
     validateRequest,
 ];
 
+const agentScanUploadValidation = [
+    body('assetId').isMongoId().withMessage('assetId must be a valid ObjectId'),
+    body('scanResult').isObject().withMessage('scanResult is required'),
+    body('scanResult.target').isString().trim().notEmpty().withMessage('scanResult.target is required'),
+    body('scanResult.command').optional().isString().trim(),
+    body('scanResult.args').optional().isArray({ max: 64 }).withMessage('scanResult.args must be an array'),
+    body('scanResult.rawOutput').optional().isString().isLength({ max: 500000 }).withMessage('scanResult.rawOutput exceeds maximum allowed size'),
+    body('scanResult.requestedPorts').optional().isArray({ max: 2048 }).withMessage('scanResult.requestedPorts must be an array'),
+    body('scanResult.openPorts').optional().isArray({ max: 2048 }).withMessage('scanResult.openPorts must be an array'),
+    body('scanResult.services').optional().isArray({ max: 2048 }).withMessage('scanResult.services must be an array'),
+    body('scanResult.osInfo').optional().isString().trim(),
+    body('scanResult.osCpe').optional().isString().trim(),
+    body('metadata').optional().isObject().withMessage('metadata must be an object'),
+    validateRequest,
+];
+
 router.post('/', createAssetValidation, withController(assetController, 'createAsset'));
 router.post('/scan', enrichmentLimiter, scanAssetsValidation, withController(assetController, 'scanAssets'));
 router.post('/scan-preview', enrichmentLimiter, scanPreviewValidation, withController(assetController, 'scanAssetPreview'));
+router.post('/scan-agent/upload', enrichmentLimiter, agentScanUploadValidation, withController(assetController, 'uploadAgentScan'));
 router.get('/', withController(assetController, 'getAssets'));
 router.get('/asset-types', withController(assetController, 'getAssetTypes'));
 router.get('/search', withController(assetController, 'searchAssets'));

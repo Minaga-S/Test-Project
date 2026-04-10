@@ -4,6 +4,7 @@
 // NOTE: Controller: handles incoming API requests, validates access, and returns responses.
 
 const Asset = require('../models/Asset');
+const crypto = require('crypto');
 const { ASSET_TYPES } = require('../utils/constants');
 const { validateAsset } = require('../utils/validators');
 const logger = require('../utils/logger');
@@ -13,6 +14,7 @@ const scanHistoryService = require('../services/scanHistoryService');
 const nmapScanService = require('../services/nmapScanService');
 
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
+const SCAN_AGENT_TOKEN_HEADER = 'x-scan-agent-token';
 
 function sanitizeLiveScanInput(liveScanInput = {}) {
     return {
@@ -49,6 +51,27 @@ function getLiveScanScopeError(liveScanInput = {}, requestIp = '') {
     } catch (error) {
         return error.message;
     }
+}
+
+function hasValidAgentToken(tokenInput) {
+    const expectedToken = String(process.env.NMAP_AGENT_UPLOAD_TOKEN || '').trim();
+    if (!expectedToken) {
+        return false;
+    }
+
+    const providedToken = String(tokenInput || '').trim();
+    if (!providedToken) {
+        return false;
+    }
+
+    const expectedBuffer = Buffer.from(expectedToken, 'utf8');
+    const providedBuffer = Buffer.from(providedToken, 'utf8');
+
+    if (expectedBuffer.length !== providedBuffer.length) {
+        return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
 class AssetController {
@@ -465,6 +488,74 @@ class AssetController {
         } catch (error) {
             logger.error(`Scan assets error: ${error.message}`);
             next(error);
+        }
+    }
+
+    async uploadAgentScan(req, res, next) {
+        try {
+            const providedToken = req.headers[SCAN_AGENT_TOKEN_HEADER];
+            if (!hasValidAgentToken(providedToken)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Invalid scan agent token',
+                });
+            }
+
+            const assetId = String(req.body.assetId || '').trim();
+            const asset = await Asset.findOne({
+                _id: assetId,
+                userId: req.user.userId,
+            });
+
+            if (!asset) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Asset not found',
+                });
+            }
+
+            const uploadedTarget = String(req.body?.scanResult?.target || '').trim();
+            const configuredTarget = String(asset?.liveScan?.target || '').trim();
+            if (uploadedTarget && configuredTarget && uploadedTarget !== configuredTarget) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Uploaded scan target does not match the configured asset target',
+                });
+            }
+
+            const uploadResult = await scanHistoryService.ingestExternalScan(
+                asset,
+                req.user.userId,
+                {
+                    scanResult: req.body.scanResult,
+                    metadata: req.body.metadata,
+                },
+                { ipAddress: req.ip || '' }
+            );
+
+            await auditLogService.record({
+                actorUserId: req.user.userId,
+                action: 'ASSET_AGENT_SCAN_UPLOAD',
+                entityType: 'Asset',
+                entityId: String(asset._id),
+                after: {
+                    target: uploadResult?.scanHistory?.target || '',
+                    scanHistoryId: String(uploadResult?.scanHistory?._id || ''),
+                    source: 'companion-agent',
+                },
+                ipAddress: req.ip || '',
+            });
+
+            return res.status(201).json({
+                success: true,
+                message: 'Agent scan uploaded successfully',
+                scanHistoryId: String(uploadResult.scanHistory._id),
+                status: uploadResult.scanHistory.status,
+                securityContext: uploadResult.securityContext,
+            });
+        } catch (error) {
+            logger.error(`Upload agent scan error: ${error.message}`);
+            return next(error);
         }
     }
 }

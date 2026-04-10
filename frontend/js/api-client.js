@@ -337,6 +337,15 @@ class APIClient {
         return this.post('/assets/scan-preview', payload);
     }
 
+    async uploadCompanionAgentScan(payload, agentToken) {
+        const headers = {};
+        if (agentToken) {
+            headers['x-scan-agent-token'] = String(agentToken);
+        }
+
+        return this.post('/assets/scan-agent/upload', payload, { headers });
+    }
+
     async getAssetSecurityContext(assetId) {
         return this.get(`/assets/${assetId}/security-context`);
     }

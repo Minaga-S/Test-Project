@@ -308,6 +308,63 @@ describe('scanHistoryService', () => {
 
         expect(result._id).toBe('history-1');
     });
+
+    it('should ingest companion-agent scans and persist completed history', async () => {
+        ScanHistory.create.mockResolvedValue({ _id: 'history-agent-1', status: 'Completed' });
+        nmapScanService.isAllowedScanTarget.mockReturnValue(true);
+        cveEnrichmentService.enrichForAsset.mockResolvedValue({ source: 'NIST NVD API', matches: [] });
+
+        await scanHistoryService.ingestExternalScan({
+            _id: 'asset-1',
+            assetName: 'Internal Router',
+            assetType: 'Network Device',
+            liveScan: { enabled: true, target: '192.168.1.1', ports: '22,443' },
+            vulnerabilityProfile: { osName: '', cpeUri: '' },
+        }, 'user-1', {
+            scanResult: {
+                command: 'nmap',
+                target: '192.168.1.1',
+                requestedPorts: ['22', '443'],
+                openPorts: [22, 443],
+                services: [
+                    { port: 22, protocol: 'tcp', service: 'ssh', version: 'OpenSSH 9.0' },
+                    { port: 443, protocol: 'tcp', service: 'https', version: 'nginx 1.26' },
+                ],
+                rawOutput: 'Host: 192.168.1.1 () Status: Up',
+                osInfo: 'Linux 6.x',
+                osCpe: 'cpe:/o:linux:linux_kernel:6',
+            },
+            metadata: {
+                scanDurationMs: 32000,
+            },
+        }, {
+            ipAddress: '192.168.1.50',
+        });
+
+        expect(ScanHistory.create).toHaveBeenCalledWith(expect.objectContaining({
+            status: 'Completed',
+            initiatedBy: 'companion-agent',
+            command: 'nmap',
+            target: '192.168.1.1',
+            ports: '22,443',
+            scanDurationMs: 32000,
+        }));
+    });
+
+    it('should reject companion-agent ingestion for disallowed targets', async () => {
+        nmapScanService.isAllowedScanTarget.mockReturnValue(false);
+
+        await expect(scanHistoryService.ingestExternalScan({
+            _id: 'asset-1',
+            liveScan: { enabled: true, target: '8.8.8.8' },
+            vulnerabilityProfile: {},
+        }, 'user-1', {
+            scanResult: {
+                target: '8.8.8.8',
+                openPorts: [53],
+            },
+        })).rejects.toThrow('Nmap scans are restricted to localhost and private-network targets');
+    });
 });
 
 
