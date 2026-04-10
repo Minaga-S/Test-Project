@@ -55,6 +55,19 @@ function isLocalScannerFetchAllowed() {
     return window.isSecureContext || isLoopbackHost;
 }
 
+function getLocalScannerAddressSpace(url) {
+    try {
+        const hostname = new URL(url).hostname.toLowerCase();
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+            return 'loopback';
+        }
+
+        return 'local';
+    } catch (error) {
+        return 'local';
+    }
+}
+
 function buildLocalScannerFetchOptions(options = {}) {
     const requestOptions = {
         ...options,
@@ -63,7 +76,7 @@ function buildLocalScannerFetchOptions(options = {}) {
     };
 
     if (window.isSecureContext) {
-        requestOptions.targetAddressSpace = 'local';
+        requestOptions.targetAddressSpace = getLocalScannerAddressSpace(LOCAL_SCANNER_HEALTH_URL);
     }
 
     return requestOptions;
@@ -118,7 +131,7 @@ async function refreshLocalScannerStatus() {
 
     badge.textContent = 'Disconnected';
     badge.className = 'local-scanner-status local-scanner-status-offline';
-    message.textContent = 'Scanner is not reachable. Start the local scanner app and allow local network access in Chrome if prompted.';
+    message.textContent = 'Scanner is not reachable. Start the local scanner app and allow loopback/local network access in Chrome if prompted.';
 }
 
 function setupPasswordToggles() {

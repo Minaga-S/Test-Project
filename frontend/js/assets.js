@@ -594,6 +594,19 @@ function isLocalScannerFetchAllowed() {
     return window.isSecureContext || isLoopbackHost;
 }
 
+function getLocalScannerAddressSpace(url) {
+    try {
+        const hostname = new URL(url).hostname.toLowerCase();
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+            return 'loopback';
+        }
+
+        return 'local';
+    } catch (error) {
+        return 'local';
+    }
+}
+
 function buildLocalScannerFetchOptions(options = {}) {
     const requestOptions = {
         ...options,
@@ -602,7 +615,7 @@ function buildLocalScannerFetchOptions(options = {}) {
     };
 
     if (window.isSecureContext) {
-        requestOptions.targetAddressSpace = 'local';
+        requestOptions.targetAddressSpace = getLocalScannerAddressSpace(LOCAL_SCANNER_BASE_URL);
     }
 
     return requestOptions;
