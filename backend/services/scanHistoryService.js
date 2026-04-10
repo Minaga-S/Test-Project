@@ -399,8 +399,6 @@ class ScanHistoryService {
             throw new Error('Nmap scans are restricted to localhost and private-network targets');
         }
 
-        nmapScanService.assertTargetWithinRequesterNetwork(target, requesterIp);
-
         const scanResult = sanitizeLocalScanResult(assetDraft, scanResultInput);
         const cveResult = await cveEnrichmentService.enrichForAsset(
             buildCveProfile(assetDraft, scanResult),
