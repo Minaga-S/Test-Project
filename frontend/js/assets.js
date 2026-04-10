@@ -16,6 +16,50 @@ const ASSET_SCAN_DEFAULT_ESTIMATED_MS = 55000;
 const ASSET_SCAN_ESTIMATED_MIN_MS = 25000;
 const ASSET_SCAN_ESTIMATED_MAX_MS = 180000;
 const ASSET_SCAN_OVERRUN_BUFFER_MS = 15000;
+const CRITICALITY_HIGH_RISK_PORTS = new Set([21, 23, 25, 53, 79, 110, 111, 135, 137, 138, 139, 143, 161, 389, 443, 445, 512, 513, 514, 1524, 2049, 3306, 3389, 5432, 5900, 6379, 8080]);
+const CRITICALITY_HIGH_RISK_SERVICE_KEYWORDS = [
+    'telnet',
+    'ftp',
+    'tftp',
+    'rpc',
+    'rpcbind',
+    'nfs',
+    'smb',
+    'samba',
+    'netbios',
+    'distccd',
+    'rlogin',
+    'rsh',
+    'rexec',
+    'postgres',
+    'mysql',
+    'vnc',
+    'rdp',
+    'ldap',
+    'snmp',
+];
+const CRITICALITY_SCORE_LOW_THRESHOLD = 1;
+const CRITICALITY_SCORE_MEDIUM_THRESHOLD = 4;
+const CRITICALITY_SCORE_HIGH_THRESHOLD = 8;
+const CRITICALITY_SCORE_CRITICAL_THRESHOLD = 12;
+const CRITICALITY_OPEN_PORT_SCORE_CAP = 5;
+const CRITICALITY_OPEN_PORT_SCORE_PER_PORT = 0.5;
+const CRITICALITY_HIGH_RISK_PORT_SCORE_CAP = 6;
+const CRITICALITY_HIGH_RISK_PORT_SCORE_PER_MATCH = 1.3;
+const CRITICALITY_HIGH_RISK_SERVICE_SCORE_CAP = 6;
+const CRITICALITY_HIGH_RISK_SERVICE_SCORE_PER_MATCH = 1.5;
+const CRITICALITY_CPE_PRESENT_SCORE = 0.8;
+const CRITICALITY_CPE_WELL_FORMED_SCORE = 0.6;
+const CRITICALITY_CPE_VERSION_SPECIFIC_SCORE = 1.2;
+const CVE_SEVERITY_SCORE_MAP = {
+    CRITICAL: 9,
+    HIGH: 6,
+    MEDIUM: 3,
+    LOW: 1,
+};
+const CRITICALITY_CVE_MAX_SCORE_CAP = 12;
+const CRITICALITY_CVE_COUNT_SCORE_CAP = 4;
+const CRITICALITY_CVE_COUNT_SCORE_PER_MATCH = 0.45;
 const LOCAL_SCANNER_BASE_URL = 'http://127.0.0.1:47633';
 const LOCAL_SCANNER_REPO_URL = 'https://github.com/dev-pahan/NmapLocalScanner';
 let assetScanTerminalTimer = null;
@@ -84,44 +128,130 @@ function setAssetModalMode(isEditMode) {
     setScanDetailsVisibility(isEditMode);
 }
 
-function mapSeverityToCriticality(severity) {
-    const normalizedSeverity = String(severity || '').trim().toUpperCase();
-    if (normalizedSeverity === 'CRITICAL') return 'Critical';
-    if (normalizedSeverity === 'HIGH') return 'High';
-    if (normalizedSeverity === 'MEDIUM') return 'Medium';
-    if (normalizedSeverity === 'LOW') return 'Low';
+function mapScoreToCriticality(score) {
+    if (score >= CRITICALITY_SCORE_CRITICAL_THRESHOLD) return 'Critical';
+    if (score >= CRITICALITY_SCORE_HIGH_THRESHOLD) return 'High';
+    if (score >= CRITICALITY_SCORE_MEDIUM_THRESHOLD) return 'Medium';
+    if (score >= CRITICALITY_SCORE_LOW_THRESHOLD) return 'Low';
     return '';
+}
+
+function normalizeDetectedPort(portValue) {
+    const parsedPort = Number(portValue);
+    if (!Number.isInteger(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+        return null;
+    }
+
+    return parsedPort;
+}
+
+function collectOpenPortsForCriticality(previewPayload = {}) {
+    const liveScan = previewPayload?.securityContext?.liveScan || {};
+    const scanResult = previewPayload?.scanResult || {};
+    const rawOpenPorts = Array.isArray(liveScan.observedOpenPorts) && liveScan.observedOpenPorts.length > 0
+        ? liveScan.observedOpenPorts
+        : (Array.isArray(scanResult.openPorts) ? scanResult.openPorts : []);
+
+    const normalizedPorts = rawOpenPorts
+        .map((portValue) => normalizeDetectedPort(portValue))
+        .filter((portValue) => portValue !== null);
+
+    return [...new Set(normalizedPorts)];
+}
+
+function collectServiceFingerprintsForCriticality(previewPayload = {}) {
+    const liveScan = previewPayload?.securityContext?.liveScan || {};
+    const scanResult = previewPayload?.scanResult || {};
+    const services = Array.isArray(liveScan.services) && liveScan.services.length > 0
+        ? liveScan.services
+        : (Array.isArray(scanResult.services) ? scanResult.services : []);
+
+    return services.map((service) => {
+        if (typeof service === 'string') {
+            return service.toLowerCase();
+        }
+
+        const serviceName = String(service?.service || service?.name || '').trim();
+        const serviceVersion = String(service?.version || '').trim();
+        return `${serviceName} ${serviceVersion}`.trim().toLowerCase();
+    }).filter(Boolean);
+}
+
+function collectCpeValuesForCriticality(previewPayload = {}) {
+    const inferredProfile = previewPayload?.inferredProfile || {};
+    const cveQuery = previewPayload?.cveResult?.query || {};
+    const scanResult = previewPayload?.scanResult || {};
+
+    return [inferredProfile.cpeUri, cveQuery.cpeUri, scanResult.osCpe]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+}
+
+function hasVersionSpecificCpe(cpeValues = []) {
+    return cpeValues.some((cpe) => {
+        if (!cpe.startsWith('cpe:2.3:')) {
+            return false;
+        }
+
+        const cpeParts = cpe.split(':');
+        const versionToken = cpeParts[5] || '';
+        return Boolean(versionToken) && versionToken !== '*' && versionToken !== '-';
+    });
+}
+
+function calculateCveRiskScore(cveMatches = []) {
+    if (cveMatches.length === 0) {
+        return {
+            score: 0,
+            hasCriticalCve: false,
+            hasHighCve: false,
+        };
+    }
+
+    const severityScores = cveMatches.map((match) => {
+        const severity = String(match?.severity || '').trim().toUpperCase();
+        return CVE_SEVERITY_SCORE_MAP[severity] || 0;
+    });
+    const maxSeverityScore = Math.max(...severityScores, 0);
+    const cveCountScore = Math.min(cveMatches.length * CRITICALITY_CVE_COUNT_SCORE_PER_MATCH, CRITICALITY_CVE_COUNT_SCORE_CAP);
+
+    return {
+        score: Math.min(maxSeverityScore + cveCountScore, CRITICALITY_CVE_MAX_SCORE_CAP),
+        hasCriticalCve: cveMatches.some((match) => String(match?.severity || '').trim().toUpperCase() === 'CRITICAL'),
+        hasHighCve: cveMatches.some((match) => String(match?.severity || '').trim().toUpperCase() === 'HIGH'),
+    };
 }
 
 function detectCriticalityFromPreview(previewPayload = {}) {
     const cveMatches = Array.isArray(previewPayload?.cveResult?.matches) ? previewPayload.cveResult.matches : [];
-    const severityOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+    const openPorts = collectOpenPortsForCriticality(previewPayload);
+    const serviceFingerprints = collectServiceFingerprintsForCriticality(previewPayload);
+    const cpeValues = collectCpeValuesForCriticality(previewPayload);
 
-    const detectedSeverity = severityOrder.find((severityLevel) => cveMatches.some((match) => String(match?.severity || '').toUpperCase() === severityLevel));
-    const detectedFromCve = mapSeverityToCriticality(detectedSeverity);
-    if (detectedFromCve) {
-        return detectedFromCve;
+    const highRiskPortCount = openPorts.filter((port) => CRITICALITY_HIGH_RISK_PORTS.has(port)).length;
+    const highRiskServiceCount = serviceFingerprints.filter((serviceText) => CRITICALITY_HIGH_RISK_SERVICE_KEYWORDS
+        .some((keyword) => serviceText.includes(keyword))).length;
+
+    const openPortScore = Math.min(openPorts.length * CRITICALITY_OPEN_PORT_SCORE_PER_PORT, CRITICALITY_OPEN_PORT_SCORE_CAP);
+    const highRiskPortScore = Math.min(highRiskPortCount * CRITICALITY_HIGH_RISK_PORT_SCORE_PER_MATCH, CRITICALITY_HIGH_RISK_PORT_SCORE_CAP);
+    const highRiskServiceScore = Math.min(highRiskServiceCount * CRITICALITY_HIGH_RISK_SERVICE_SCORE_PER_MATCH, CRITICALITY_HIGH_RISK_SERVICE_SCORE_CAP);
+    const cpePresenceScore = cpeValues.length > 0 ? CRITICALITY_CPE_PRESENT_SCORE : 0;
+    const cpeWellFormedScore = cpeValues.some((cpe) => cpe.startsWith('cpe:2.3:') || cpe.startsWith('cpe:/'))
+        ? CRITICALITY_CPE_WELL_FORMED_SCORE
+        : 0;
+    const cpeVersionScore = hasVersionSpecificCpe(cpeValues) ? CRITICALITY_CPE_VERSION_SPECIFIC_SCORE : 0;
+    const cveRisk = calculateCveRiskScore(cveMatches);
+
+    let totalRiskScore = openPortScore + highRiskPortScore + highRiskServiceScore + cpePresenceScore + cpeWellFormedScore + cpeVersionScore + cveRisk.score;
+
+    // If severe CVEs are present and exposure data confirms reachability, push the score floor up.
+    if (cveRisk.hasCriticalCve && (openPorts.length > 0 || highRiskServiceCount > 0 || cpeValues.length > 0)) {
+        totalRiskScore = Math.max(totalRiskScore, CRITICALITY_SCORE_CRITICAL_THRESHOLD);
+    } else if (cveRisk.hasHighCve && (openPorts.length > 0 || highRiskServiceCount > 0)) {
+        totalRiskScore = Math.max(totalRiskScore, CRITICALITY_SCORE_HIGH_THRESHOLD);
     }
 
-    const liveScan = previewPayload?.securityContext?.liveScan || {};
-    const scanResult = previewPayload?.scanResult || {};
-    const openPorts = Array.isArray(liveScan.observedOpenPorts) && liveScan.observedOpenPorts.length > 0
-        ? liveScan.observedOpenPorts
-        : (Array.isArray(scanResult.openPorts) ? scanResult.openPorts : []);
-
-    if (openPorts.length >= 8) {
-        return 'High';
-    }
-
-    if (openPorts.length >= 4) {
-        return 'Medium';
-    }
-
-    if (openPorts.length > 0) {
-        return 'Low';
-    }
-
-    return '';
+    return mapScoreToCriticality(totalRiskScore);
 }
 
 function applyDetectedCriticality(previewPayload = {}) {
