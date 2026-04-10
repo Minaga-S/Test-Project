@@ -594,15 +594,29 @@ function isLocalScannerFetchAllowed() {
     return window.isSecureContext || isLoopbackHost;
 }
 
+function buildLocalScannerFetchOptions(options = {}) {
+    const requestOptions = {
+        ...options,
+        mode: 'cors',
+        credentials: 'omit',
+    };
+
+    if (window.isSecureContext) {
+        requestOptions.targetAddressSpace = 'local';
+    }
+
+    return requestOptions;
+}
+
 async function isLocalScannerReachable() {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 1800);
 
     try {
-        const response = await fetch(`${LOCAL_SCANNER_BASE_URL}/health`, {
+        const response = await fetch(`${LOCAL_SCANNER_BASE_URL}/health`, buildLocalScannerFetchOptions({
             method: 'GET',
             signal: controller.signal,
-        });
+        }));
 
         if (!response.ok) {
             return false;
@@ -625,7 +639,7 @@ async function runLocalScannerPreview(payload) {
     const requestResponse = await apiClient.requestLocalScannerScan(payload);
     const scanRequest = requestResponse?.scanRequest || requestResponse;
 
-    const scannerResponse = await fetch(`${LOCAL_SCANNER_BASE_URL}/scan`, {
+    const scannerResponse = await fetch(`${LOCAL_SCANNER_BASE_URL}/scan`, buildLocalScannerFetchOptions({
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -637,7 +651,7 @@ async function runLocalScannerPreview(payload) {
             target: scanRequest.target,
             ports: scanRequest.ports,
         }),
-    });
+    }));
 
     const scannerPayload = await scannerResponse.json().catch(() => ({}));
     if (!scannerResponse.ok) {
@@ -721,6 +735,12 @@ async function runLiveScanPreview() {
         stopAssetScanProgress();
         stopAssetScanTerminalSimulation(false);
         hideAssetScanWorkflowModal();
+        const errorMessage = String(error?.message || '').toLowerCase();
+        if (errorMessage.includes('failed to fetch') || errorMessage.includes('private network')) {
+            showNotification('Scan blocked by browser local-network restrictions. In Chrome, allow local network access for this site and retry.', 'warning');
+            return;
+        }
+
         showNotification('Scan failed. You can still enter details manually.', 'warning');
     }
 }

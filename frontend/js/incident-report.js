@@ -289,15 +289,29 @@ function isLocalScannerFetchAllowed() {
     return window.isSecureContext || isLoopbackHost;
 }
 
+function buildLocalScannerFetchOptions(options = {}) {
+    const requestOptions = {
+        ...options,
+        mode: 'cors',
+        credentials: 'omit',
+    };
+
+    if (window.isSecureContext) {
+        requestOptions.targetAddressSpace = 'local';
+    }
+
+    return requestOptions;
+}
+
 async function isLocalScannerReachable() {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 1800);
 
     try {
-        const response = await fetch(`${LOCAL_SCANNER_BASE_URL}/health`, {
+        const response = await fetch(`${LOCAL_SCANNER_BASE_URL}/health`, buildLocalScannerFetchOptions({
             method: 'GET',
             signal: controller.signal,
-        });
+        }));
 
         if (!response.ok) {
             return false;
@@ -316,7 +330,7 @@ async function runLocalScannerPreview(payload) {
     const requestResponse = await apiClient.requestLocalScannerScan(payload);
     const scanRequest = requestResponse?.scanRequest || requestResponse;
 
-    const scannerResponse = await fetch(`${LOCAL_SCANNER_BASE_URL}/scan`, {
+    const scannerResponse = await fetch(`${LOCAL_SCANNER_BASE_URL}/scan`, buildLocalScannerFetchOptions({
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -328,7 +342,7 @@ async function runLocalScannerPreview(payload) {
             target: scanRequest.target,
             ports: scanRequest.ports,
         }),
-    });
+    }));
 
     const scannerPayload = await scannerResponse.json().catch(() => ({}));
     if (!scannerResponse.ok) {
@@ -738,6 +752,8 @@ async function handleIncidentSubmit(e) {
         const errorMessage = String(error?.message || '').trim() || 'Unknown error';
         const lowerErrorMessage = errorMessage.toLowerCase();
 
+        const isLocalNetworkBlocked = lowerErrorMessage.includes('failed to fetch') || lowerErrorMessage.includes('private network');
+
         if (lowerErrorMessage.includes('ai') || lowerErrorMessage.includes('gemini')) {
             setStepState('step-ai', 'failed');
         }
@@ -763,7 +779,11 @@ async function handleIncidentSubmit(e) {
 
         updateAnalysisStatus(`Analysis did not complete: ${errorMessage}`, 92);
         appendScanTerminalLine(`[scan] Workflow failed: ${errorMessage}`);
-        showNotification(`Error submitting incident: ${errorMessage}`, 'error');
+        if (isLocalNetworkBlocked) {
+            showNotification('Scan blocked by browser local-network restrictions. In Chrome, allow local network access for this site and retry.', 'error');
+        } else {
+            showNotification(`Error submitting incident: ${errorMessage}`, 'error');
+        }
     } finally {
         setSubmitButtonState(false);
     }

@@ -71,7 +71,7 @@ function pruneConsumedTokens() {
     }
 }
 
-function verifyTargetScope(target, requestIp) {
+function verifyTargetScope(target) {
     if (!target) {
         throw new LocalScannerBridgeError('TARGET_REQUIRED', 'Scan target is required');
     }
@@ -79,17 +79,11 @@ function verifyTargetScope(target, requestIp) {
     if (!nmapScanService.isAllowedScanTarget(target)) {
         throw new LocalScannerBridgeError('TARGET_NOT_ALLOWED', 'Live scan target must be localhost or a private-network address');
     }
-
-    try {
-        nmapScanService.assertTargetWithinRequesterNetwork(target, requestIp || '');
-    } catch (error) {
-        throw new LocalScannerBridgeError('TARGET_OUT_OF_SCOPE', error.message);
-    }
 }
 
 function issueScanToken(scanRequest = {}, requestMeta = {}) {
     const sanitized = sanitizeScanRequest(scanRequest);
-    verifyTargetScope(sanitized.liveScan.target, requestMeta.ipAddress || '');
+    verifyTargetScope(sanitized.liveScan.target);
 
     const userId = normalizeText(requestMeta.userId);
     if (!userId) {

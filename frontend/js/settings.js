@@ -55,15 +55,29 @@ function isLocalScannerFetchAllowed() {
     return window.isSecureContext || isLoopbackHost;
 }
 
+function buildLocalScannerFetchOptions(options = {}) {
+    const requestOptions = {
+        ...options,
+        mode: 'cors',
+        credentials: 'omit',
+    };
+
+    if (window.isSecureContext) {
+        requestOptions.targetAddressSpace = 'local';
+    }
+
+    return requestOptions;
+}
+
 async function isLocalScannerReachable() {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 1800);
 
     try {
-        const response = await fetch(LOCAL_SCANNER_HEALTH_URL, {
+        const response = await fetch(LOCAL_SCANNER_HEALTH_URL, buildLocalScannerFetchOptions({
             method: 'GET',
             signal: controller.signal,
-        });
+        }));
 
         if (!response.ok) {
             return false;
@@ -104,7 +118,7 @@ async function refreshLocalScannerStatus() {
 
     badge.textContent = 'Disconnected';
     badge.className = 'local-scanner-status local-scanner-status-offline';
-    message.textContent = 'Scanner is not reachable. Start the local scanner app and test again.';
+    message.textContent = 'Scanner is not reachable. Start the local scanner app and allow local network access in Chrome if prompted.';
 }
 
 function setupPasswordToggles() {

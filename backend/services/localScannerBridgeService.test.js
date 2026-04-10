@@ -3,7 +3,6 @@ const nmapScanService = require('./nmapScanService');
 
 jest.mock('./nmapScanService', () => ({
     isAllowedScanTarget: jest.fn(),
-    assertTargetWithinRequesterNetwork: jest.fn(),
 }));
 
 describe('localScannerBridgeService', () => {
@@ -34,6 +33,21 @@ describe('localScannerBridgeService', () => {
         });
 
         expect(typeof issued.bridgeToken).toBe('string');
+    });
+
+    it('should not enforce requester subnet during bridge token issuance', () => {
+        localScannerBridgeService.issueScanToken({
+            assetId: 'asset-1',
+            liveScan: {
+                target: '192.168.50.20',
+                ports: '22',
+            },
+        }, {
+            userId: 'user-1',
+            ipAddress: '10.0.0.8',
+        });
+
+        expect(nmapScanService.isAllowedScanTarget).toHaveBeenCalledWith('192.168.50.20');
     });
 
     it('should reject bridge token issuance when target is outside allowed scope', () => {
