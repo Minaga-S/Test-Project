@@ -15,7 +15,7 @@ const DETERMINISTIC_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE || 0);
 const JSON_REPAIR_TEMPERATURE = Number(process.env.GEMINI_REPAIR_TEMPERATURE || 0);
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 300;
-const DEFAULT_MODEL_FALLBACKS = ['gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+const DEFAULT_MODEL_FALLBACKS = ['gemini-2.5-flash-lite', 'gemini-2-flash-lite'];
 
 function getGeminiApiUrl(modelName) {
     return `${GEMINI_API_BASE_URL}/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
