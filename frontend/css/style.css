@@ -1200,6 +1200,35 @@ body.sidebar-collapsed .nav-item:focus-visible::after {
     background: #C2410C;
 }
 
+.live-badge.live-badge-loading {
+    background: #F8FAFC;
+    border-color: rgba(148, 163, 184, 0.45);
+    color: #64748B;
+}
+
+.live-badge.live-badge-loading .live-badge-dot {
+    background: #64748B;
+    animation: scanner-badge-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes scanner-badge-pulse {
+    0%,
+    100% {
+        transform: scale(0.9);
+        opacity: 0.55;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .live-badge.live-badge-loading .live-badge-dot {
+        animation: none;
+    }
+}
+
 .scan-timestamp {
     display: flex;
     align-items: center;

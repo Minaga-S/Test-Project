@@ -70,3 +70,26 @@
 - Kept UI behavior changes centralized in shared styles where possible for consistency.
 - Prioritized permission enforcement and compliance/audit traceability as production-readiness requirements.
 - Treated dependency remediation as a separate security-focused commit for clear audit history.
+
+## Branch Continuation Addendum (April 13, 2026)
+
+### Scope
+- Continued production UI stabilization on branch `bugfix/dashboard-metrics-skeleton-loading`.
+- Consolidated pagination, loading-state, and documentation refinements after the April 12 merge.
+
+### Delivered Changes
+- Added dual top/bottom pagination controls for Assets, Incidents, and Audit Logs with synchronized behavior.
+- Improved mobile pagination layout so navigation controls remain usable on narrow screens.
+- Refined Add Asset modal action spacing/placement for better behavior across viewport widths.
+- Restored scanner badge loading states in asset and incident report workflows.
+- Fixed audit logs pagination synchronization regression after local undo/re-edit cycles.
+- Restored dashboard metric initial skeleton behavior (removed hardcoded `0` defaults on refresh).
+- Rewrote the main `README.md` to reflect current architecture, setup, scripts, environment variables, and deployment notes.
+
+### Branch Commits Added
+- `f07de72` Add dual top-bottom pagination across assets, incidents, and audit logs.
+- `dd9f169` Polish modal actions, scanner badges, and dashboard metric defaults.
+- `216aae7` Fix audit logs pagination sync and restore dashboard skeleton defaults.
+
+### Current Branch Status
+- Branch is prepared for push, PR update/creation, and merge to `main`.

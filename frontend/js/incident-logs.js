@@ -4,10 +4,13 @@
 // NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
 
 let incidents = [];
+let filteredIncidents = [];
+let incidentsCurrentPage = 1;
 let selectedIncidentIds = new Set();
 let pendingDeleteIncidentIds = [];
 const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
 let jsPdfLoadPromise = null;
+const INCIDENTS_ROWS_PER_PAGE = 25;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentLogs();
@@ -379,6 +382,47 @@ function setupEventListeners() {
         deleteOverlay.addEventListener('click', closeDeleteModal);
     }
 
+    document.querySelectorAll('[data-incidents-pagination-action="prev"]').forEach((previousPageButton) => {
+        previousPageButton.addEventListener('click', () => {
+            if (incidentsCurrentPage <= 1) {
+                return;
+            }
+
+            incidentsCurrentPage -= 1;
+            displayIncidentsPage();
+        });
+    });
+
+    document.querySelectorAll('[data-incidents-pagination-action="next"]').forEach((nextPageButton) => {
+        nextPageButton.addEventListener('click', () => {
+            const totalPages = getIncidentsTotalPages();
+            if (incidentsCurrentPage >= totalPages) {
+                return;
+            }
+
+            incidentsCurrentPage += 1;
+            displayIncidentsPage();
+        });
+    });
+
+    document.querySelectorAll('[data-incidents-pagination-role="list"]').forEach((pageList) => {
+        pageList.addEventListener('click', (event) => {
+            const pageButton = event.target.closest('[data-incidents-page]');
+            if (!pageButton) {
+                return;
+            }
+
+            const requestedPage = Number.parseInt(pageButton.dataset.incidentsPage, 10);
+            const totalPages = getIncidentsTotalPages();
+            if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > totalPages) {
+                return;
+            }
+
+            incidentsCurrentPage = requestedPage;
+            displayIncidentsPage();
+        });
+    });
+
     const detailClose = document.getElementById('detail-close');
     if (detailClose) {
         detailClose.addEventListener('click', closeDetailModal);
@@ -397,14 +441,144 @@ function setupEventListeners() {
 
 async function loadIncidents() {
     renderTableSkeleton('incidents-tbody', 8, 4);
+    setIncidentsPaginationLoading();
 
     try {
         incidents = await apiClient.getIncidents();
-        displayIncidents(incidents);
+        filteredIncidents = Array.isArray(incidents) ? [...incidents] : [];
+        incidentsCurrentPage = 1;
+        displayIncidentsPage();
     } catch (error) {
         console.error('Error loading incidents:', error);
+        filteredIncidents = [];
+        renderIncidentsPagination();
         showNotification('Error loading incidents', 'error');
     }
+}
+
+function getIncidentsTotalPages() {
+    const count = Array.isArray(filteredIncidents) ? filteredIncidents.length : 0;
+    return Math.max(1, Math.ceil(count / INCIDENTS_ROWS_PER_PAGE));
+}
+
+function getIncidentsPaginationControls() {
+    return Array.from(document.querySelectorAll('[data-incidents-pagination-container]')).map((container) => {
+        return {
+            previousPageButton: container.querySelector('[data-incidents-pagination-action="prev"]'),
+            nextPageButton: container.querySelector('[data-incidents-pagination-action="next"]'),
+            pageList: container.querySelector('[data-incidents-pagination-role="list"]'),
+            info: container.querySelector('[data-incidents-pagination-role="info"]'),
+        };
+    });
+}
+
+function buildPaginationModel(currentPage, totalPages) {
+    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches;
+
+    if (isMobileViewport) {
+        if (totalPages <= 3) {
+            return Array.from({ length: totalPages }, (_, index) => index + 1);
+        }
+
+        if (currentPage <= 2) {
+            return [1, 2, 'ellipsis', totalPages];
+        }
+
+        if (currentPage >= totalPages - 1) {
+            return [1, 'ellipsis', totalPages - 1, totalPages];
+        }
+
+        return [1, 'ellipsis', currentPage, 'ellipsis', totalPages];
+    }
+
+    if (totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    if (currentPage <= 4) {
+        return [1, 2, 3, 4, 5, 'ellipsis', totalPages];
+    }
+
+    if (currentPage >= totalPages - 3) {
+        return [1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+
+    return [1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages];
+}
+
+function renderIncidentsPagination() {
+    const paginationControls = getIncidentsPaginationControls();
+
+    const totalRecords = Array.isArray(filteredIncidents) ? filteredIncidents.length : 0;
+    const totalPages = getIncidentsTotalPages();
+
+    const model = buildPaginationModel(incidentsCurrentPage, totalPages);
+    const pageMarkup = model.map((item) => {
+        if (item === 'ellipsis') {
+            return '<span class="table-pagination-ellipsis">...</span>';
+        }
+
+        const activeClass = item === incidentsCurrentPage ? ' is-active' : '';
+        return `<button type="button" class="btn btn-secondary btn-sm table-pagination-number${activeClass}" data-incidents-page="${item}" aria-label="Go to page ${item}" ${item === incidentsCurrentPage ? 'aria-current="page"' : ''}>${item}</button>`;
+    }).join('');
+
+    paginationControls.forEach(({ info, previousPageButton, nextPageButton, pageList }) => {
+        if (info) {
+            info.classList.remove('table-pagination-info-skeleton');
+            info.textContent = totalRecords === 0
+                ? 'No records'
+                : `Page ${incidentsCurrentPage} of ${totalPages} (${totalRecords} total)`;
+        }
+
+        if (previousPageButton) {
+            previousPageButton.disabled = incidentsCurrentPage <= 1;
+        }
+
+        if (nextPageButton) {
+            nextPageButton.disabled = incidentsCurrentPage >= totalPages || totalRecords === 0;
+        }
+
+        if (pageList) {
+            pageList.innerHTML = pageMarkup;
+        }
+    });
+}
+
+function setIncidentsPaginationLoading() {
+    const paginationControls = getIncidentsPaginationControls();
+
+    paginationControls.forEach(({ pageList, info, previousPageButton, nextPageButton }) => {
+        if (pageList) {
+            pageList.innerHTML = [
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+            ].join('');
+        }
+
+        if (info) {
+            info.textContent = '\u00A0';
+            info.classList.add('table-pagination-info-skeleton');
+        }
+
+        if (previousPageButton) {
+            previousPageButton.disabled = true;
+        }
+
+        if (nextPageButton) {
+            nextPageButton.disabled = true;
+        }
+    });
+}
+
+function displayIncidentsPage() {
+    const totalPages = getIncidentsTotalPages();
+    incidentsCurrentPage = Math.min(Math.max(incidentsCurrentPage, 1), totalPages);
+
+    const startIndex = (incidentsCurrentPage - 1) * INCIDENTS_ROWS_PER_PAGE;
+    const pageItems = filteredIncidents.slice(startIndex, startIndex + INCIDENTS_ROWS_PER_PAGE);
+    displayIncidents(pageItems);
+    renderIncidentsPagination();
 }
 
 function displayIncidents(incidentsToDisplay) {
@@ -533,7 +707,7 @@ function filterIncidents() {
     const statusFilter = document.getElementById('filter-status').value;
     const riskFilter = document.getElementById('filter-risk-level').value;
 
-    const filtered = incidents.filter((incident) => {
+    filteredIncidents = incidents.filter((incident) => {
         const matchesSearch = incident.incidentId.toLowerCase().includes(searchQuery) ||
             incident.threatType.toLowerCase().includes(searchQuery) ||
             incident.asset?.assetName.toLowerCase().includes(searchQuery);
@@ -544,7 +718,8 @@ function filterIncidents() {
         return matchesSearch && matchesThreat && matchesStatus && matchesRisk;
     });
 
-    displayIncidents(filtered);
+    incidentsCurrentPage = 1;
+    displayIncidentsPage();
 }
 
 async function viewIncidentDetails(incidentId) {

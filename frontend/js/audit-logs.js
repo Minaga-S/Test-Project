@@ -3,6 +3,19 @@
 let auditLogs = [];
 const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
 let jsPdfLoadPromise = null;
+let auditCurrentPage = 1;
+let auditTotalPages = 1;
+let auditTotalRecords = 0;
+const AUDIT_ROWS_PER_PAGE = 25;
+
+function getAuditPaginationControls() {
+    return Array.from(document.querySelectorAll('[data-audit-pagination-container]')).map((container) => ({
+        previousButton: container.querySelector('[data-audit-pagination-action="prev"]'),
+        nextButton: container.querySelector('[data-audit-pagination-action="next"]'),
+        pageList: container.querySelector('[data-audit-pagination-role="list"]'),
+        infoEl: container.querySelector('[data-audit-pagination-role="info"]'),
+    }));
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuditLogs();
@@ -22,16 +35,59 @@ async function initializeAuditLogs() {
 function setupAuditFilterEvents() {
     const applyButton = document.getElementById('audit-apply-filters');
     if (applyButton) {
-        applyButton.addEventListener('click', () => loadAuditLogs());
+        applyButton.addEventListener('click', () => {
+            auditCurrentPage = 1;
+            loadAuditLogs();
+        });
     }
 
     const resetButton = document.getElementById('audit-reset-filters');
     if (resetButton) {
         resetButton.addEventListener('click', () => {
             resetFilters();
+            auditCurrentPage = 1;
             loadAuditLogs();
         });
     }
+
+    document.querySelectorAll('[data-audit-pagination-action="prev"]').forEach((previousPageButton) => {
+        previousPageButton.addEventListener('click', () => {
+            if (auditCurrentPage <= 1) {
+                return;
+            }
+
+            auditCurrentPage -= 1;
+            loadAuditLogs();
+        });
+    });
+
+    document.querySelectorAll('[data-audit-pagination-action="next"]').forEach((nextPageButton) => {
+        nextPageButton.addEventListener('click', () => {
+            if (auditCurrentPage >= auditTotalPages) {
+                return;
+            }
+
+            auditCurrentPage += 1;
+            loadAuditLogs();
+        });
+    });
+
+    document.querySelectorAll('[data-audit-pagination-role="list"]').forEach((pageList) => {
+        pageList.addEventListener('click', (event) => {
+            const pageButton = event.target.closest('[data-audit-page]');
+            if (!pageButton) {
+                return;
+            }
+
+            const requestedPage = Number.parseInt(pageButton.dataset.auditPage, 10);
+            if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > auditTotalPages) {
+                return;
+            }
+
+            auditCurrentPage = requestedPage;
+            loadAuditLogs();
+        });
+    });
 
     const exportButton = document.getElementById('export-audit-btn');
     if (exportButton) {
@@ -81,6 +137,7 @@ function setupAuditFilterEvents() {
             inputEl.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
+                    auditCurrentPage = 1;
                     loadAuditLogs();
                 }
             });
@@ -101,8 +158,8 @@ function buildAuditFilters() {
         entityType,
         from,
         to,
-        page: 1,
-        limit: 100,
+        page: auditCurrentPage,
+        limit: AUDIT_ROWS_PER_PAGE,
         scope: 'all',
     };
 }
@@ -113,17 +170,108 @@ async function loadAuditLogs() {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading audit logs...</td></tr>';
     }
 
+    setAuditPaginationLoading();
+
     try {
         const response = await apiClient.getAuditLogs(buildAuditFilters());
         auditLogs = Array.isArray(response?.logs) ? response.logs : [];
+        auditCurrentPage = Number(response?.page) || auditCurrentPage;
+        auditTotalPages = Math.max(Number(response?.totalPages) || 1, 1);
+        auditTotalRecords = Math.max(Number(response?.total) || 0, 0);
         renderAuditLogs(auditLogs);
+        renderAuditPagination();
     } catch (error) {
         console.error('Error loading audit logs:', error);
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center">Failed to load audit logs</td></tr>';
         }
+        auditLogs = [];
+        auditTotalPages = 1;
+        auditTotalRecords = 0;
+        renderAuditPagination();
         showNotification('Unable to load audit logs', 'error');
     }
+}
+
+function renderAuditPagination() {
+    const paginationControls = getAuditPaginationControls();
+
+    const model = buildPaginationModel(auditCurrentPage, Math.max(auditTotalPages, 1));
+    const pageMarkup = model.map((item) => {
+        if (item === 'ellipsis') {
+            return '<span class="table-pagination-ellipsis">...</span>';
+        }
+
+        const activeClass = item === auditCurrentPage ? ' is-active' : '';
+        return `<button type="button" class="btn btn-secondary btn-sm table-pagination-number${activeClass}" data-audit-page="${item}" aria-label="Go to page ${item}" ${item === auditCurrentPage ? 'aria-current="page"' : ''}>${item}</button>`;
+    }).join('');
+
+    paginationControls.forEach(({ infoEl, previousButton, nextButton, pageList }) => {
+        if (infoEl) {
+            infoEl.classList.remove('table-pagination-info-skeleton');
+            const totalPages = Math.max(auditTotalPages, 1);
+            if (auditTotalRecords === 0) {
+                infoEl.textContent = 'No records';
+            } else {
+                infoEl.textContent = `Page ${auditCurrentPage} of ${totalPages} (${auditTotalRecords} total)`;
+            }
+        }
+
+        if (previousButton) {
+            previousButton.disabled = auditCurrentPage <= 1;
+        }
+
+        if (nextButton) {
+            nextButton.disabled = auditCurrentPage >= auditTotalPages || auditTotalRecords === 0;
+        }
+
+        if (pageList) {
+            pageList.innerHTML = pageMarkup;
+        }
+    });
+}
+
+function setAuditPaginationLoading() {
+    const paginationControls = getAuditPaginationControls();
+
+    paginationControls.forEach(({ infoEl, previousButton, nextButton, pageList }) => {
+        if (infoEl) {
+            infoEl.textContent = '\u00A0';
+            infoEl.classList.add('table-pagination-info-skeleton');
+        }
+
+        if (previousButton) {
+            previousButton.disabled = true;
+        }
+
+        if (nextButton) {
+            nextButton.disabled = true;
+        }
+
+        if (pageList) {
+            pageList.innerHTML = [
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+            ].join('');
+        }
+    });
+}
+
+function buildPaginationModel(currentPage, totalPages) {
+    if (totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    if (currentPage <= 4) {
+        return [1, 2, 3, 4, 5, 'ellipsis', totalPages];
+    }
+
+    if (currentPage >= totalPages - 3) {
+        return [1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+
+    return [1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages];
 }
 
 function renderAuditLogs(logs) {

@@ -121,6 +121,21 @@
 
                 <!-- Assets Table -->
                 <section class="assets-section">
+                    <div id="assets-top-pagination" class="table-pagination table-pagination-top" aria-label="Assets table pagination" data-assets-pagination-container>
+                        <button id="assets-prev-page-top" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Previous page" data-assets-pagination-action="prev" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div id="assets-page-list-top" class="table-pagination-list" role="group" aria-label="Asset pages" data-assets-pagination-role="list">
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                        </div>
+                        <button id="assets-next-page-top" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Next page" data-assets-pagination-action="next" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                        </button>
+                        <div id="assets-pagination-info-top" class="table-pagination-info table-pagination-info-skeleton" data-assets-pagination-role="info">&nbsp;</div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="assets-table">
                             <thead>
@@ -141,6 +156,21 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div id="assets-bottom-pagination" class="table-pagination" aria-label="Assets table pagination" data-assets-pagination-container>
+                        <button id="assets-prev-page" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Previous page" data-assets-pagination-action="prev" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div id="assets-page-list" class="table-pagination-list" role="group" aria-label="Asset pages" data-assets-pagination-role="list">
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                        </div>
+                        <button id="assets-next-page" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Next page" data-assets-pagination-action="next" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                        </button>
+                        <div id="assets-pagination-info" class="table-pagination-info table-pagination-info-skeleton" data-assets-pagination-role="info">&nbsp;</div>
                     </div>
                 </section>
             </div>
@@ -248,9 +278,9 @@
                         placeholder="e.g., 22,80,443,3389"
                     >
                     <small>Optional comma-separated port list. Leave empty for default profile.</small>
-                    <div class="live-badge" id="asset-scanner-badge" style="margin-top: 0.5rem; display: none;">
+                    <div class="live-badge live-badge-loading" id="asset-scanner-badge" style="margin-top: 0.5rem;">
                         <span class="live-badge-dot"></span>
-                        <span id="asset-scanner-status">Scanner disconnected</span>
+                        <span id="asset-scanner-status">Checking Scanner...</span>
                     </div>
                 </div>
 
