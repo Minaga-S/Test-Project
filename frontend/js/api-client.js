@@ -439,6 +439,10 @@ class APIClient {
         return this.get('/risk/trends');
     }
 
+    async getRiskForecast() {
+        return this.get('/risk/forecast');
+    }
+
     async getRiskByAsset() {
         return this.get('/risk/by-asset');
     }
@@ -457,6 +461,10 @@ class APIClient {
 
     async getNISTRecommendations(threatType) {
         return this.get(`/nist/recommendations/${threatType}`);
+    }
+
+    async getComplianceReport(format = 'json') {
+        return this.get(`/nist/compliance-report?format=${encodeURIComponent(format)}`);
     }
 
     async getDashboardMetrics() {
@@ -481,6 +489,23 @@ class APIClient {
 
     async getRecentIncidents() {
         return this.get('/dashboard/recent-incidents');
+    }
+
+    async getAuditLogs(params = {}) {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+                searchParams.set(key, String(value));
+            }
+        });
+
+        const queryString = searchParams.toString();
+        const endpoint = queryString ? `/audit-logs?${queryString}` : '/audit-logs';
+        return this.get(endpoint);
+    }
+
+    async getAuditLogSummary() {
+        return this.get('/audit-logs/summary');
     }
 }
 

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Logs - Hotel Cybersecurity Governance</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/forms.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body class="audit-logs-page">
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mini">
+                    <svg width="40" height="40" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#4070FF" stroke-width="2"/>
+                        <path d="M30 15V45M15 30H45" stroke="#4070FF" stroke-width="2"/>
+                        <rect x="25" y="25" width="10" height="10" fill="#4070FF"/>
+                    </svg>
+                </div>
+                <h2>HCGS</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item"><span class="icon material-symbols-rounded" aria-hidden="true">dashboard</span><span>Dashboard</span></a>
+                <a href="assets.html" class="nav-item"><span class="icon material-symbols-rounded" aria-hidden="true">inventory_2</span><span>Assets</span></a>
+                <a href="report-incident.html" class="nav-item"><span class="icon material-symbols-rounded" aria-hidden="true">report_problem</span><span>Report Issue</span></a>
+                <a href="incident-logs.html" class="nav-item"><span class="icon material-symbols-rounded" aria-hidden="true">assignment</span><span>Incidents</span></a>
+                <a href="risk-analysis.html" class="nav-item"><span class="icon material-symbols-rounded" aria-hidden="true">monitoring</span><span>Risk Analysis</span></a>
+                <a href="audit-logs.html" class="nav-item active"><span class="icon material-symbols-rounded" aria-hidden="true">policy</span><span>Audit Logs</span></a>
+                <a href="settings.html" class="nav-item"><span class="icon material-symbols-rounded" aria-hidden="true">settings</span><span>Settings</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-full">Logout</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>Audit Logs</h1>
+                </div>
+                <div class="header-right">
+                    <button id="export-audit-btn" class="btn btn-secondary btn-icon">
+                        <span class="material-symbols-rounded" aria-hidden="true">download</span>
+                        <span>Export Logs</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="dashboard-content">
+                <section class="filter-section">
+                    <div class="filter-group">
+                        <input id="audit-search" class="search-input" type="text" placeholder="Search action, entity, id or IP">
+                    </div>
+                    <div class="filter-group">
+                        <input id="audit-action" class="search-input" type="text" placeholder="Action (e.g. INCIDENT_CREATE)">
+                    </div>
+                    <div class="filter-group">
+                        <input id="audit-entity" class="search-input" type="text" placeholder="Entity Type (e.g. Incident)">
+                    </div>
+                    <div class="filter-group audit-date-group">
+                        <label class="audit-filter-label" for="audit-from">From</label>
+                        <input id="audit-from" class="search-input" type="date" aria-label="From date">
+                    </div>
+                    <div class="filter-group audit-date-group">
+                        <label class="audit-filter-label" for="audit-to">To</label>
+                        <input id="audit-to" class="search-input" type="date" aria-label="To date">
+                    </div>
+                    <div class="filter-group filter-actions">
+                        <button id="audit-apply-filters" class="btn btn-secondary btn-sm">Apply</button>
+                        <button id="audit-reset-filters" class="btn btn-secondary btn-sm">Reset</button>
+                    </div>
+                </section>
+
+                <section class="incidents-section">
+                    <div class="table-responsive">
+                        <table class="incidents-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Action</th>
+                                    <th>Entity</th>
+                                    <th>Entity ID</th>
+                                    <th>IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-logs-tbody">
+                                <tr><td colspan="5" class="text-center">Loading audit logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="audit-export-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="audit-export-overlay"></div>
+        <div class="modal-content modal-content-small confirm-modal export-modal-content" role="dialog" aria-modal="true" aria-labelledby="audit-export-title">
+            <div class="modal-header">
+                <h2 id="audit-export-title">Export Audit Logs</h2>
+                <button class="modal-close" id="audit-export-close" aria-label="Close export dialog">&times;</button>
+            </div>
+            <div class="modal-form">
+                <p class="export-modal-helper">Choose a report format</p>
+                <div class="form-actions export-format-actions">
+                    <button type="button" class="btn btn-primary export-format-btn" id="audit-export-csv-btn">CSV</button>
+                    <button type="button" class="btn btn-primary export-format-btn" id="audit-export-json-btn">JSON</button>
+                    <button type="button" class="btn btn-primary export-format-btn" id="audit-export-pdf-btn">PDF</button>
+                </div>
+                <div class="form-actions export-cancel-actions">
+                    <button type="button" class="btn btn-secondary" id="audit-export-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api-client.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/audit-logs.js"></script>
+</body>
+</html>
