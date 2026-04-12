@@ -681,6 +681,77 @@ function setupPageTransitions() {
     // Keep native browser navigation for instant page transitions.
 }
 
+function setupTableScrollAssist() {
+    const tableContainers = Array.from(document.querySelectorAll('.table-responsive'));
+
+    tableContainers.forEach((container) => {
+        if (container.dataset.scrollAssistBound === 'true') {
+            return;
+        }
+
+        const topScrollbar = document.createElement('div');
+        topScrollbar.className = 'table-scrollbar-top';
+        topScrollbar.setAttribute('aria-hidden', 'true');
+
+        const topScrollbarInner = document.createElement('div');
+        topScrollbarInner.className = 'table-scrollbar-top-inner';
+        topScrollbar.appendChild(topScrollbarInner);
+
+        container.parentElement?.insertBefore(topScrollbar, container);
+
+        let isSyncingScroll = false;
+
+        const syncOverflowState = () => {
+            const tableEl = container.querySelector('table');
+            const contentWidth = tableEl ? tableEl.scrollWidth : container.scrollWidth;
+            topScrollbarInner.style.width = `${contentWidth}px`;
+
+            const hasOverflow = contentWidth > container.clientWidth + 1;
+            topScrollbar.style.display = hasOverflow ? 'block' : 'none';
+            if (hasOverflow) {
+                topScrollbar.scrollLeft = container.scrollLeft;
+            }
+        };
+
+        container.addEventListener('scroll', () => {
+            if (isSyncingScroll) {
+                return;
+            }
+
+            isSyncingScroll = true;
+            topScrollbar.scrollLeft = container.scrollLeft;
+            isSyncingScroll = false;
+        }, { passive: true });
+
+        topScrollbar.addEventListener('scroll', () => {
+            if (isSyncingScroll) {
+                return;
+            }
+
+            isSyncingScroll = true;
+            container.scrollLeft = topScrollbar.scrollLeft;
+            isSyncingScroll = false;
+        }, { passive: true });
+
+        if (typeof ResizeObserver === 'function') {
+            const resizeObserver = new ResizeObserver(() => {
+                syncOverflowState();
+            });
+
+            resizeObserver.observe(container);
+            const tableEl = container.querySelector('table');
+            if (tableEl) {
+                resizeObserver.observe(tableEl);
+            }
+        }
+
+        window.addEventListener('resize', syncOverflowState);
+        requestAnimationFrame(syncOverflowState);
+
+        container.dataset.scrollAssistBound = 'true';
+    });
+}
+
 function setupMobileHaptics() {
     const supportsVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
     const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
@@ -711,6 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSmoothDetailsAnimations();
     setupSmoothPanelTransitions();
     setupSidebarToggle();
+    setupTableScrollAssist();
     setupPageTransitions();
     setupMobileHaptics();
 });
