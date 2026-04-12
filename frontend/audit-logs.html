@@ -77,6 +77,21 @@
                 </section>
 
                 <section class="incidents-section">
+                    <div id="audit-top-pagination" class="table-pagination table-pagination-top" aria-label="Audit logs table pagination" data-audit-pagination-container>
+                        <button id="audit-prev-page-top" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Previous page" data-audit-pagination-action="prev" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div id="audit-page-list-top" class="table-pagination-list" role="group" aria-label="Audit log pages" data-audit-pagination-role="list">
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                        </div>
+                        <button id="audit-next-page-top" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Next page" data-audit-pagination-action="next" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                        </button>
+                        <div class="table-pagination-info table-pagination-info-skeleton" id="audit-pagination-info-top" data-audit-pagination-role="info">&nbsp;</div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="incidents-table">
                             <thead>
@@ -92,6 +107,21 @@
                                 <tr><td colspan="5" class="text-center">Loading audit logs...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div id="audit-bottom-pagination" class="table-pagination" aria-label="Audit logs table pagination" data-audit-pagination-container>
+                        <button id="audit-prev-page" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Previous page" data-audit-pagination-action="prev" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div id="audit-page-list" class="table-pagination-list" role="group" aria-label="Audit log pages" data-audit-pagination-role="list">
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                        </div>
+                        <button id="audit-next-page" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Next page" data-audit-pagination-action="next" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                        </button>
+                        <div class="table-pagination-info table-pagination-info-skeleton" id="audit-pagination-info" data-audit-pagination-role="info">&nbsp;</div>
                     </div>
                 </section>
             </div>

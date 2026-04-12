@@ -575,6 +575,62 @@
         text-align: right;
     }
 
+    .table-pagination {
+        padding: 0.6rem 0.65rem;
+        gap: 0.55rem;
+    }
+
+    .table-pagination-info {
+        width: 100%;
+        font-size: 0.78rem;
+        margin-left: 0;
+        order: 2;
+    }
+
+    .assets-page .table-pagination,
+    .incident-logs-page .table-pagination,
+    .audit-logs-page .table-pagination {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        column-gap: 0.45rem;
+        row-gap: 0.45rem;
+        justify-content: stretch;
+    }
+
+    .assets-page .table-pagination-list,
+    .incident-logs-page .table-pagination-list,
+    .audit-logs-page .table-pagination-list {
+        min-width: 0;
+        flex-wrap: nowrap;
+        justify-content: center;
+    }
+
+    .assets-page .table-pagination-info,
+    .incident-logs-page .table-pagination-info,
+    .audit-logs-page .table-pagination-info {
+        grid-column: 1 / -1;
+        text-align: center;
+    }
+
+    .assets-page .table-pagination-number,
+    .assets-page .table-pagination-ellipsis,
+    .incident-logs-page .table-pagination-number,
+    .incident-logs-page .table-pagination-ellipsis,
+    .audit-logs-page .table-pagination-number,
+    .audit-logs-page .table-pagination-ellipsis {
+        min-width: 30px;
+        height: 30px;
+        font-size: 0.74rem;
+    }
+
+    .assets-page .table-pagination-arrow,
+    .incident-logs-page .table-pagination-arrow,
+    .audit-logs-page .table-pagination-arrow {
+        min-width: 30px;
+        height: 30px;
+    }
+
     .charts-section {
         grid-template-columns: 1fr;
     }

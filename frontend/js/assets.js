@@ -4,9 +4,12 @@
 // NOTE: Page script: handles UI behavior, user actions, and API calls for this screen.
 
 let assets = [];
+let filteredAssets = [];
+let assetsCurrentPage = 1;
 let currentEditingAssetId = null;
 let selectedAssetIds = new Set();
 let pendingDeleteAssetIds = [];
+const ASSETS_ROWS_PER_PAGE = 25;
 const DEFAULT_SCAN_FREQUENCY = 'OnDemand';
 const ASSET_SCAN_TERMINAL_LINE_LIMIT = 18;
 const ASSET_SCAN_TERMINAL_STEP_DELAY_MS = 180;
@@ -82,8 +85,12 @@ async function updateAssetScannerBadge() {
         return;
     }
 
+    badgeEl.classList.remove('live-badge-warning');
+    badgeEl.classList.add('live-badge-loading');
+    statusEl.textContent = 'Checking Scanner...';
+
     const isConnected = await isLocalScannerReachable();
-    badgeEl.style.display = 'flex';
+    badgeEl.classList.remove('live-badge-loading');
     
     if (isConnected) {
         badgeEl.classList.remove('live-badge-warning');
@@ -1005,18 +1012,190 @@ function setupEventListeners() {
     if (deleteOverlay) {
         deleteOverlay.addEventListener('click', closeDeleteModal);
     }
+
+    document.querySelectorAll('[data-assets-pagination-action="prev"]').forEach((previousPageButton) => {
+        previousPageButton.addEventListener('click', () => {
+            if (assetsCurrentPage <= 1) {
+                return;
+            }
+
+            assetsCurrentPage -= 1;
+            displayAssetsPage();
+        });
+    });
+
+    document.querySelectorAll('[data-assets-pagination-action="next"]').forEach((nextPageButton) => {
+        nextPageButton.addEventListener('click', () => {
+            const totalPages = getAssetsTotalPages();
+            if (assetsCurrentPage >= totalPages) {
+                return;
+            }
+
+            assetsCurrentPage += 1;
+            displayAssetsPage();
+        });
+    });
+
+    document.querySelectorAll('[data-assets-pagination-role="list"]').forEach((pageList) => {
+        pageList.addEventListener('click', (event) => {
+            const pageButton = event.target.closest('[data-assets-page]');
+            if (!pageButton) {
+                return;
+            }
+
+            const requestedPage = Number.parseInt(pageButton.dataset.assetsPage, 10);
+            const totalPages = getAssetsTotalPages();
+            if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > totalPages) {
+                return;
+            }
+
+            assetsCurrentPage = requestedPage;
+            displayAssetsPage();
+        });
+    });
 }
 
 async function loadAssets() {
     renderTableSkeleton('assets-tbody', 8, 4);
+    setAssetsPaginationLoading();
 
     try {
         assets = await apiClient.getAssets();
-        displayAssets(assets);
+        filteredAssets = Array.isArray(assets) ? [...assets] : [];
+        assetsCurrentPage = 1;
+        displayAssetsPage();
     } catch (error) {
         console.error('Error loading assets:', error);
+        filteredAssets = [];
+        renderAssetsPagination();
         showNotification('Error loading assets', 'error');
     }
+}
+
+function getAssetsTotalPages() {
+    const count = Array.isArray(filteredAssets) ? filteredAssets.length : 0;
+    return Math.max(1, Math.ceil(count / ASSETS_ROWS_PER_PAGE));
+}
+
+function getAssetsPaginationControls() {
+    return Array.from(document.querySelectorAll('[data-assets-pagination-container]')).map((container) => {
+        return {
+            container,
+            previousPageButton: container.querySelector('[data-assets-pagination-action="prev"]'),
+            nextPageButton: container.querySelector('[data-assets-pagination-action="next"]'),
+            pageList: container.querySelector('[data-assets-pagination-role="list"]'),
+            info: container.querySelector('[data-assets-pagination-role="info"]'),
+        };
+    });
+}
+
+function buildPaginationModel(currentPage, totalPages) {
+    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches;
+
+    if (isMobileViewport) {
+        if (totalPages <= 3) {
+            return Array.from({ length: totalPages }, (_, index) => index + 1);
+        }
+
+        if (currentPage <= 2) {
+            return [1, 2, 'ellipsis', totalPages];
+        }
+
+        if (currentPage >= totalPages - 1) {
+            return [1, 'ellipsis', totalPages - 1, totalPages];
+        }
+
+        return [1, 'ellipsis', currentPage, 'ellipsis', totalPages];
+    }
+
+    if (totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    if (currentPage <= 4) {
+        return [1, 2, 3, 4, 5, 'ellipsis', totalPages];
+    }
+
+    if (currentPage >= totalPages - 3) {
+        return [1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+
+    return [1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages];
+}
+
+function renderAssetsPagination() {
+    const paginationControls = getAssetsPaginationControls();
+
+    const totalRecords = Array.isArray(filteredAssets) ? filteredAssets.length : 0;
+    const totalPages = getAssetsTotalPages();
+
+    const model = buildPaginationModel(assetsCurrentPage, totalPages);
+    const pageMarkup = model.map((item) => {
+        if (item === 'ellipsis') {
+            return '<span class="table-pagination-ellipsis">...</span>';
+        }
+
+        const activeClass = item === assetsCurrentPage ? ' is-active' : '';
+        return `<button type="button" class="btn btn-secondary btn-sm table-pagination-number${activeClass}" data-assets-page="${item}" aria-label="Go to page ${item}" ${item === assetsCurrentPage ? 'aria-current="page"' : ''}>${item}</button>`;
+    }).join('');
+
+    paginationControls.forEach(({ info, previousPageButton, nextPageButton, pageList }) => {
+        if (info) {
+            info.classList.remove('table-pagination-info-skeleton');
+            info.textContent = totalRecords === 0
+                ? 'No records'
+                : `Page ${assetsCurrentPage} of ${totalPages} (${totalRecords} total)`;
+        }
+
+        if (previousPageButton) {
+            previousPageButton.disabled = assetsCurrentPage <= 1;
+        }
+
+        if (nextPageButton) {
+            nextPageButton.disabled = assetsCurrentPage >= totalPages || totalRecords === 0;
+        }
+
+        if (pageList) {
+            pageList.innerHTML = pageMarkup;
+        }
+    });
+}
+
+function setAssetsPaginationLoading() {
+    const paginationControls = getAssetsPaginationControls();
+
+    paginationControls.forEach(({ pageList, info, previousPageButton, nextPageButton }) => {
+        if (pageList) {
+            pageList.innerHTML = [
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+            ].join('');
+        }
+
+        if (info) {
+            info.textContent = '\u00A0';
+            info.classList.add('table-pagination-info-skeleton');
+        }
+
+        if (previousPageButton) {
+            previousPageButton.disabled = true;
+        }
+
+        if (nextPageButton) {
+            nextPageButton.disabled = true;
+        }
+    });
+}
+
+function displayAssetsPage() {
+    const totalPages = getAssetsTotalPages();
+    assetsCurrentPage = Math.min(Math.max(assetsCurrentPage, 1), totalPages);
+
+    const startIndex = (assetsCurrentPage - 1) * ASSETS_ROWS_PER_PAGE;
+    const pageItems = filteredAssets.slice(startIndex, startIndex + ASSETS_ROWS_PER_PAGE);
+    displayAssets(pageItems);
+    renderAssetsPagination();
 }
 
 function displayAssets(assetsToDisplay) {
@@ -1140,7 +1319,7 @@ function filterAssets() {
     const typeFilter = document.getElementById('filter-type').value;
     const statusFilter = document.getElementById('filter-status').value;
 
-    const filtered = assets.filter((asset) => {
+    filteredAssets = assets.filter((asset) => {
         const matchesSearch = asset.assetName.toLowerCase().includes(searchQuery)
             || asset.description?.toLowerCase().includes(searchQuery);
         const matchesType = !typeFilter || asset.assetType === typeFilter;
@@ -1149,7 +1328,8 @@ function filterAssets() {
         return matchesSearch && matchesType && matchesStatus;
     });
 
-    displayAssets(filtered);
+    assetsCurrentPage = 1;
+    displayAssetsPage();
 }
 
 function openAssetModal() {

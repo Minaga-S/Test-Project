@@ -131,6 +131,21 @@
 
                 <!-- Incidents Table -->
                 <section class="incidents-section">
+                    <div id="incidents-top-pagination" class="table-pagination table-pagination-top" aria-label="Incidents table pagination" data-incidents-pagination-container>
+                        <button id="incidents-prev-page-top" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Previous page" data-incidents-pagination-action="prev" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div id="incidents-page-list-top" class="table-pagination-list" role="group" aria-label="Incident pages" data-incidents-pagination-role="list">
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                        </div>
+                        <button id="incidents-next-page-top" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Next page" data-incidents-pagination-action="next" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                        </button>
+                        <div id="incidents-pagination-info-top" class="table-pagination-info table-pagination-info-skeleton" data-incidents-pagination-role="info">&nbsp;</div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="incidents-table">
                             <thead>
@@ -151,6 +166,21 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div id="incidents-bottom-pagination" class="table-pagination" aria-label="Incidents table pagination" data-incidents-pagination-container>
+                        <button id="incidents-prev-page" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Previous page" data-incidents-pagination-action="prev" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <div id="incidents-page-list" class="table-pagination-list" role="group" aria-label="Incident pages" data-incidents-pagination-role="list">
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                            <span class="table-pagination-number table-pagination-number-skeleton"></span>
+                        </div>
+                        <button id="incidents-next-page" class="btn btn-secondary btn-sm table-pagination-arrow" type="button" aria-label="Next page" data-incidents-pagination-action="next" disabled>
+                            <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                        </button>
+                        <div id="incidents-pagination-info" class="table-pagination-info table-pagination-info-skeleton" data-incidents-pagination-role="info">&nbsp;</div>
                     </div>
                 </section>
             </div>
