@@ -6,6 +6,8 @@
 let incidents = [];
 let selectedIncidentIds = new Set();
 let pendingDeleteIncidentIds = [];
+const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+let jsPdfLoadPromise = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentLogs();
@@ -313,7 +315,43 @@ function setupEventListeners() {
 
     const exportBtn = document.getElementById('export-btn');
     if (exportBtn) {
-        exportBtn.addEventListener('click', exportIncidents);
+        exportBtn.addEventListener('click', openIncidentExportModal);
+    }
+
+    const incidentExportClose = document.getElementById('incident-export-close');
+    if (incidentExportClose) {
+        incidentExportClose.addEventListener('click', closeIncidentExportModal);
+    }
+
+    const incidentExportCancel = document.getElementById('incident-export-cancel');
+    if (incidentExportCancel) {
+        incidentExportCancel.addEventListener('click', closeIncidentExportModal);
+    }
+
+    const incidentExportOverlay = document.getElementById('incident-export-overlay');
+    if (incidentExportOverlay) {
+        incidentExportOverlay.addEventListener('click', closeIncidentExportModal);
+    }
+
+    const incidentExportCsvButton = document.getElementById('incident-export-csv-btn');
+    if (incidentExportCsvButton) {
+        incidentExportCsvButton.addEventListener('click', () => {
+            handleIncidentExport('csv');
+        });
+    }
+
+    const incidentExportJsonButton = document.getElementById('incident-export-json-btn');
+    if (incidentExportJsonButton) {
+        incidentExportJsonButton.addEventListener('click', () => {
+            handleIncidentExport('json');
+        });
+    }
+
+    const incidentExportPdfButton = document.getElementById('incident-export-pdf-btn');
+    if (incidentExportPdfButton) {
+        incidentExportPdfButton.addEventListener('click', () => {
+            handleIncidentExport('pdf');
+        });
     }
 
     const selectAllIncidentsBtn = document.getElementById('select-all-incidents-btn');
@@ -685,13 +723,8 @@ function setDeleteConfirmationMessage(message) {
     }
 }
 
-function exportIncidents() {
-    if (selectedIncidentIds.size === 0) {
-        showNotification('Select at least one incident to export', 'warning');
-        return;
-    }
-
-    const data = incidents
+function buildSelectedIncidentExportRows() {
+    return incidents
         .filter((incident) => selectedIncidentIds.has(incident._id))
         .map((incident) => {
             const securityContext = incident.securityContext || {};
@@ -745,9 +778,101 @@ function exportIncidents() {
                 'AI Analyzed At': incident.aiAnalyzedAt ? formatDateTime(incident.aiAnalyzedAt) : '',
             };
         });
+}
 
-    exportToCSV('selected-incidents-report.csv', data);
-    showNotification('Selected incidents exported successfully', 'success');
+function openIncidentExportModal() {
+    if (selectedIncidentIds.size === 0) {
+        showNotification('Select at least one incident to export', 'warning');
+        return;
+    }
+
+    showModal('incident-export-modal');
+}
+
+function closeIncidentExportModal() {
+    hideModal('incident-export-modal');
+}
+
+async function ensureJsPdfLoaded() {
+    if (window.jspdf?.jsPDF) {
+        return;
+    }
+
+    if (!jsPdfLoadPromise) {
+        jsPdfLoadPromise = new Promise((resolve, reject) => {
+            const existingScript = document.querySelector(`script[src="${JSPDF_URL}"]`);
+            if (existingScript) {
+                existingScript.addEventListener('load', () => resolve(), { once: true });
+                existingScript.addEventListener('error', () => reject(new Error('Failed to load jsPDF')), { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = JSPDF_URL;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load jsPDF'));
+            document.head.appendChild(script);
+        });
+    }
+
+    await jsPdfLoadPromise;
+}
+
+async function handleIncidentExport(exportFormat = 'csv') {
+    const format = String(exportFormat || 'csv').trim().toLowerCase();
+    const data = buildSelectedIncidentExportRows();
+    if (data.length === 0) {
+        showNotification('No incidents available for export', 'warning');
+        return;
+    }
+
+    try {
+        showLoading(true);
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+            downloadBlob(blob, 'selected-incidents-report.json');
+        } else if (format === 'pdf') {
+            await ensureJsPdfLoaded();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 20;
+            doc.setFontSize(16);
+            doc.text('Selected Incidents Report', 14, y);
+            y += 10;
+            doc.setFontSize(11);
+            data.forEach((incident, index) => {
+                if (y > 265) {
+                    doc.addPage();
+                    y = 20;
+                }
+                doc.text(`${index + 1}. ${incident['Incident ID']} | ${incident['Threat Type']} | ${incident['Risk Level']}`, 14, y);
+                y += 6;
+            });
+            doc.save('selected-incidents-report.pdf');
+        } else {
+            exportToCSV('selected-incidents-report.csv', data);
+        }
+
+        closeIncidentExportModal();
+        showNotification('Selected incidents exported successfully', 'success');
+    } catch (error) {
+        console.error('Incident export failed:', error);
+        showNotification('Failed to export incidents', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function downloadBlob(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
 }
 
 function setupUserInfo() {

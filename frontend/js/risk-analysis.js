@@ -13,10 +13,12 @@
 
 
 const CHART_JS_URL = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
+const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
 const MOBILE_BREAKPOINT = 768;
 
 let charts = {};
 let chartJsLoadPromise = null;
+let jsPdfLoadPromise = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeRiskAnalysis();
@@ -38,7 +40,43 @@ async function initializeRiskAnalysis() {
 function setupEventListeners() {
     const exportBtn = document.getElementById('export-risk-btn');
     if (exportBtn) {
-        exportBtn.addEventListener('click', exportRiskReport);
+        exportBtn.addEventListener('click', openRiskExportModal);
+    }
+
+    const riskExportClose = document.getElementById('risk-export-close');
+    if (riskExportClose) {
+        riskExportClose.addEventListener('click', closeRiskExportModal);
+    }
+
+    const riskExportCancel = document.getElementById('risk-export-cancel');
+    if (riskExportCancel) {
+        riskExportCancel.addEventListener('click', closeRiskExportModal);
+    }
+
+    const riskExportOverlay = document.getElementById('risk-export-overlay');
+    if (riskExportOverlay) {
+        riskExportOverlay.addEventListener('click', closeRiskExportModal);
+    }
+
+    const riskExportCsvButton = document.getElementById('risk-export-csv-btn');
+    if (riskExportCsvButton) {
+        riskExportCsvButton.addEventListener('click', () => {
+            handleComplianceExport('csv');
+        });
+    }
+
+    const riskExportJsonButton = document.getElementById('risk-export-json-btn');
+    if (riskExportJsonButton) {
+        riskExportJsonButton.addEventListener('click', () => {
+            handleComplianceExport('json');
+        });
+    }
+
+    const riskExportPdfButton = document.getElementById('risk-export-pdf-btn');
+    if (riskExportPdfButton) {
+        riskExportPdfButton.addEventListener('click', () => {
+            handleComplianceExport('pdf');
+        });
     }
 }
 
@@ -92,6 +130,32 @@ async function ensureChartJsLoaded() {
     await chartJsLoadPromise;
 }
 
+async function ensureJsPdfLoaded() {
+    if (window.jspdf?.jsPDF) {
+        return;
+    }
+
+    if (!jsPdfLoadPromise) {
+        jsPdfLoadPromise = new Promise((resolve, reject) => {
+            const existingScript = document.querySelector(`script[src="${JSPDF_URL}"]`);
+            if (existingScript) {
+                existingScript.addEventListener('load', () => resolve(), { once: true });
+                existingScript.addEventListener('error', () => reject(new Error('Failed to load jsPDF')), { once: true });
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = JSPDF_URL;
+            script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load jsPDF'));
+            document.head.appendChild(script);
+        });
+    }
+
+    await jsPdfLoadPromise;
+}
+
 async function loadRiskData() {
     // Load all risk widgets together so the page stays consistent and finishes faster.
     renderTableSkeleton('risk-breakdown-tbody', 8, 4);
@@ -101,12 +165,14 @@ async function loadRiskData() {
             riskMatrixResponse,
             riskDistributionResponse,
             riskTrendsResponse,
+            riskForecastResponse,
             assetRisksResponse,
             incidentsResponse,
         ] = await Promise.all([
             apiClient.getRiskMatrix(),
             apiClient.getRiskDistributionChart(),
             apiClient.getRiskTrends(),
+            apiClient.getRiskForecast(),
             apiClient.getRiskByAsset(),
             apiClient.getIncidents(),
         ]);
@@ -115,6 +181,7 @@ async function loadRiskData() {
         const riskMatrix = riskMatrixResponse?.matrix || [];
         const riskDistribution = riskDistributionResponse?.chart || riskDistributionResponse || {};
         const riskTrends = riskTrendsResponse || {};
+        const riskForecast = riskForecastResponse?.forecast || {};
         const assetRisks = assetRisksResponse?.assetRisks || [];
         const incidents = Array.isArray(incidentsResponse)
             ? incidentsResponse
@@ -125,6 +192,7 @@ async function loadRiskData() {
         displayRiskMatrix(riskMatrix);
         displayRiskDistribution(riskDistribution);
         displayRiskTrends(riskTrends);
+        displayRiskForecast(riskForecast);
         displayAssetRisks(assetRisks);
         displayRecommendationsPriority(incidents);
         displayRiskBreakdown(incidents);
@@ -132,6 +200,78 @@ async function loadRiskData() {
         console.error('Error loading risk data:', error);
         showNotification('Error loading risk analysis', 'error');
     }
+}
+
+function displayRiskForecast(forecast) {
+    const canvas = document.getElementById('risk-forecast-chart');
+    if (!canvas) return;
+
+    const historyLabels = Array.isArray(forecast?.historyLabels) ? forecast.historyLabels : [];
+    const historyScores = Array.isArray(forecast?.historyScores) ? forecast.historyScores : [];
+    const forecastLabels = Array.isArray(forecast?.forecastLabels) ? forecast.forecastLabels : [];
+    const forecastScores = Array.isArray(forecast?.forecastScores) ? forecast.forecastScores : [];
+    const windowSize = Number(forecast?.windowSize) || 3;
+
+    const fullLabels = [...historyLabels, ...forecastLabels];
+    const historyDataset = [...historyScores, ...new Array(forecastScores.length).fill(null)];
+    const forecastDataset = [...new Array(historyScores.length).fill(null), ...forecastScores];
+
+    const summaryEl = document.getElementById('risk-forecast-summary');
+    if (summaryEl) {
+        if (historyScores.length === 0) {
+            summaryEl.textContent = 'Not enough historical risk data to generate a forecast yet.';
+        } else {
+            const nextForecast = forecastScores[0] ?? historyScores[historyScores.length - 1] ?? 0;
+            summaryEl.textContent = `Using a ${windowSize}-point moving average. Next predicted risk score: ${nextForecast}.`;
+        }
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (charts.riskForecast) charts.riskForecast.destroy();
+
+    charts.riskForecast = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: fullLabels,
+            datasets: [
+                {
+                    label: 'Historical Average Risk',
+                    data: historyDataset,
+                    borderColor: '#2B6CB0',
+                    backgroundColor: 'rgba(43, 108, 176, 0.12)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 4,
+                },
+                {
+                    label: 'Forecast Risk',
+                    data: forecastDataset,
+                    borderColor: '#DD6B20',
+                    backgroundColor: 'rgba(221, 107, 32, 0.16)',
+                    borderWidth: 3,
+                    borderDash: [6, 4],
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 4,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                },
+            },
+        },
+    });
 }
 
 function getRiskColor(level) {
@@ -486,24 +626,107 @@ function displayRiskBreakdown(incidents) {
     });
 }
 
-function exportRiskReport() {
-    const incidents = Array.from(document.querySelectorAll('#risk-breakdown-tbody tr'))
-        .map((row) => {
-            const cells = row.querySelectorAll('td');
-            return {
-                'Incident ID': cells[0]?.textContent || '',
-                'Asset': cells[1]?.textContent || '',
-                'Threat': cells[2]?.textContent || '',
-                'Likelihood': cells[3]?.textContent || '',
-                'Impact': cells[4]?.textContent || '',
-                'Risk Score': cells[5]?.textContent || '',
-                'Risk Level': cells[6]?.textContent || '',
-            };
-        })
-        .filter((item) => item['Incident ID']);
+function openRiskExportModal() {
+    showModal('risk-export-modal');
+}
 
-    exportToCSV('risk-analysis-report.csv', incidents);
-    showNotification('Risk report exported successfully', 'success');
+function closeRiskExportModal() {
+    hideModal('risk-export-modal');
+}
+
+async function handleComplianceExport(exportFormat = 'csv') {
+    const format = String(exportFormat || 'csv').trim().toLowerCase();
+
+    try {
+        showLoading(true);
+        const reportResponse = await apiClient.getComplianceReport('json');
+        const payload = {
+            generatedAt: reportResponse?.generatedAt || new Date().toISOString(),
+            incidentCount: reportResponse?.incidentCount || 0,
+            summary: reportResponse?.report?.summary || '',
+            functions: reportResponse?.report?.functions || {},
+            controls: reportResponse?.report?.controls || {},
+        };
+
+        if (format === 'json') {
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+            downloadBlob(blob, 'compliance-report.json');
+        } else if (format === 'pdf') {
+            await exportCompliancePdf(payload);
+        } else {
+            const rows = [
+                { Section: 'Summary', Key: 'GeneratedAt', Value: payload.generatedAt },
+                { Section: 'Summary', Key: 'IncidentCount', Value: payload.incidentCount },
+                { Section: 'Summary', Key: 'Coverage', Value: payload.summary },
+                ...Object.entries(payload.functions).map(([key, value]) => ({ Section: 'Functions', Key: key, Value: value })),
+                ...Object.entries(payload.controls).map(([key, value]) => ({ Section: 'Controls', Key: key, Value: value })),
+            ];
+            exportToCSV('compliance-report.csv', rows);
+        }
+
+        closeRiskExportModal();
+        showNotification('Compliance report exported successfully', 'success');
+    } catch (error) {
+        console.error('Compliance report export failed:', error);
+        showNotification('Failed to export compliance report', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function downloadBlob(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
+
+async function exportCompliancePdf(payload) {
+    await ensureJsPdfLoaded();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let y = 20;
+    doc.setFontSize(16);
+    doc.text('Compliance Report', 14, y);
+
+    y += 10;
+    doc.setFontSize(11);
+    doc.text(`Generated: ${payload.generatedAt}`, 14, y);
+    y += 7;
+    doc.text(`Incident Count: ${payload.incidentCount}`, 14, y);
+    y += 7;
+    doc.text(`Coverage: ${payload.summary}`, 14, y, { maxWidth: 180 });
+
+    y += 12;
+    doc.setFontSize(13);
+    doc.text('Function Coverage', 14, y);
+    y += 8;
+    doc.setFontSize(11);
+    Object.entries(payload.functions).forEach(([name, count]) => {
+        doc.text(`${name}: ${count}`, 16, y);
+        y += 6;
+    });
+
+    y += 4;
+    doc.setFontSize(13);
+    doc.text('Control Coverage', 14, y);
+    y += 8;
+    doc.setFontSize(11);
+    Object.entries(payload.controls).forEach(([name, count]) => {
+        if (y > 275) {
+            doc.addPage();
+            y = 20;
+        }
+        doc.text(`${name}: ${count}`, 16, y);
+        y += 6;
+    });
+
+    doc.save('compliance-report.pdf');
 }
 
 function setupUserInfo() {

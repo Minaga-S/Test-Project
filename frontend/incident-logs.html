@@ -48,6 +48,10 @@
                     <span class="icon material-symbols-rounded" aria-hidden="true">monitoring</span>
                     <span>Risk Analysis</span>
                 </a>
+                <a href="audit-logs.html" class="nav-item">
+                    <span class="icon material-symbols-rounded" aria-hidden="true">policy</span>
+                    <span>Audit Logs</span>
+                </a>
                 <a href="settings.html" class="nav-item">
                     <span class="icon material-symbols-rounded" aria-hidden="true">settings</span>
                     <span>Settings</span>
@@ -369,6 +373,27 @@
             <div class="form-actions">
                 <button class="btn btn-secondary" id="delete-cancel">Cancel</button>
                 <button class="btn btn-danger" id="delete-confirm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="incident-export-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="incident-export-overlay"></div>
+        <div class="modal-content modal-content-small confirm-modal export-modal-content" role="dialog" aria-modal="true" aria-labelledby="incident-export-title">
+            <div class="modal-header">
+                <h2 id="incident-export-title">Export Incidents</h2>
+                <button class="modal-close" id="incident-export-close" aria-label="Close export dialog">&times;</button>
+            </div>
+            <div class="modal-form">
+                <p class="export-modal-helper">Choose a report format</p>
+                <div class="form-actions export-format-actions">
+                    <button type="button" class="btn btn-primary export-format-btn" id="incident-export-csv-btn">CSV</button>
+                    <button type="button" class="btn btn-primary export-format-btn" id="incident-export-json-btn">JSON</button>
+                    <button type="button" class="btn btn-primary export-format-btn" id="incident-export-pdf-btn">PDF</button>
+                </div>
+                <div class="form-actions export-cancel-actions">
+                    <button type="button" class="btn btn-secondary" id="incident-export-cancel">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
