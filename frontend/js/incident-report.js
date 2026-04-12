@@ -36,8 +36,12 @@ async function updateIncidentScannerBadge() {
         return;
     }
 
+    badgeEl.classList.remove('live-badge-warning');
+    badgeEl.classList.add('live-badge-loading');
+    statusEl.textContent = 'Checking Scanner...';
+
     const isConnected = await isLocalScannerReachable();
-    badgeEl.style.display = 'flex';
+    badgeEl.classList.remove('live-badge-loading');
     
     if (isConnected) {
         badgeEl.classList.remove('live-badge-warning');

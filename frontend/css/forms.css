@@ -897,18 +897,20 @@ select:disabled {
 }
 
 /* Match standard modal button sizing on desktop and mobile */
+
 .asset-workflow-actions {
     margin-top: 0;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .asset-workflow-actions .btn {
-    flex: 1;
+    flex: 1 1 220px;
+    min-width: 180px;
 }
 
 .asset-submit-actions {
-    margin-top: 0.75rem;
+    margin-top: 0;
     gap: 0.75rem;
 }
 
@@ -1039,11 +1041,21 @@ select:disabled {
     height: 0;
 }
 
+@media (min-width: 769px) and (max-width: 1180px) {
+    .asset-workflow-actions {
+        gap: 0.75rem;
+    }
+
+    .asset-workflow-actions .btn {
+        flex: 1 1 calc(50% - 0.375rem);
+    }
+}
+
 @media (max-width: 768px) {
     .asset-workflow-actions {
         flex-direction: row;
         flex-wrap: wrap;
-        row-gap: 0;
+        row-gap: 0.75rem;
     }
 
     .asset-workflow-actions .btn {
@@ -1052,7 +1064,7 @@ select:disabled {
     }
 
     .asset-submit-actions {
-        margin-top: 0.6rem;
+        margin-top: 0;
     }
 
     .export-format-actions .btn {
