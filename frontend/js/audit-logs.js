@@ -9,14 +9,12 @@ let auditTotalRecords = 0;
 const AUDIT_ROWS_PER_PAGE = 25;
 
 function getAuditPaginationControls() {
-    return Array.from(document.querySelectorAll('[data-audit-pagination-container]')).map((container) => {
-        return {
-            previousButton: container.querySelector('[data-audit-pagination-action="prev"]'),
-            nextButton: container.querySelector('[data-audit-pagination-action="next"]'),
-            pageList: container.querySelector('[data-audit-pagination-role="list"]'),
-            infoEl: container.querySelector('[data-audit-pagination-role="info"]'),
-        };
-    });
+    return Array.from(document.querySelectorAll('[data-audit-pagination-container]')).map((container) => ({
+        previousButton: container.querySelector('[data-audit-pagination-action="prev"]'),
+        nextButton: container.querySelector('[data-audit-pagination-action="next"]'),
+        pageList: container.querySelector('[data-audit-pagination-role="list"]'),
+        infoEl: container.querySelector('[data-audit-pagination-role="info"]'),
+    }));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -212,9 +210,11 @@ function renderAuditPagination() {
         if (infoEl) {
             infoEl.classList.remove('table-pagination-info-skeleton');
             const totalPages = Math.max(auditTotalPages, 1);
-            infoEl.textContent = auditTotalRecords === 0
-                ? 'No records'
-                : `Page ${auditCurrentPage} of ${totalPages} (${auditTotalRecords} total)`;
+            if (auditTotalRecords === 0) {
+                infoEl.textContent = 'No records';
+            } else {
+                infoEl.textContent = `Page ${auditCurrentPage} of ${totalPages} (${auditTotalRecords} total)`;
+            }
         }
 
         if (previousButton) {
@@ -259,24 +259,6 @@ function setAuditPaginationLoading() {
 }
 
 function buildPaginationModel(currentPage, totalPages) {
-    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches;
-
-    if (isMobileViewport) {
-        if (totalPages <= 3) {
-            return Array.from({ length: totalPages }, (_, index) => index + 1);
-        }
-
-        if (currentPage <= 2) {
-            return [1, 2, 'ellipsis', totalPages];
-        }
-
-        if (currentPage >= totalPages - 1) {
-            return [1, 'ellipsis', totalPages - 1, totalPages];
-        }
-
-        return [1, 'ellipsis', currentPage, 'ellipsis', totalPages];
-    }
-
     if (totalPages <= 7) {
         return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
