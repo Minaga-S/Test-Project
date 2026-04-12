@@ -140,7 +140,7 @@ function isAllowedLiveScanTarget(value) {
 function setScanDetailsVisibility(isVisible) {
     const panel = document.getElementById('asset-edit-scan-panel');
     if (panel) {
-        panel.style.display = isVisible ? 'block' : 'none';
+        panel.style.display = isVisible ? 'flex' : 'none';
     }
 }
 

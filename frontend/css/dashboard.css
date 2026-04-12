@@ -759,13 +759,15 @@
 }
 
 .assets-page .filter-group,
-.incident-logs-page .filter-group {
+.incident-logs-page .filter-group,
+.audit-logs-page .filter-group {
     flex: 1 1 210px;
     min-width: 190px;
 }
 
 .assets-page .filter-group.filter-meta,
-.incident-logs-page .filter-group.filter-meta {
+.incident-logs-page .filter-group.filter-meta,
+.audit-logs-page .filter-group.filter-meta {
     flex: 0 0 auto;
     min-width: 0;
     width: auto;
@@ -773,7 +775,8 @@
 }
 
 .assets-page .filter-group.filter-actions,
-.incident-logs-page .filter-group.filter-actions {
+.incident-logs-page .filter-group.filter-actions,
+.audit-logs-page .filter-group.filter-actions {
     flex: 0 0 auto;
     min-width: 0;
     width: auto;
@@ -783,13 +786,37 @@
 .assets-page .search-input,
 .assets-page .filter-select,
 .incident-logs-page .search-input,
-.incident-logs-page .filter-select {
+.incident-logs-page .filter-select,
+.audit-logs-page .search-input,
+.audit-logs-page .filter-select {
     height: 42px;
     border-radius: 10px;
     font-size: 0.92rem;
     padding: 0.55rem 0.75rem;
     border-color: #CBD5E1;
     background: #FFFFFF;
+}
+
+.audit-logs-page .audit-date-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1 1 250px;
+}
+
+.audit-logs-page .audit-filter-label {
+    margin: 0;
+    min-width: 2.25rem;
+    color: #64748B;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.audit-logs-page .audit-date-group .search-input {
+    min-width: 0;
 }
 
 .filter-actions,

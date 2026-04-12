@@ -99,6 +99,7 @@ app.use('/api/threats', authMiddleware, require('./routes/threats'));
 app.use('/api/risk', authMiddleware, require('./routes/risk'));
 app.use('/api/nist', authMiddleware, require('./routes/nist'));
 app.use('/api/dashboard', authMiddleware, require('./routes/dashboard'));
+app.use('/api/audit-logs', authMiddleware, require('./routes/auditLogs'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

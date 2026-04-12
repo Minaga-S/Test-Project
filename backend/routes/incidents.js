@@ -3,6 +3,7 @@
 const express = require('express');
 const { body, param } = require('express-validator');
 const incidentController = require('../controllers/incidentController');
+const { requirePermission } = require('../middleware/auth');
 const { validateRequest } = require('../middleware/validateRequest');
 
 const router = express.Router();
@@ -24,13 +25,13 @@ const createIncidentValidation = [
     validateRequest,
 ];
 
-router.post('/', createIncidentValidation, withController(incidentController, 'createIncident'));
-router.get('/', withController(incidentController, 'getIncidents'));
-router.get('/search', withController(incidentController, 'searchIncidents'));
-router.get('/:id', incidentIdValidation, withController(incidentController, 'getIncident'));
-router.put('/:id', incidentIdValidation, withController(incidentController, 'updateIncident'));
-router.put('/:id/status', incidentIdValidation, withController(incidentController, 'updateIncidentStatus'));
-router.post('/:id/notes', incidentIdValidation, withController(incidentController, 'addNote'));
-router.delete('/:id', incidentIdValidation, withController(incidentController, 'deleteIncident'));
+router.post('/', requirePermission('incident:write'), createIncidentValidation, withController(incidentController, 'createIncident'));
+router.get('/', requirePermission('incident:read'), withController(incidentController, 'getIncidents'));
+router.get('/search', requirePermission('incident:read'), withController(incidentController, 'searchIncidents'));
+router.get('/:id', requirePermission('incident:read'), incidentIdValidation, withController(incidentController, 'getIncident'));
+router.put('/:id', requirePermission('incident:write'), incidentIdValidation, withController(incidentController, 'updateIncident'));
+router.put('/:id/status', requirePermission('incident:write'), incidentIdValidation, withController(incidentController, 'updateIncidentStatus'));
+router.post('/:id/notes', requirePermission('incident:write'), incidentIdValidation, withController(incidentController, 'addNote'));
+router.delete('/:id', requirePermission('incident:write'), incidentIdValidation, withController(incidentController, 'deleteIncident'));
 
 module.exports = router;

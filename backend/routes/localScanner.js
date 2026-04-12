@@ -3,7 +3,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const localScannerController = require('../controllers/localScannerController');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { validateRequest } = require('../middleware/validateRequest');
 const { enrichmentLimiter } = require('../middleware/rateLimiter');
 
@@ -41,7 +41,7 @@ const submitResultValidation = [
     validateRequest,
 ];
 
-router.post('/requests', authMiddleware, enrichmentLimiter, createScanRequestValidation, withController(localScannerController, 'createScanRequest'));
+router.post('/requests', authMiddleware, requirePermission('asset:write'), enrichmentLimiter, createScanRequestValidation, withController(localScannerController, 'createScanRequest'));
 router.post('/results', enrichmentLimiter, submitResultValidation, withController(localScannerController, 'submitScanResult'));
 
 module.exports = router;

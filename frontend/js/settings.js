@@ -37,12 +37,14 @@ async function initializeSettings() {
     setupPasswordToggles();
     setupPasswordGuidance();
     setupLocalScannerPanel();
+    activateTab(getInitialSettingsTab());
     await loadUserSettings();
 }
 
 function setupLocalScannerPanel() {
     const refreshButton = document.getElementById('local-scanner-refresh-btn');
     if (refreshButton) {
+        refreshButton.type = 'button';
         refreshButton.addEventListener('click', async () => {
             await refreshLocalScannerStatus();
         });
@@ -439,8 +441,6 @@ async function loadUserSettings() {
         isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
         renderTwoFactorStatus();
         await refreshLocalScannerStatus();
-
-        activateTab(getInitialSettingsTab());
     } catch (error) {
         console.error('Error loading settings:', error);
         showNotification('Error loading settings', 'error');

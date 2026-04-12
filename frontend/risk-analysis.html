@@ -6,6 +6,7 @@
     <link rel="preload" href="assets/fonts/MaterialSymbolsRounded.woff2" as="font" type="font/woff2" crossorigin>
     <title>Risk Analysis - Hotel Cybersecurity Governance</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/forms.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/responsive.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
@@ -47,6 +48,10 @@
                 <a href="risk-analysis.html" class="nav-item active">
                     <span class="icon material-symbols-rounded" aria-hidden="true">monitoring</span>
                     <span>Risk Analysis</span>
+                </a>
+                <a href="audit-logs.html" class="nav-item">
+                    <span class="icon material-symbols-rounded" aria-hidden="true">policy</span>
+                    <span>Audit Logs</span>
                 </a>
                 <a href="settings.html" class="nav-item">
                     <span class="icon material-symbols-rounded" aria-hidden="true">settings</span>
@@ -193,9 +198,44 @@
                         </div>
                     </div>
                 </section>
+
+                <section class="collapsible-panel collapsed" id="risk-analysis-forecast-panel">
+                    <button class="collapsible-toggle" type="button" data-target="risk-analysis-forecast-content" aria-expanded="false">
+                        <span>Risk Forecast (Moving Average)</span>
+                        <span class="toggle-icon">&#9662;</span>
+                    </button>
+                    <div id="risk-analysis-forecast-content" class="collapsible-content">
+                        <p id="risk-forecast-summary" class="section-subtitle">Forecast loading...</p>
+                        <div class="chart-container chart-container-full">
+                            <canvas id="risk-forecast-chart"></canvas>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
     </div>
+
+    <div id="risk-export-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="risk-export-overlay"></div>
+        <div class="modal-content modal-content-small confirm-modal export-modal-content" role="dialog" aria-modal="true" aria-labelledby="risk-export-title">
+            <div class="modal-header">
+                <h2 id="risk-export-title">Export Compliance Report</h2>
+                <button class="modal-close" id="risk-export-close" aria-label="Close export dialog">&times;</button>
+            </div>
+            <div class="modal-form">
+                <p class="export-modal-helper">Choose a report format</p>
+                <div class="form-actions export-format-actions">
+                    <button type="button" class="btn btn-primary export-format-btn" id="risk-export-csv-btn">CSV</button>
+                    <button type="button" class="btn btn-primary export-format-btn" id="risk-export-json-btn">JSON</button>
+                    <button type="button" class="btn btn-primary export-format-btn" id="risk-export-pdf-btn">PDF</button>
+                </div>
+                <div class="form-actions export-cancel-actions">
+                    <button type="button" class="btn btn-secondary" id="risk-export-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <script src="js/api-client.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/risk-analysis.js?v=20260401"></script>
