@@ -25,7 +25,7 @@ async function authMiddleware(req, res, next) {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.userId).select('isActive passwordChangedAt');
+        const user = await User.findById(decoded.userId).select('isActive passwordChangedAt permissions role');
 
         if (!user || !user.isActive) {
             return res.status(401).json({
@@ -41,7 +41,11 @@ async function authMiddleware(req, res, next) {
             });
         }
 
-        req.user = decoded;
+        req.user = {
+            ...decoded,
+            role: user.role || decoded.role,
+            permissions: Array.isArray(user.permissions) ? user.permissions : (decoded.permissions || []),
+        };
         next();
     } catch (error) {
         logger.error('Auth error:', error.message);
@@ -52,5 +56,20 @@ async function authMiddleware(req, res, next) {
     }
 }
 
-module.exports = { authMiddleware };
+function requirePermission(requiredPermission) {
+    return function permissionMiddleware(req, res, next) {
+        const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
+
+        if (!permissions.includes(requiredPermission)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden',
+            });
+        }
+
+        return next();
+    };
+}
+
+module.exports = { authMiddleware, requirePermission };
 

@@ -3,6 +3,7 @@
 const express = require('express');
 const { body, param } = require('express-validator');
 const assetController = require('../controllers/assetController');
+const { requirePermission } = require('../middleware/auth');
 const { validateRequest } = require('../middleware/validateRequest');
 const { enrichmentLimiter } = require('../middleware/rateLimiter');
 
@@ -67,16 +68,16 @@ const createAssetValidation = [
     ...assetBodyValidation,
 ];
 
-router.post('/', createAssetValidation, withController(assetController, 'createAsset'));
-router.get('/', withController(assetController, 'getAssets'));
-router.get('/asset-types', withController(assetController, 'getAssetTypes'));
-router.get('/search', withController(assetController, 'searchAssets'));
-router.get('/:id/security-context', enrichmentLimiter, objectIdValidation, withController(assetController, 'getAssetSecurityContext'));
-router.get('/:id/scan-history', objectIdValidation, withController(assetController, 'getAssetScanHistory'));
+router.post('/', requirePermission('asset:write'), createAssetValidation, withController(assetController, 'createAsset'));
+router.get('/', requirePermission('asset:read'), withController(assetController, 'getAssets'));
+router.get('/asset-types', requirePermission('asset:read'), withController(assetController, 'getAssetTypes'));
+router.get('/search', requirePermission('asset:read'), withController(assetController, 'searchAssets'));
+router.get('/:id/security-context', requirePermission('asset:read'), enrichmentLimiter, objectIdValidation, withController(assetController, 'getAssetSecurityContext'));
+router.get('/:id/scan-history', requirePermission('asset:read'), objectIdValidation, withController(assetController, 'getAssetScanHistory'));
 
-router.get('/:id', objectIdValidation, withController(assetController, 'getAsset'));
-router.put('/:id', objectIdValidation, assetBodyValidation, withController(assetController, 'updateAsset'));
-router.delete('/:id', objectIdValidation, withController(assetController, 'deleteAsset'));
+router.get('/:id', requirePermission('asset:read'), objectIdValidation, withController(assetController, 'getAsset'));
+router.put('/:id', requirePermission('asset:write'), objectIdValidation, assetBodyValidation, withController(assetController, 'updateAsset'));
+router.delete('/:id', requirePermission('asset:write'), objectIdValidation, withController(assetController, 'deleteAsset'));
 
 module.exports = router;
 
