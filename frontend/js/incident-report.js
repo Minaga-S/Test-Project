@@ -20,6 +20,8 @@ const ANALYSIS_ESTIMATED_MAX_CACHED_MS = 90000;
 const ANALYSIS_OVERRUN_BUFFER_MS = 20000;
 const LOCAL_SCANNER_BASE_URL = 'http://127.0.0.1:47633';
 const LOCAL_SCANNER_REPO_URL = 'https://github.com/dev-pahan/NmapLocalScanner';
+const INCIDENT_SCANNER_SETUP_MODAL_ID = 'incident-scanner-setup-modal';
+const INCIDENT_FULL_PORT_SCAN_RANGE = '1-65535';
 let analysisTerminalSequenceToken = 0;
 
 let analysisMeta = {
@@ -69,6 +71,8 @@ async function initializeIncidentReport() {
 }
 
 function setupEventListeners() {
+    ensureIncidentScannerSetupModal();
+
     const form = document.getElementById('incident-report-form');
     if (form) {
         form.addEventListener('submit', handleIncidentSubmit);
@@ -89,7 +93,10 @@ function setupEventListeners() {
 
     const assetSelect = document.getElementById('affected-asset');
     if (assetSelect) {
-        assetSelect.addEventListener('change', updateIncidentScannerBadge);
+        assetSelect.addEventListener('change', () => {
+            clearIncidentScannerFieldError();
+            updateIncidentScannerBadge();
+        });
     }
 
     document.querySelectorAll('[id$="-overlay"]').forEach((overlay) => {
@@ -301,7 +308,7 @@ function buildIncidentScanPreviewPayload(asset = {}) {
         assetType: String(asset?.assetType || '').trim(),
         liveScan: {
             target: String(liveScan?.target || '').trim(),
-            ports: String(liveScan?.ports || '').trim(),
+            ports: INCIDENT_FULL_PORT_SCAN_RANGE,
             frequency: String(liveScan?.frequency || 'OnDemand').trim() || 'OnDemand',
         },
         vulnerabilityProfile: {
@@ -394,6 +401,121 @@ async function runLocalScannerPreview(payload) {
     }
 
     return scannerPayload?.preview || scannerPayload;
+}
+
+function redirectToLocalScannerSetup() {
+    window.location.assign('settings.html?tab=local-scanner#local-scanner-tab');
+}
+
+function ensureIncidentScannerErrorElement() {
+    const select = document.getElementById('affected-asset');
+    if (!select) {
+        return null;
+    }
+
+    const group = select.closest('.form-group');
+    if (!group) {
+        return null;
+    }
+
+    let errorEl = document.getElementById('incident-scanner-error');
+    if (errorEl) {
+        return errorEl;
+    }
+
+    errorEl = document.createElement('small');
+    errorEl.id = 'incident-scanner-error';
+    errorEl.className = 'error-message';
+    errorEl.setAttribute('aria-live', 'polite');
+    group.appendChild(errorEl);
+
+    return errorEl;
+}
+
+function setIncidentScannerFieldError(message) {
+    const select = document.getElementById('affected-asset');
+    if (!select) {
+        return;
+    }
+
+    const group = select.closest('.form-group');
+    if (group) {
+        group.classList.add('error');
+    }
+
+    const errorEl = ensureIncidentScannerErrorElement();
+    if (errorEl) {
+        errorEl.textContent = message;
+    }
+}
+
+function clearIncidentScannerFieldError() {
+    const select = document.getElementById('affected-asset');
+    if (!select) {
+        return;
+    }
+
+    const group = select.closest('.form-group');
+    if (group) {
+        group.classList.remove('error');
+    }
+
+    const errorEl = document.getElementById('incident-scanner-error');
+    if (errorEl) {
+        errorEl.textContent = '';
+    }
+}
+
+function ensureIncidentScannerSetupModal() {
+    let modal = document.getElementById(INCIDENT_SCANNER_SETUP_MODAL_ID);
+    if (modal) {
+        return modal;
+    }
+
+    modal = document.createElement('div');
+    modal.id = INCIDENT_SCANNER_SETUP_MODAL_ID;
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="modal-overlay" data-incident-scanner-setup-dismiss="true"></div>
+        <div class="modal-content modal-content-small confirm-modal">
+            <div class="modal-header">
+                <h2><span class="material-symbols-rounded" aria-hidden="true">warning</span> Local Scanner Offline</h2>
+            </div>
+            <p>The local scanner is offline. Start the scanner app or open Settings to set it up.</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="incident-scanner-setup-cancel-btn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="incident-scanner-setup-open-btn">Set Up</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const dismissOverlay = modal.querySelector('[data-incident-scanner-setup-dismiss="true"]');
+    if (dismissOverlay) {
+        dismissOverlay.addEventListener('click', () => hideModal(INCIDENT_SCANNER_SETUP_MODAL_ID));
+    }
+
+    const cancelButton = modal.querySelector('#incident-scanner-setup-cancel-btn');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', () => hideModal(INCIDENT_SCANNER_SETUP_MODAL_ID));
+    }
+
+    const setupButton = modal.querySelector('#incident-scanner-setup-open-btn');
+    if (setupButton) {
+        setupButton.addEventListener('click', () => {
+            hideModal(INCIDENT_SCANNER_SETUP_MODAL_ID);
+            redirectToLocalScannerSetup();
+        });
+    }
+
+    return modal;
+}
+
+function showIncidentScannerSetupModal() {
+    ensureIncidentScannerSetupModal();
+    showModal(INCIDENT_SCANNER_SETUP_MODAL_ID);
 }
 
 function buildClientSecurityContextFromPreview(previewPayload = {}) {
@@ -638,6 +760,7 @@ function stopAnalysisProgress() {
 
 async function handleIncidentSubmit(e) {
     e.preventDefault();
+    clearIncidentScannerFieldError();
 
     const assetId = String(document.getElementById('affected-asset').value || '').trim();
     const description = document.getElementById('incident-description').value;
@@ -661,6 +784,15 @@ async function handleIncidentSubmit(e) {
     const hasLiveScanTarget = Boolean(String(selectedAsset?.liveScan?.target || '').trim());
     const canRunLiveScan = isLiveScanEnabled && hasLiveScanTarget;
 
+    if (canRunLiveScan) {
+        const isScannerOnline = await isLocalScannerReachable();
+        if (!isScannerOnline) {
+            setIncidentScannerFieldError('Local scanner is offline. Open Settings and complete Local Scanner setup.');
+            showIncidentScannerSetupModal();
+            return;
+        }
+    }
+
     setSubmitButtonState(true);
     showModal('analysis-modal');
     beginAnalysisProgress(canRunLiveScan);
@@ -683,7 +815,7 @@ async function handleIncidentSubmit(e) {
 
             const isScannerOnline = await isLocalScannerReachable();
             if (!isScannerOnline) {
-                throw new Error(`Local scanner app is offline. Start it and retry. Download: ${LOCAL_SCANNER_REPO_URL}`);
+                throw new Error('Local scanner app is offline. Start it and retry.');
             }
 
             setStepState('step-scan', 'active');
@@ -825,6 +957,9 @@ async function handleIncidentSubmit(e) {
         appendScanTerminalLine(`[scan] Workflow failed: ${errorMessage}`);
         if (isLocalNetworkBlocked) {
             showNotification('Scan blocked by browser local-network restrictions. In Chrome, allow local network access for this site and retry.', 'error');
+        } else if (lowerErrorMessage.includes('scanner app is offline') || lowerErrorMessage.includes('scanner is offline')) {
+            setIncidentScannerFieldError('Local scanner is offline. Open Settings and complete Local Scanner setup.');
+            showIncidentScannerSetupModal();
         } else {
             showNotification(`Error submitting incident: ${errorMessage}`, 'error');
         }

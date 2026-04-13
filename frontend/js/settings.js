@@ -333,7 +333,20 @@ function setupFormHandlers() {
 function getInitialSettingsTab() {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = String(params.get('tab') || '').trim().toLowerCase();
-    return USER_TABS.includes(requestedTab) ? requestedTab : 'profile';
+    if (USER_TABS.includes(requestedTab)) {
+        return requestedTab;
+    }
+
+    const hashTarget = String(window.location.hash || '').replace(/^#/, '').trim().toLowerCase();
+    if (hashTarget === 'local-scanner-tab' || hashTarget === 'local-scanner') {
+        return 'local-scanner';
+    }
+
+    if (String(params.get('scanSetup') || '').trim() === '1') {
+        return 'local-scanner';
+    }
+
+    return 'profile';
 }
 
 function setupTabHandlers() {

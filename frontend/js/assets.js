@@ -65,6 +65,7 @@ const CRITICALITY_CVE_COUNT_SCORE_CAP = 4;
 const CRITICALITY_CVE_COUNT_SCORE_PER_MATCH = 0.45;
 const LOCAL_SCANNER_BASE_URL = 'http://127.0.0.1:47633';
 const LOCAL_SCANNER_REPO_URL = 'https://github.com/dev-pahan/NmapLocalScanner';
+const ASSET_SCANNER_SETUP_MODAL_ID = 'asset-scanner-setup-modal';
 let assetScanTerminalTimer = null;
 let assetScanTerminalSequenceToken = 0;
 let assetScanProgressTimer = null;
@@ -802,7 +803,117 @@ async function isLocalScannerReachable() {
 }
 
 function redirectToLocalScannerSetup() {
-    window.location.href = 'settings.html?tab=local-scanner&scanSetup=1';
+    window.location.assign('settings.html?tab=local-scanner#local-scanner-tab');
+}
+
+function ensureAssetScanTargetErrorElement() {
+    const input = document.getElementById('asset-scan-target');
+    if (!input) {
+        return null;
+    }
+
+    const group = input.closest('.form-group');
+    if (!group) {
+        return null;
+    }
+
+    let errorEl = document.getElementById('asset-scan-target-error');
+    if (errorEl) {
+        return errorEl;
+    }
+
+    errorEl = document.createElement('small');
+    errorEl.id = 'asset-scan-target-error';
+    errorEl.className = 'error-message';
+    errorEl.setAttribute('aria-live', 'polite');
+    group.appendChild(errorEl);
+    return errorEl;
+}
+
+function setAssetScanTargetError(message) {
+    const input = document.getElementById('asset-scan-target');
+    if (!input) {
+        return;
+    }
+
+    const group = input.closest('.form-group');
+    if (group) {
+        group.classList.add('error');
+    }
+
+    const errorEl = ensureAssetScanTargetErrorElement();
+    if (errorEl) {
+        errorEl.textContent = message;
+    }
+}
+
+function clearAssetScanTargetError() {
+    const input = document.getElementById('asset-scan-target');
+    if (!input) {
+        return;
+    }
+
+    const group = input.closest('.form-group');
+    if (group) {
+        group.classList.remove('error');
+    }
+
+    const errorEl = document.getElementById('asset-scan-target-error');
+    if (errorEl) {
+        errorEl.textContent = '';
+    }
+}
+
+function ensureAssetScannerSetupModal() {
+    let modal = document.getElementById(ASSET_SCANNER_SETUP_MODAL_ID);
+    if (modal) {
+        return modal;
+    }
+
+    modal = document.createElement('div');
+    modal.id = ASSET_SCANNER_SETUP_MODAL_ID;
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+        <div class="modal-overlay" data-asset-scanner-setup-dismiss="true"></div>
+        <div class="modal-content modal-content-small confirm-modal">
+            <div class="modal-header">
+                <h2><span class="material-symbols-rounded" aria-hidden="true">warning</span> Local Scanner Offline</h2>
+            </div>
+            <p>The local scanner is offline. Start the scanner app or open Settings to set it up.</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="asset-scanner-setup-cancel-btn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="asset-scanner-setup-open-btn">Set Up</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const dismissOverlay = modal.querySelector('[data-asset-scanner-setup-dismiss="true"]');
+    if (dismissOverlay) {
+        dismissOverlay.addEventListener('click', () => hideModal(ASSET_SCANNER_SETUP_MODAL_ID));
+    }
+
+    const cancelButton = modal.querySelector('#asset-scanner-setup-cancel-btn');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', () => hideModal(ASSET_SCANNER_SETUP_MODAL_ID));
+    }
+
+    const setupButton = modal.querySelector('#asset-scanner-setup-open-btn');
+    if (setupButton) {
+        setupButton.addEventListener('click', () => {
+            hideModal(ASSET_SCANNER_SETUP_MODAL_ID);
+            redirectToLocalScannerSetup();
+        });
+    }
+
+    return modal;
+}
+
+function showAssetScannerSetupModal() {
+    ensureAssetScannerSetupModal();
+    showModal(ASSET_SCANNER_SETUP_MODAL_ID);
 }
 
 async function runLocalScannerPreview(payload) {
@@ -832,7 +943,7 @@ async function runLocalScannerPreview(payload) {
 }
 
 async function runLiveScanPreview() {
-    setScanDetailsVisibility(true);
+    clearAssetScanTargetError();
 
     if (!isLocalScannerFetchAllowed()) {
         showNotification('Local scanner access requires HTTPS (Render URL) or localhost. Open the secure app URL and retry.', 'warning');
@@ -855,14 +966,8 @@ async function runLiveScanPreview() {
 
     const isScannerOnline = await isLocalScannerReachable();
     if (!isScannerOnline) {
-        const shouldRedirectToSetup = window.confirm(
-            `Local scanner app is offline. Open Settings to set it up?\n\nYou can also download it here: ${LOCAL_SCANNER_REPO_URL}`
-        );
-
-        if (shouldRedirectToSetup) {
-            redirectToLocalScannerSetup();
-        }
-
+        setAssetScanTargetError('Local scanner is offline. Open Settings and complete Local Scanner setup.');
+        showAssetScannerSetupModal();
         return;
     }
 
@@ -877,6 +982,8 @@ async function runLiveScanPreview() {
         updateAssetScanStatus('Retrieving vulnerability profile for asset...', 44);
 
         const preview = await runLocalScannerPreview(payload);
+
+        setScanDetailsVisibility(true);
 
         await generateAssetTerminalOutput(preview);
         stopAssetScanTerminalSimulation(false);
@@ -933,6 +1040,8 @@ async function initializeAssets() {
 }
 
 function setupEventListeners() {
+    ensureAssetScannerSetupModal();
+
     const addBtn = document.getElementById('add-asset-btn');
     if (addBtn) {
         addBtn.addEventListener('click', openAssetModal);
@@ -981,6 +1090,11 @@ function setupEventListeners() {
     const assetForm = document.getElementById('asset-form');
     if (assetForm) {
         assetForm.addEventListener('submit', handleAssetFormSubmit);
+    }
+
+    const scanTargetInput = document.getElementById('asset-scan-target');
+    if (scanTargetInput) {
+        scanTargetInput.addEventListener('input', clearAssetScanTargetError);
     }
 
     const searchInput = document.getElementById('search-assets');
@@ -1090,24 +1204,6 @@ function getAssetsPaginationControls() {
 }
 
 function buildPaginationModel(currentPage, totalPages) {
-    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches;
-
-    if (isMobileViewport) {
-        if (totalPages <= 3) {
-            return Array.from({ length: totalPages }, (_, index) => index + 1);
-        }
-
-        if (currentPage <= 2) {
-            return [1, 2, 'ellipsis', totalPages];
-        }
-
-        if (currentPage >= totalPages - 1) {
-            return [1, 'ellipsis', totalPages - 1, totalPages];
-        }
-
-        return [1, 'ellipsis', currentPage, 'ellipsis', totalPages];
-    }
-
     if (totalPages <= 7) {
         return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
