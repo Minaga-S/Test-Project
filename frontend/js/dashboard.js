@@ -333,11 +333,6 @@ function showDashboardSkeleton() {
         }
     });
 
-    setDashboardSummarySkeleton('dashboard-risk-distribution-summary');
-    setDashboardSummarySkeleton('dashboard-threat-categories-summary');
-    setDashboardSummarySkeleton('dashboard-vulnerable-assets-summary');
-    setDashboardSummarySkeleton('dashboard-recent-incidents-summary');
-
     const tbody = document.getElementById('recent-incidents-tbody');
     if (tbody) {
         const skeletonRows = Array.from({ length: 3 }, () => `
@@ -364,15 +359,6 @@ function hideDashboardSkeleton() {
             metricEl.classList.remove('metric-value-skeleton');
         }
     });
-}
-
-function setDashboardSummarySkeleton(elementId) {
-    const summaryEl = document.getElementById(elementId);
-    if (!summaryEl) {
-        return;
-    }
-
-    summaryEl.innerHTML = createSummaryBadgeSkeleton();
 }
 
 function updateLiveTimestamp(timestamp) {
@@ -533,16 +519,6 @@ function displayRecentIncidents(incidents) {
     }
 
     const incidentList = Array.isArray(incidents) ? incidents : [];
-    const summary = document.getElementById('dashboard-recent-incidents-summary');
-
-    if (summary) {
-        if (incidentList.length === 0) {
-            summary.innerHTML = createSummaryBadge('0 incidents');
-        } else {
-            summary.innerHTML = createSummaryBadge(`${incidentList.length} incidents`);
-        }
-    }
-
     if (incidentList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center">No recent incidents</td></tr>';
         return;
@@ -646,8 +622,6 @@ async function loadCharts() {
 }
 
 function renderRiskDistributionChart(riskData) {
-    const riskSummary = document.getElementById('dashboard-risk-distribution-summary');
-
     if (riskData?.labels && riskData?.data) {
         destroyChart('risk-distribution-chart');
         dashboardCharts.riskDistribution = createPieChart(
@@ -656,19 +630,10 @@ function renderRiskDistributionChart(riskData) {
             riskData.data,
             'Risk Distribution'
         );
-
-        if (riskSummary) {
-            const total = riskData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-            riskSummary.innerHTML = createSummaryBadge(`${total} total`);
-        }
-    } else if (riskSummary) {
-        riskSummary.innerHTML = createSummaryBadge('0 total');
     }
 }
 
 function renderThreatCategoriesChart(threatData) {
-    const threatSummary = document.getElementById('dashboard-threat-categories-summary');
-
     if (threatData?.labels && threatData?.data) {
         destroyChart('threat-categories-chart');
         dashboardCharts.threatCategories = createPieChart(
@@ -677,19 +642,10 @@ function renderThreatCategoriesChart(threatData) {
             threatData.data,
             'Threat Categories'
         );
-
-        if (threatSummary) {
-            const total = threatData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-            threatSummary.innerHTML = createSummaryBadge(`${total} threats`);
-        }
-    } else if (threatSummary) {
-        threatSummary.innerHTML = createSummaryBadge('0 threats');
     }
 }
 
 function renderVulnerableAssetsChart(assetsData) {
-    const assetsSummary = document.getElementById('dashboard-vulnerable-assets-summary');
-
     if (assetsData?.labels && assetsData?.data) {
         destroyChart('vulnerable-assets-chart');
         dashboardCharts.vulnerableAssets = createBarChart(
@@ -698,22 +654,7 @@ function renderVulnerableAssetsChart(assetsData) {
             assetsData.data,
             'Vulnerability Count'
         );
-
-        if (assetsSummary) {
-            const total = assetsData.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
-            assetsSummary.innerHTML = createSummaryBadge(`${total} incidents`);
-        }
-    } else if (assetsSummary) {
-        assetsSummary.innerHTML = createSummaryBadge('0 incidents');
     }
-}
-
-function createSummaryBadge(text) {
-    return `<span class="summary-badge">${text}</span>`;
-}
-
-function createSummaryBadgeSkeleton() {
-    return '<span class="summary-badge summary-badge-skeleton" aria-hidden="true"></span>';
 }
 
 window.addEventListener('resize', () => {

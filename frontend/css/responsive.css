@@ -234,14 +234,6 @@
         flex: 1 1 100%;
     }
 
-    .panel-meta {
-        margin-left: 0;
-        margin-right: 0;
-        width: 112px;
-        flex: 0 0 112px;
-        justify-content: flex-end;
-    }
-
     .toggle-icon {
         margin-left: auto;
     }
@@ -449,25 +441,6 @@
         text-overflow: ellipsis;
     }
 
-    .panel-meta {
-        margin-left: 0;
-        margin-right: 0;
-        width: 112px;
-        flex: 0 0 112px;
-        justify-content: flex-end;
-    }
-
-    .panel-meta .summary-badge {
-        width: 112px;
-        min-width: 112px;
-        max-width: 112px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.7rem;
-    }
-
     .toggle-icon {
         flex: 0 0 auto;
     }
@@ -587,48 +560,20 @@
         order: 2;
     }
 
-    .assets-page .table-pagination,
-    .incident-logs-page .table-pagination,
-    .audit-logs-page .table-pagination {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        column-gap: 0.45rem;
-        row-gap: 0.45rem;
-        justify-content: stretch;
+    .table-pagination-list {
+        flex-wrap: wrap;
     }
 
-    .assets-page .table-pagination-list,
-    .incident-logs-page .table-pagination-list,
-    .audit-logs-page .table-pagination-list {
-        min-width: 0;
-        flex-wrap: nowrap;
+    .assets-page .table-pagination {
         justify-content: center;
     }
 
-    .assets-page .table-pagination-info,
-    .incident-logs-page .table-pagination-info,
-    .audit-logs-page .table-pagination-info {
-        grid-column: 1 / -1;
+    .assets-page .table-pagination-list {
+        justify-content: center;
+    }
+
+    .assets-page .table-pagination-info {
         text-align: center;
-    }
-
-    .assets-page .table-pagination-number,
-    .assets-page .table-pagination-ellipsis,
-    .incident-logs-page .table-pagination-number,
-    .incident-logs-page .table-pagination-ellipsis,
-    .audit-logs-page .table-pagination-number,
-    .audit-logs-page .table-pagination-ellipsis {
-        min-width: 30px;
-        height: 30px;
-        font-size: 0.74rem;
-    }
-
-    .assets-page .table-pagination-arrow,
-    .incident-logs-page .table-pagination-arrow,
-    .audit-logs-page .table-pagination-arrow {
-        min-width: 30px;
-        height: 30px;
     }
 
     .charts-section {

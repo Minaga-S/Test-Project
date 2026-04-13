@@ -22,7 +22,8 @@ class DashboardController {
             });
             const criticalRisks = await Incident.countDocuments({ 
                 userId: req.user.userId, 
-                riskLevel: 'Critical' 
+                riskLevel: 'Critical',
+                status: { $ne: 'Resolved' },
             });
             const resolvedIssues = await Incident.countDocuments({ 
                 userId: req.user.userId, 
@@ -45,6 +46,7 @@ class DashboardController {
             const criticalRisksLastWeek = await Incident.countDocuments({ 
                 userId: req.user.userId, 
                 riskLevel: 'Critical',
+                status: { $ne: 'Resolved' },
                 createdAt: { $lte: weekAgo },
             });
             const resolvedIssuesLastWeek = await Incident.countDocuments({ 
@@ -213,7 +215,8 @@ class DashboardController {
             });
             const criticalRisks = await Incident.countDocuments({ 
                 userId: req.user.userId, 
-                riskLevel: 'Critical' 
+                riskLevel: 'Critical',
+                status: { $ne: 'Resolved' },
             });
 
             const overview = {
