@@ -37,6 +37,22 @@ frontend/
 	*.html
 ```
 
+## Using NmapLocalScanner
+
+### Prerequisites
+- Install Nmap on the machine if it is not already installed.
+- Download the latest NmapLocalScanner release.
+
+### User steps
+1. Extract the release files to a folder of your choice.
+2. Run NmapLocalScanner.exe.
+3. Allow any Windows permission prompts if they appear.
+4. Keep NmapLocalScanner running while you use the dashboard.
+
+### Notes
+- The scanner is intended to run as a Windows executable for a simple end-user experience.
+- If the scanner is not running, local scanner features in the dashboard will not be available.
+
 ## Local Development Setup
 
 ### Prerequisites
@@ -44,7 +60,7 @@ frontend/
 - npm
 - MongoDB instance
 
-### 1) Start backend
+### Developer setup
 ```bash
 cd backend
 npm install
@@ -55,7 +71,7 @@ Backend defaults:
 - Base URL: http://127.0.0.1:5000
 - Health check: http://127.0.0.1:5000/health
 
-### 2) Start frontend
+Frontend development server:
 ```bash
 cd frontend
 npx serve -l tcp://127.0.0.1:3000 .
@@ -63,7 +79,7 @@ npx serve -l tcp://127.0.0.1:3000 .
 
 Open http://127.0.0.1:3000 in your browser.
 
-### 3) API base behavior
+API base behavior:
 - On localhost/127.0.0.1, frontend targets local backend API.
 - On hosted origins, frontend targets production API.
 - You can override API base URL using browser local storage key `apiBaseUrlOverride`.
