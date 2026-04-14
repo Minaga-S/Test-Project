@@ -60,6 +60,11 @@ describe('authController.register', () => {
                 password: 'Password123!',
                 fullName: 'New User',
                 department: 'Front Office',
+                securityQuestions: [
+                    { question: 'What city were you born in?', answer: 'Colombo' },
+                    { question: 'What is your favorite movie?', answer: 'Inception' },
+                    { question: 'What was your childhood nickname?', answer: 'Jay' },
+                ],
             },
             ip: '127.0.0.1',
         };

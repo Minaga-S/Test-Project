@@ -110,6 +110,57 @@
                             <small id="signup-department-error" class="error-message" aria-live="polite"></small>
                         </div>
 
+                        <fieldset class="form-group">
+                            <legend>Security Questions</legend>
+                            <small>Select 3 different questions and provide your answers.</small>
+                        </fieldset>
+
+                        <div class="form-group">
+                            <label for="signup-security-question-1">Security Question 1</label>
+                            <select id="signup-security-question-1" name="securityQuestion1" required>
+                                <option value="">Select a question</option>
+                            </select>
+                            <input
+                                type="text"
+                                id="signup-security-answer-1"
+                                name="securityAnswer1"
+                                autocomplete="off"
+                                placeholder="Enter your answer"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signup-security-question-2">Security Question 2</label>
+                            <select id="signup-security-question-2" name="securityQuestion2" required>
+                                <option value="">Select a question</option>
+                            </select>
+                            <input
+                                type="text"
+                                id="signup-security-answer-2"
+                                name="securityAnswer2"
+                                autocomplete="off"
+                                placeholder="Enter your answer"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="signup-security-question-3">Security Question 3</label>
+                            <select id="signup-security-question-3" name="securityQuestion3" required>
+                                <option value="">Select a question</option>
+                            </select>
+                            <input
+                                type="text"
+                                id="signup-security-answer-3"
+                                name="securityAnswer3"
+                                autocomplete="off"
+                                placeholder="Enter your answer"
+                                required
+                            >
+                            <small id="signup-security-question-1-error" class="error-message" aria-live="polite"></small>
+                        </div>
+
                         <div class="form-group">
                             <label for="signup-password">Password</label>
                             <div class="password-field">
@@ -289,9 +340,10 @@
         <div class="modal-overlay" aria-hidden="true"></div>
         <div class="modal-content confirm-modal two-factor-modal-content" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
             <div class="modal-header">
-                <h2 id="forgot-password-title">Reset Password</h2>
+                <h2 id="forgot-password-title">Forgot Password</h2>
+                <button type="button" id="close-forgot-password-btn" class="modal-close" aria-label="Close forgot password dialog">&times;</button>
             </div>
-            <p>Reset your password using Google Authenticator or a recovery code.</p>
+            <p id="forgot-password-description">Enter the email address for the account you want to reset.</p>
             <form id="forgot-password-start-form" class="modal-form">
                 <div class="form-group">
                     <label for="forgot-password-email">Account Email</label>
@@ -336,16 +388,38 @@
                         </button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="reset-authenticator-code">Authenticator Code</label>
-                    <input type="text" id="reset-authenticator-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456">
-                    <small>Enter a 6-digit code from Google Authenticator.</small>
+
+                <div id="reset-security-questions-section">
+                    <div class="form-group">
+                        <label id="reset-security-question-1-label" for="reset-security-answer-1">Security Question 1</label>
+                        <input type="text" id="reset-security-answer-1" autocomplete="off" placeholder="Answer" required>
+                    </div>
+                    <div class="form-group">
+                        <label id="reset-security-question-2-label" for="reset-security-answer-2">Security Question 2</label>
+                        <input type="text" id="reset-security-answer-2" autocomplete="off" placeholder="Answer" required>
+                    </div>
+                    <div class="form-group">
+                        <label id="reset-security-question-3-label" for="reset-security-answer-3">Security Question 3</label>
+                        <input type="text" id="reset-security-answer-3" autocomplete="off" placeholder="Answer" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="reset-recovery-code">Or Recovery Code</label>
-                    <input type="text" id="reset-recovery-code" autocomplete="one-time-code" placeholder="Enter one-time recovery code">
-                    <small>Use this only if your authenticator app is unavailable.</small>
+
+                <button type="button" id="reset-password-using-2fa-btn" class="btn btn-secondary btn-full">Reset Password Using 2FA</button>
+                <small id="reset-password-method-message" class="error-message" aria-live="polite"></small>
+
+                <div id="reset-two-factor-section" style="display: none;">
+                    <div class="form-group">
+                        <label for="reset-authenticator-code">Authenticator Code</label>
+                        <input type="text" id="reset-authenticator-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" placeholder="123 456">
+                        <small>Enter a 6-digit code from Google Authenticator.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="reset-recovery-code">Or Recovery Code</label>
+                        <input type="text" id="reset-recovery-code" autocomplete="one-time-code" placeholder="Enter one-time recovery code">
+                        <small>Use this only if your authenticator app is unavailable.</small>
+                    </div>
                 </div>
+
                 <small id="password-reset-error" class="error-message" aria-live="polite"></small>
                 <div class="form-actions">
                     <button type="button" id="back-forgot-password-btn" class="btn btn-secondary">Back</button>

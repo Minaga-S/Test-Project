@@ -33,6 +33,7 @@ async function initializeSettings() {
     setupTermsAndConditionsLink();
     setupFormHandlers();
     setupDepartmentSelects();
+    setupSecurityQuestionSelects();
     setupTwoFactorCodeFormatting();
     setupPasswordToggles();
     setupPasswordGuidance();
@@ -241,6 +242,59 @@ function setupDepartmentSelects() {
     populateDepartmentSelect('profile-department');
 }
 
+function setupSecurityQuestionSelects() {
+    const questionOptions = Array.isArray(window.APP_SECURITY_QUESTIONS) ? window.APP_SECURITY_QUESTIONS : [];
+    const selectIds = ['settings-security-question-1', 'settings-security-question-2', 'settings-security-question-3'];
+
+    selectIds.forEach((selectId) => {
+        const select = document.getElementById(selectId);
+        if (!select) {
+            return;
+        }
+
+        const currentValue = select.value;
+        select.innerHTML = [
+            '<option value="">Select a question</option>',
+            ...questionOptions.map((question) => `<option value="${question}">${question}</option>`),
+        ].join('');
+        select.value = questionOptions.includes(currentValue) ? currentValue : '';
+    });
+
+    setupUniqueSecurityQuestionSelection(selectIds);
+}
+
+function setupUniqueSecurityQuestionSelection(selectIds) {
+    const selects = selectIds
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
+
+    if (selects.length === 0) {
+        return;
+    }
+
+    const applySelectionRules = () => {
+        const selectedValues = new Set(selects.map((select) => select.value).filter(Boolean));
+
+        selects.forEach((select) => {
+            const currentValue = select.value;
+            Array.from(select.options).forEach((option) => {
+                if (!option.value) {
+                    option.disabled = false;
+                    return;
+                }
+
+                option.disabled = option.value !== currentValue && selectedValues.has(option.value);
+            });
+        });
+    };
+
+    selects.forEach((select) => {
+        select.addEventListener('change', applySelectionRules);
+    });
+
+    applySelectionRules();
+}
+
 function populateDepartmentSelect(selectId) {
     const select = document.getElementById(selectId);
     if (!select) {
@@ -297,6 +351,11 @@ function setupFormHandlers() {
     const passwordForm = document.getElementById('password-form');
     if (passwordForm) {
         passwordForm.addEventListener('submit', handlePasswordChange);
+    }
+
+    const securityQuestionsForm = document.getElementById('settings-security-questions-form');
+    if (securityQuestionsForm) {
+        securityQuestionsForm.addEventListener('submit', handleSecurityQuestionsUpdate);
     }
 
     const notificationsForm = document.getElementById('notifications-form');
@@ -453,11 +512,27 @@ async function loadUserSettings() {
 
         isTwoFactorEnabled = Boolean(user.twoFactorEnabled);
         renderTwoFactorStatus();
+        await loadSecurityQuestionsForSettings();
         await refreshLocalScannerStatus();
     } catch (error) {
         console.error('Error loading settings:', error);
         showNotification('Error loading settings', 'error');
     }
+}
+
+async function loadSecurityQuestionsForSettings() {
+    const securityResponse = await apiClient.getSecurityQuestions();
+    const questions = Array.isArray(securityResponse?.securityQuestions) ? securityResponse.securityQuestions : [];
+    const selectIds = ['settings-security-question-1', 'settings-security-question-2', 'settings-security-question-3'];
+
+    selectIds.forEach((selectId, index) => {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.value = questions[index] || '';
+        }
+    });
+
+    setupUniqueSecurityQuestionSelection(selectIds);
 }
 
 function renderTwoFactorStatus() {
@@ -781,6 +856,58 @@ async function handleNotificationsUpdate(e) {
     setLocalStorage('notificationPreferences', preferences);
 
     showNotification('Notification preferences updated', 'success');
+}
+
+async function handleSecurityQuestionsUpdate(event) {
+    event.preventDefault();
+
+    const securityQuestions = [
+        {
+            question: String(document.getElementById('settings-security-question-1')?.value || '').trim(),
+            answer: String(document.getElementById('settings-security-answer-1')?.value || '').trim(),
+        },
+        {
+            question: String(document.getElementById('settings-security-question-2')?.value || '').trim(),
+            answer: String(document.getElementById('settings-security-answer-2')?.value || '').trim(),
+        },
+        {
+            question: String(document.getElementById('settings-security-question-3')?.value || '').trim(),
+            answer: String(document.getElementById('settings-security-answer-3')?.value || '').trim(),
+        },
+    ];
+
+    const successEl = document.getElementById('settings-security-questions-success');
+    if (successEl) {
+        successEl.textContent = '';
+    }
+
+    clearFormError('settings-security-question-1');
+
+    const hasAllAnswers = securityQuestions.every((item) => item.question && item.answer);
+    const hasUniqueQuestions = new Set(securityQuestions.map((item) => item.question)).size === 3;
+
+    if (!hasAllAnswers || !hasUniqueQuestions) {
+        displayFormError('settings-security-question-1', 'Select 3 unique security questions and provide all answers.');
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        await apiClient.updateSecurityQuestions(securityQuestions);
+        if (successEl) {
+            successEl.textContent = 'Security questions updated successfully.';
+        }
+
+        const form = document.getElementById('settings-security-questions-form');
+        form?.reset();
+        await loadSecurityQuestionsForSettings();
+        showNotification('Security questions updated.', 'success');
+    } catch (error) {
+        displayFormError('settings-security-question-1', error.message || 'Could not update security questions.');
+    } finally {
+        showLoading(false);
+    }
 }
 
 function setupUserInfo() {

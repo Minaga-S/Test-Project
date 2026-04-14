@@ -247,6 +247,36 @@
                         </form>
                 </div>
                 <div id="security-tab" class="settings-tab-content">
+                        <h2>Security Questions</h2>
+                        <p>Keep three recovery questions up to date. These are used as the first password reset method.</p>
+                    <p><strong>Important:</strong> Updating your security questions immediately invalidates all previous security-question answers used for account recovery.</p>
+                        <form id="settings-security-questions-form" class="settings-form" autocomplete="off">
+                            <div class="form-group">
+                                <label for="settings-security-question-1">Security Question 1</label>
+                                <select id="settings-security-question-1" required>
+                                    <option value="">Select a question</option>
+                                </select>
+                                <input type="text" id="settings-security-answer-1" placeholder="Enter answer" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="settings-security-question-2">Security Question 2</label>
+                                <select id="settings-security-question-2" required>
+                                    <option value="">Select a question</option>
+                                </select>
+                                <input type="text" id="settings-security-answer-2" placeholder="Enter answer" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="settings-security-question-3">Security Question 3</label>
+                                <select id="settings-security-question-3" required>
+                                    <option value="">Select a question</option>
+                                </select>
+                                <input type="text" id="settings-security-answer-3" placeholder="Enter answer" required>
+                                <small id="settings-security-question-1-error" class="error-message"></small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Security Questions</button>
+                            <small id="settings-security-questions-success" class="success-message"></small>
+                        </form>
+
                         <h2>Two-Factor Authentication</h2>
                         <p id="security-recommendation" class="security-recommendation">
                             <span class="material-symbols-rounded" aria-hidden="true">verified_user</span>

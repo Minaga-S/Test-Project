@@ -11,6 +11,11 @@
  */
 
 let pendingTwoFactorChallengeToken = '';
+let pendingForgotPasswordResetOptions = {
+    securityQuestions: [],
+    canUseTwoFactor: false,
+};
+let isForgotPasswordTwoFactorMode = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
@@ -70,6 +75,7 @@ function initializeAuth() {
 
     setupPasswordToggles();
     setupDepartmentSelects();
+    setupSecurityQuestionSelects();
     setupTwoFactorModalActions();
     setupRecoveryCodeCopyButtons();
     setupForgotPasswordActions();
@@ -142,6 +148,8 @@ function setupForgotPasswordActions() {
     const openLink = document.getElementById('open-forgot-password-link');
     const cancelButton = document.getElementById('cancel-forgot-password-btn');
     const backButton = document.getElementById('back-forgot-password-btn');
+    const closeButton = document.getElementById('close-forgot-password-btn');
+    const resetUsingTwoFactorButton = document.getElementById('reset-password-using-2fa-btn');
 
     if (openLink) {
         openLink.addEventListener('click', (event) => {
@@ -156,15 +164,109 @@ function setupForgotPasswordActions() {
         });
     }
 
+    if (closeButton) {
+        closeButton.addEventListener('click', () => {
+            closeForgotPasswordModal();
+        });
+    }
+
     if (backButton) {
         backButton.addEventListener('click', () => {
             showForgotPasswordStep('start');
+        });
+    }
+
+    if (resetUsingTwoFactorButton) {
+        resetUsingTwoFactorButton.addEventListener('click', () => {
+            const methodMessageEl = document.getElementById('reset-password-method-message');
+            const securitySection = document.getElementById('reset-security-questions-section');
+            const twoFactorSection = document.getElementById('reset-two-factor-section');
+
+            if (!pendingForgotPasswordResetOptions.canUseTwoFactor) {
+                if (methodMessageEl) {
+                    methodMessageEl.textContent = '2FA reset is disabled for this account. Continue with security questions.';
+                }
+                return;
+            }
+
+            isForgotPasswordTwoFactorMode = !isForgotPasswordTwoFactorMode;
+
+            if (securitySection) {
+                securitySection.style.display = isForgotPasswordTwoFactorMode ? 'none' : 'block';
+            }
+
+            if (twoFactorSection) {
+                twoFactorSection.style.display = isForgotPasswordTwoFactorMode ? 'block' : 'none';
+            }
+
+            resetUsingTwoFactorButton.textContent = isForgotPasswordTwoFactorMode
+                ? 'Use Security Questions Instead'
+                : 'Reset Password Using 2FA';
+
+            if (methodMessageEl) {
+                methodMessageEl.textContent = isForgotPasswordTwoFactorMode
+                    ? '2FA reset is enabled for this account.'
+                    : '';
+            }
         });
     }
 }
 
 function setupDepartmentSelects() {
     populateDepartmentSelect('signup-department');
+}
+
+function setupSecurityQuestionSelects() {
+    const questionOptions = Array.isArray(window.APP_SECURITY_QUESTIONS) ? window.APP_SECURITY_QUESTIONS : [];
+    const selectIds = ['signup-security-question-1', 'signup-security-question-2', 'signup-security-question-3'];
+
+    selectIds.forEach((selectId) => {
+        const select = document.getElementById(selectId);
+        if (!select) {
+            return;
+        }
+
+        const currentValue = select.value;
+        select.innerHTML = [
+            '<option value="">Select a question</option>',
+            ...questionOptions.map((question) => `<option value="${question}">${question}</option>`),
+        ].join('');
+        select.value = questionOptions.includes(currentValue) ? currentValue : '';
+    });
+
+    setupUniqueSecurityQuestionSelection(selectIds);
+}
+
+function setupUniqueSecurityQuestionSelection(selectIds) {
+    const selects = selectIds
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
+
+    if (selects.length === 0) {
+        return;
+    }
+
+    const applySelectionRules = () => {
+        const selectedValues = new Set(selects.map((select) => select.value).filter(Boolean));
+
+        selects.forEach((select) => {
+            const currentValue = select.value;
+            Array.from(select.options).forEach((option) => {
+                if (!option.value) {
+                    option.disabled = false;
+                    return;
+                }
+
+                option.disabled = option.value !== currentValue && selectedValues.has(option.value);
+            });
+        });
+    };
+
+    selects.forEach((select) => {
+        select.addEventListener('change', applySelectionRules);
+    });
+
+    applySelectionRules();
 }
 
 function populateDepartmentSelect(selectId) {
@@ -711,31 +813,96 @@ function closeForgotPasswordModal() {
     document.getElementById('password-reset-with-2fa-form')?.reset();
     document.getElementById('forgot-password-start-error').textContent = '';
     document.getElementById('password-reset-error').textContent = '';
+    document.getElementById('reset-password-method-message').textContent = '';
+    pendingForgotPasswordResetOptions = {
+        securityQuestions: [],
+        canUseTwoFactor: false,
+    };
+    isForgotPasswordTwoFactorMode = false;
     renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', '', '');
 }
 
 function showForgotPasswordStep(step) {
     const startForm = document.getElementById('forgot-password-start-form');
     const resetForm = document.getElementById('password-reset-with-2fa-form');
+    const titleEl = document.getElementById('forgot-password-title');
+    const descriptionEl = document.getElementById('forgot-password-description');
 
     if (!startForm || !resetForm) {
         return;
     }
 
     if (step === 'start') {
+        if (titleEl) {
+            titleEl.textContent = 'Forgot Password';
+        }
+
+        if (descriptionEl) {
+            descriptionEl.textContent = 'Enter the email address for the account you want to reset.';
+        }
+
         startForm.style.display = 'block';
         resetForm.style.display = 'none';
         return;
     }
 
+    if (titleEl) {
+        titleEl.textContent = 'Reset Password';
+    }
+
+    if (descriptionEl) {
+        descriptionEl.textContent = 'Set a new password and complete account verification to finish your password reset.';
+    }
+
     startForm.style.display = 'none';
     resetForm.style.display = 'block';
+    isForgotPasswordTwoFactorMode = false;
+
+    const securitySection = document.getElementById('reset-security-questions-section');
+    const twoFactorSection = document.getElementById('reset-two-factor-section');
+    const switchButton = document.getElementById('reset-password-using-2fa-btn');
+    const methodMessageEl = document.getElementById('reset-password-method-message');
+
+    if (securitySection) {
+        securitySection.style.display = 'block';
+    }
+
+    if (twoFactorSection) {
+        twoFactorSection.style.display = 'none';
+    }
+
+    if (switchButton) {
+        switchButton.textContent = 'Reset Password Using 2FA';
+    }
+
+    if (methodMessageEl) {
+        methodMessageEl.textContent = '';
+    }
 
     const resetPasswordInput = document.getElementById('reset-new-password');
     const resetEmailInput = document.getElementById('reset-password-email');
     const emailValue = resetEmailInput ? resetEmailInput.value : '';
     const passwordValue = resetPasswordInput ? resetPasswordInput.value : '';
     renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', passwordValue, emailValue);
+}
+
+function setResetSecurityQuestions(questions) {
+    const safeQuestions = Array.isArray(questions) ? questions : [];
+    const labelIds = [
+        'reset-security-question-1-label',
+        'reset-security-question-2-label',
+        'reset-security-question-3-label',
+    ];
+
+    labelIds.forEach((labelId, index) => {
+        const labelEl = document.getElementById(labelId);
+        if (!labelEl) {
+            return;
+        }
+
+        const questionText = safeQuestions[index] || `Security Question ${index + 1}`;
+        labelEl.textContent = questionText;
+    });
 }
 
 async function handleForgotPasswordStart(event) {
@@ -756,12 +923,26 @@ async function handleForgotPasswordStart(event) {
     showLoading(true);
 
     try {
-        await apiClient.forgotPassword(email);
+        const forgotResponse = await apiClient.forgotPassword(email);
         hiddenEmailInput.value = email;
+        pendingForgotPasswordResetOptions = {
+            securityQuestions: Array.isArray(forgotResponse?.resetOptions?.securityQuestions)
+                ? forgotResponse.resetOptions.securityQuestions
+                : [],
+            canUseTwoFactor: Boolean(forgotResponse?.resetOptions?.canUseTwoFactor),
+        };
+
+        if (pendingForgotPasswordResetOptions.securityQuestions.length !== 3) {
+            showLoading(false);
+            errorEl.textContent = 'Unable to load security questions for this account.';
+            return;
+        }
+
+        setResetSecurityQuestions(pendingForgotPasswordResetOptions.securityQuestions);
         showLoading(false);
         showForgotPasswordStep('reset');
         renderPasswordGuidanceByPrefix('reset', 'reset-password-strength', document.getElementById('reset-new-password')?.value || '', email);
-        showNotification('Verification step ready. Use your authenticator or recovery code to reset password.', 'info');
+        showNotification('Security questions loaded. Answer them to reset your password.', 'info');
     } catch (error) {
         showLoading(false);
         errorEl.textContent = error.message || 'Unable to continue password reset.';
@@ -776,6 +957,20 @@ async function handleResetPasswordWithTwoFactor(event) {
     const confirmPassword = String(document.getElementById('reset-confirm-password').value || '');
     const totpCode = normalizeTwoFactorCode(document.getElementById('reset-authenticator-code').value);
     const recoveryCode = String(document.getElementById('reset-recovery-code').value || '').trim();
+    const securityAnswers = [
+        {
+            question: document.getElementById('reset-security-question-1-label')?.textContent || '',
+            answer: String(document.getElementById('reset-security-answer-1')?.value || '').trim(),
+        },
+        {
+            question: document.getElementById('reset-security-question-2-label')?.textContent || '',
+            answer: String(document.getElementById('reset-security-answer-2')?.value || '').trim(),
+        },
+        {
+            question: document.getElementById('reset-security-question-3-label')?.textContent || '',
+            answer: String(document.getElementById('reset-security-answer-3')?.value || '').trim(),
+        },
+    ];
     const errorEl = document.getElementById('password-reset-error');
 
     errorEl.textContent = '';
@@ -791,7 +986,15 @@ async function handleResetPasswordWithTwoFactor(event) {
         return;
     }
 
-    if (!/^\d{6}$/.test(totpCode) && !recoveryCode) {
+    if (!isForgotPasswordTwoFactorMode) {
+        const hasAllSecurityAnswers = securityAnswers.every((item) => item.question && item.answer);
+        if (!hasAllSecurityAnswers) {
+            errorEl.textContent = 'Answer all 3 security questions to continue.';
+            return;
+        }
+    }
+
+    if (isForgotPasswordTwoFactorMode && !/^\d{6}$/.test(totpCode) && !recoveryCode) {
         errorEl.textContent = 'Provide either a 6-digit authenticator code or a recovery code.';
         return;
     }
@@ -802,8 +1005,9 @@ async function handleResetPasswordWithTwoFactor(event) {
         await apiClient.resetPassword({
             email,
             newPassword,
-            totpCode,
-            recoveryCode,
+            securityAnswers: isForgotPasswordTwoFactorMode ? undefined : securityAnswers,
+            totpCode: isForgotPasswordTwoFactorMode ? totpCode : undefined,
+            recoveryCode: isForgotPasswordTwoFactorMode ? recoveryCode : undefined,
         });
         showLoading(false);
         showNotification('Password reset completed. Please sign in again.', 'success');
@@ -822,10 +1026,25 @@ async function handleSignup(e) {
     const password = document.getElementById('signup-password').value;
     const confirmPassword = document.getElementById('signup-confirm').value;
     const department = document.getElementById('signup-department').value;
+    const securityQuestions = [
+        {
+            question: String(document.getElementById('signup-security-question-1').value || '').trim(),
+            answer: String(document.getElementById('signup-security-answer-1').value || '').trim(),
+        },
+        {
+            question: String(document.getElementById('signup-security-question-2').value || '').trim(),
+            answer: String(document.getElementById('signup-security-answer-2').value || '').trim(),
+        },
+        {
+            question: String(document.getElementById('signup-security-question-3').value || '').trim(),
+            answer: String(document.getElementById('signup-security-answer-3').value || '').trim(),
+        },
+    ];
     const termsAccepted = document.getElementById('terms-and-conditions-accept')?.checked;
 
     clearFormError('signup-error');
     clearFormError('signup-department');
+    clearFormError('signup-security-question-1');
 
     if (!fullName.trim()) {
         displayFormError('signup-name', 'Full name is required');
@@ -853,6 +1072,14 @@ async function handleSignup(e) {
         return;
     }
 
+    const hasAllSecurityAnswers = securityQuestions.every((item) => item.question && item.answer);
+    const hasUniqueSecurityQuestions = new Set(securityQuestions.map((item) => item.question)).size === 3;
+
+    if (!hasAllSecurityAnswers || !hasUniqueSecurityQuestions) {
+        displayFormError('signup-security-question-1', 'Select 3 unique security questions and provide all answers.');
+        return;
+    }
+
     if (!termsAccepted) {
         document.getElementById('signup-error').textContent = 'You must agree to the Terms and Conditions to create an account';
         showNotification('Please read and accept the Terms and Conditions', 'warning');
@@ -862,7 +1089,7 @@ async function handleSignup(e) {
     showLoading(true);
 
     try {
-        const registerResponse = await apiClient.register(email, password, fullName, department);
+        const registerResponse = await apiClient.register(email, password, fullName, department, securityQuestions);
         apiClient.setToken(registerResponse.token);
         localStorage.setItem('user', JSON.stringify(registerResponse.user));
         showLoading(false);

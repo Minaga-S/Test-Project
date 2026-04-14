@@ -1,6 +1,8 @@
 process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
 
+const bcryptjs = require('bcryptjs');
+
 jest.mock('../services/auditLogService', () => ({
     record: jest.fn().mockResolvedValue(undefined),
 }));
@@ -36,6 +38,11 @@ function createUser(overrides = {}) {
         twoFactorEnabled: true,
         twoFactorSecret: 'totp-secret',
         recoveryCodeHashes: [],
+        securityQuestions: [
+            { question: 'What city were you born in?', answerHash: bcryptjs.hashSync('colombo', 10) },
+            { question: 'What was your childhood nickname?', answerHash: bcryptjs.hashSync('jay', 10) },
+            { question: 'What is your favorite movie?', answerHash: bcryptjs.hashSync('inception', 10) },
+        ],
         passwordResetFailedAttempts: 0,
         passwordResetLockUntil: null,
         save: jest.fn().mockResolvedValue(undefined),
@@ -55,6 +62,39 @@ describe('authController password reset flows', () => {
         const response = { json: jest.fn() };
 
         await authController.forgotPassword(request, response, jest.fn());
+
+        expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            resetOptions: {
+                securityQuestions: [],
+                canUseTwoFactor: false,
+            },
+        }));
+    });
+
+    it('should reset password when valid security answers are provided', async () => {
+        const user = createUser({ twoFactorEnabled: false, twoFactorSecret: '' });
+        mockUserModel.findOne.mockResolvedValue(user);
+
+        const request = {
+            ip: '127.0.0.1',
+            body: {
+                email: 'user@example.com',
+                newPassword: 'StrongPassword123!',
+                securityAnswers: [
+                    { question: 'What city were you born in?', answer: 'Colombo' },
+                    { question: 'What was your childhood nickname?', answer: 'Jay' },
+                    { question: 'What is your favorite movie?', answer: 'Inception' },
+                ],
+            },
+        };
+
+        const response = {
+            json: jest.fn(),
+            status: jest.fn().mockReturnThis(),
+        };
+
+        await authController.resetPassword(request, response, jest.fn());
 
         expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,

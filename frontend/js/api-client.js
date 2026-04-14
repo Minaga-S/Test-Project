@@ -227,12 +227,13 @@ class APIClient {
         return this.request(endpoint, { ...options, method: 'DELETE' });
     }
 
-    async register(email, password, fullName, department) {
+    async register(email, password, fullName, department, securityQuestions) {
         return this.post('/auth/register', {
             email,
             password,
             fullName,
             department,
+            securityQuestions,
         });
     }
 
@@ -283,6 +284,14 @@ class APIClient {
 
     async updateProfile(data) {
         return this.put('/auth/profile', data);
+    }
+
+    async getSecurityQuestions() {
+        return this.get('/auth/security-questions');
+    }
+
+    async updateSecurityQuestions(securityQuestions) {
+        return this.put('/auth/security-questions', { securityQuestions });
     }
 
     async changePassword(currentPassword, newPassword) {

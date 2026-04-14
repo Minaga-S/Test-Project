@@ -9,6 +9,18 @@ const ROLE_PERMISSIONS = {
     User: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'dashboard:read'],
 };
 
+const SecurityQuestionSchema = new mongoose.Schema({
+    question: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    answerHash: {
+        type: String,
+        required: true,
+    },
+}, { _id: false });
+
 const UserSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -64,6 +76,10 @@ const UserSchema = new mongoose.Schema({
     },
     recoveryCodeHashes: {
         type: [String],
+        default: [],
+    },
+    securityQuestions: {
+        type: [SecurityQuestionSchema],
         default: [],
     },
     passwordResetFailedAttempts: {
@@ -128,6 +144,9 @@ UserSchema.methods.toJSON = function() {
     delete user.twoFactorSecret;
     delete user.twoFactorTempSecret;
     delete user.recoveryCodeHashes;
+    user.securityQuestions = Array.isArray(user.securityQuestions)
+        ? user.securityQuestions.map((item) => ({ question: item.question }))
+        : [];
     return user;
 };
 

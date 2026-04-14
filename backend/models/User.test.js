@@ -42,4 +42,24 @@ describe('User model', () => {
 
         await expect(user.validate()).rejects.toThrow();
     });
+
+    it('should serialize security questions without exposing answer hashes', () => {
+        const user = new User({
+            email: 'secure@example.com',
+            password: 'Password123!',
+            fullName: 'Secure User',
+            securityQuestions: [
+                { question: 'What city were you born in?', answerHash: 'hash-1' },
+                { question: 'What was your childhood nickname?', answerHash: 'hash-2' },
+                { question: 'What is your favorite movie?', answerHash: 'hash-3' },
+            ],
+        });
+
+        const serialized = user.toJSON();
+        expect(serialized.securityQuestions).toEqual([
+            { question: 'What city were you born in?' },
+            { question: 'What was your childhood nickname?' },
+            { question: 'What is your favorite movie?' },
+        ]);
+    });
 });

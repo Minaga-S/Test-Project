@@ -28,6 +28,18 @@ window.APP_DEPARTMENTS = [
     'Operations',
 ];
 
+window.APP_SECURITY_QUESTIONS = [
+    'What was the name of your first school?',
+    'What city were you born in?',
+    'What is your mother\'s maiden name?',
+    'What was your childhood nickname?',
+    'What is the name of your favorite teacher?',
+    'What is your favorite movie?',
+    'What was the make of your first car?',
+    'What is the name of your first pet?',
+    'What street did you grow up on?',
+];
+
 // ============== DATE & TIME ==============
 
 function formatDate(date) {

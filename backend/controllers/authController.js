@@ -16,6 +16,7 @@ const DEFAULT_TOTP_APP_NAME = 'HCGS';
 const PASSWORD_RESET_LOCK_MINUTES = 10;
 const MAX_PASSWORD_RESET_FAILED_ATTEMPTS = 5;
 const RECOVERY_CODE_COUNT = 8;
+const SECURITY_QUESTION_COUNT = 3;
 
 class AuthController {
     createAccessToken(user) {
@@ -66,6 +67,78 @@ class AuthController {
 
     normalizeTwoFactorCode(value) {
         return String(value || '').replace(/\D/g, '').slice(0, 6);
+    }
+
+    normalizeSecurityQuestionText(value) {
+        return String(value || '').trim().replace(/\s+/g, ' ');
+    }
+
+    normalizeSecurityQuestionsInput(securityQuestions) {
+        if (!Array.isArray(securityQuestions)) {
+            return [];
+        }
+
+        return securityQuestions
+            .map((item) => ({
+                question: this.normalizeSecurityQuestionText(item?.question),
+                answer: String(item?.answer || '').trim(),
+            }))
+            .filter((item) => item.question && item.answer);
+    }
+
+    hasRequiredSecurityQuestions(securityQuestions) {
+        if (!Array.isArray(securityQuestions) || securityQuestions.length !== SECURITY_QUESTION_COUNT) {
+            return false;
+        }
+
+        const uniqueQuestions = new Set(
+            securityQuestions.map((item) => this.normalizeSecurityQuestionText(item.question).toLowerCase())
+        );
+
+        return uniqueQuestions.size === SECURITY_QUESTION_COUNT;
+    }
+
+    async hashSecurityQuestions(securityQuestions) {
+        return Promise.all(
+            securityQuestions.map(async (item) => ({
+                question: item.question,
+                answerHash: await bcryptjs.hash(item.answer.toLowerCase(), 10),
+            }))
+        );
+    }
+
+    async verifySecurityQuestionAnswers(user, securityAnswers) {
+        if (!this.hasRequiredSecurityQuestions(securityAnswers)) {
+            return false;
+        }
+
+        const storedQuestions = Array.isArray(user.securityQuestions) ? user.securityQuestions : [];
+        if (!this.hasRequiredSecurityQuestions(storedQuestions)) {
+            return false;
+        }
+
+        const normalizedAnswers = new Map(
+            securityAnswers.map((item) => [
+                this.normalizeSecurityQuestionText(item.question).toLowerCase(),
+                String(item.answer || '').trim().toLowerCase(),
+            ])
+        );
+
+        for (const storedQuestion of storedQuestions) {
+            const normalizedQuestion = this.normalizeSecurityQuestionText(storedQuestion.question).toLowerCase();
+            const providedAnswer = normalizedAnswers.get(normalizedQuestion);
+
+            if (!providedAnswer) {
+                return false;
+            }
+
+            const isAnswerValid = await bcryptjs.compare(providedAnswer, storedQuestion.answerHash || '');
+            if (!isAnswerValid) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     isStrongPassword(password) {
@@ -147,8 +220,16 @@ class AuthController {
      */
     async register(req, res, next) {
         try {
-            const { email, password, fullName, department } = req.body;
+            const { email, password, fullName, department, securityQuestions } = req.body;
             const normalizedEmail = email.toLowerCase();
+            const normalizedSecurityQuestions = this.normalizeSecurityQuestionsInput(securityQuestions);
+
+            if (!this.hasRequiredSecurityQuestions(normalizedSecurityQuestions)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Provide exactly 3 unique security questions with answers.',
+                });
+            }
 
             const existingUser = await User.findOne({ email: normalizedEmail });
             if (existingUser) {
@@ -158,12 +239,15 @@ class AuthController {
                 });
             }
 
+            const hashedSecurityQuestions = await this.hashSecurityQuestions(normalizedSecurityQuestions);
+
             const user = new User({
                 email: normalizedEmail,
                 password,
                 fullName,
                 role: 'User',
                 department,
+                securityQuestions: hashedSecurityQuestions,
             });
 
             await user.save();
@@ -276,6 +360,17 @@ class AuthController {
         try {
             const normalizedEmail = String(req.body.email || '').toLowerCase().trim();
             const user = await User.findOne({ email: normalizedEmail });
+            const resetOptions = {
+                securityQuestions: [],
+                canUseTwoFactor: false,
+            };
+
+            if (user?.isActive) {
+                resetOptions.securityQuestions = Array.isArray(user.securityQuestions)
+                    ? user.securityQuestions.map((item) => item.question).filter(Boolean)
+                    : [];
+                resetOptions.canUseTwoFactor = Boolean(user.twoFactorEnabled && user.twoFactorSecret);
+            }
 
             if (user?.isActive) {
                 await auditLogService.record({
@@ -289,7 +384,8 @@ class AuthController {
 
             return res.json({
                 success: true,
-                message: 'If an active account exists, continue with your authenticator code or recovery code to reset your password.',
+                message: 'If an active account exists, answer your security questions to reset your password. You can also use 2FA if enabled.',
+                resetOptions,
             });
         } catch (error) {
             logger.error(`Forgot password error: ${error.message}`);
@@ -299,8 +395,10 @@ class AuthController {
 
     async resetPassword(req, res, next) {
         try {
-            const { email, newPassword, totpCode, recoveryCode } = req.body;
+            const { email, newPassword, totpCode, recoveryCode, securityAnswers } = req.body;
             const normalizedEmail = String(email || '').toLowerCase().trim();
+            const normalizedSecurityAnswers = this.normalizeSecurityQuestionsInput(securityAnswers);
+            const hasSecurityAnswers = this.hasRequiredSecurityQuestions(normalizedSecurityAnswers);
 
             if (!this.isStrongPassword(newPassword)) {
                 return res.status(400).json({
@@ -324,37 +422,53 @@ class AuthController {
                 });
             }
 
-            if (!user.twoFactorEnabled || !user.twoFactorSecret) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Two-factor authentication is required to reset password without email recovery.',
-                });
-            }
-
             const normalizedTotpCode = this.normalizeTwoFactorCode(totpCode);
             const hasTotpCode = /^\d{6}$/.test(normalizedTotpCode);
             const hasRecoveryCode = Boolean(String(recoveryCode || '').trim());
+            const hasTwoFactorVerificationInput = hasTotpCode || hasRecoveryCode;
 
             let isVerified = false;
             let usedRecoveryCode = false;
             let remainingRecoveryCodeHashes = user.recoveryCodeHashes;
 
-            if (hasTotpCode) {
-                isVerified = totpService.verifyToken(user.twoFactorSecret, normalizedTotpCode);
+            if (hasSecurityAnswers) {
+                isVerified = await this.verifySecurityQuestionAnswers(user, normalizedSecurityAnswers);
             }
 
-            if (!isVerified && hasRecoveryCode) {
-                const recoveryResult = await this.verifyRecoveryCode(user, recoveryCode);
-                isVerified = recoveryResult.isValid;
-                usedRecoveryCode = recoveryResult.isValid;
-                remainingRecoveryCodeHashes = recoveryResult.remainingRecoveryCodeHashes;
+            if (!isVerified && !hasSecurityAnswers && !hasTwoFactorVerificationInput) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Provide answers for all 3 security questions or use 2FA verification.',
+                });
+            }
+
+            if (!isVerified && hasTwoFactorVerificationInput) {
+                if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Two-factor authentication is not enabled for this account. Use security questions instead.',
+                    });
+                }
+
+                if (hasTotpCode) {
+                    isVerified = totpService.verifyToken(user.twoFactorSecret, normalizedTotpCode);
+                }
+
+                if (!isVerified && hasRecoveryCode) {
+                    const recoveryResult = await this.verifyRecoveryCode(user, recoveryCode);
+                    isVerified = recoveryResult.isValid;
+                    usedRecoveryCode = recoveryResult.isValid;
+                    remainingRecoveryCodeHashes = recoveryResult.remainingRecoveryCodeHashes;
+                }
             }
 
             if (!isVerified) {
                 await this.registerPasswordResetFailure(user);
                 return res.status(401).json({
                     success: false,
-                    message: 'Invalid authenticator or recovery code',
+                    message: hasSecurityAnswers
+                        ? 'Security question answers are incorrect'
+                        : 'Invalid authenticator or recovery code',
                 });
             }
 
@@ -777,6 +891,80 @@ class AuthController {
             });
         } catch (error) {
             logger.error(`Change password error: ${error.message}`);
+            return next(error);
+        }
+    }
+
+    async getSecurityQuestions(req, res, next) {
+        try {
+            const user = await User.findById(req.user.userId);
+
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+            }
+
+            const securityQuestions = Array.isArray(user.securityQuestions)
+                ? user.securityQuestions.map((item) => item.question).filter(Boolean)
+                : [];
+
+            return res.json({
+                success: true,
+                securityQuestions,
+            });
+        } catch (error) {
+            logger.error(`Get security questions error: ${error.message}`);
+            return next(error);
+        }
+    }
+
+    async updateSecurityQuestions(req, res, next) {
+        try {
+            const normalizedSecurityQuestions = this.normalizeSecurityQuestionsInput(req.body.securityQuestions);
+            if (!this.hasRequiredSecurityQuestions(normalizedSecurityQuestions)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Provide exactly 3 unique security questions with answers.',
+                });
+            }
+
+            const user = await User.findById(req.user.userId);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found',
+                });
+            }
+
+            const beforeQuestions = Array.isArray(user.securityQuestions)
+                ? user.securityQuestions.map((item) => item.question).filter(Boolean)
+                : [];
+
+            user.securityQuestions = await this.hashSecurityQuestions(normalizedSecurityQuestions);
+            user.updatedAt = new Date();
+            await user.save();
+
+            const updatedQuestions = user.securityQuestions.map((item) => item.question);
+
+            await auditLogService.record({
+                actorUserId: user._id,
+                action: 'USER_SECURITY_QUESTIONS_UPDATED',
+                entityType: 'User',
+                entityId: String(user._id),
+                before: { securityQuestions: beforeQuestions },
+                after: { securityQuestions: updatedQuestions },
+                ipAddress: req.ip || '',
+            });
+
+            return res.json({
+                success: true,
+                message: 'Security questions updated successfully',
+                securityQuestions: updatedQuestions,
+            });
+        } catch (error) {
+            logger.error(`Update security questions error: ${error.message}`);
             return next(error);
         }
     }
