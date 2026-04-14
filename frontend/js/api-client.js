@@ -448,10 +448,6 @@ class APIClient {
         return this.get('/risk/trends');
     }
 
-    async getRiskForecast() {
-        return this.get('/risk/forecast');
-    }
-
     async getRiskByAsset() {
         return this.get('/risk/by-asset');
     }

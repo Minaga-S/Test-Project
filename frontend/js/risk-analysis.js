@@ -165,14 +165,12 @@ async function loadRiskData() {
             riskMatrixResponse,
             riskDistributionResponse,
             riskTrendsResponse,
-            riskForecastResponse,
             assetRisksResponse,
             incidentsResponse,
         ] = await Promise.all([
             apiClient.getRiskMatrix(),
             apiClient.getRiskDistributionChart(),
             apiClient.getRiskTrends(),
-            apiClient.getRiskForecast(),
             apiClient.getRiskByAsset(),
             apiClient.getIncidents(),
         ]);
@@ -181,7 +179,6 @@ async function loadRiskData() {
         const riskMatrix = riskMatrixResponse?.matrix || [];
         const riskDistribution = riskDistributionResponse?.chart || riskDistributionResponse || {};
         const riskTrends = riskTrendsResponse || {};
-        const riskForecast = riskForecastResponse?.forecast || {};
         const assetRisks = assetRisksResponse?.assetRisks || [];
         const incidents = Array.isArray(incidentsResponse)
             ? incidentsResponse
@@ -192,7 +189,6 @@ async function loadRiskData() {
         displayRiskMatrix(riskMatrix);
         displayRiskDistribution(riskDistribution);
         displayRiskTrends(riskTrends);
-        displayRiskForecast(riskForecast);
         displayAssetRisks(assetRisks);
         displayRecommendationsPriority(incidents);
         displayRiskBreakdown(incidents);
@@ -200,78 +196,6 @@ async function loadRiskData() {
         console.error('Error loading risk data:', error);
         showNotification('Error loading risk analysis', 'error');
     }
-}
-
-function displayRiskForecast(forecast) {
-    const canvas = document.getElementById('risk-forecast-chart');
-    if (!canvas) return;
-
-    const historyLabels = Array.isArray(forecast?.historyLabels) ? forecast.historyLabels : [];
-    const historyScores = Array.isArray(forecast?.historyScores) ? forecast.historyScores : [];
-    const forecastLabels = Array.isArray(forecast?.forecastLabels) ? forecast.forecastLabels : [];
-    const forecastScores = Array.isArray(forecast?.forecastScores) ? forecast.forecastScores : [];
-    const windowSize = Number(forecast?.windowSize) || 3;
-
-    const fullLabels = [...historyLabels, ...forecastLabels];
-    const historyDataset = [...historyScores, ...new Array(forecastScores.length).fill(null)];
-    const forecastDataset = [...new Array(historyScores.length).fill(null), ...forecastScores];
-
-    const summaryEl = document.getElementById('risk-forecast-summary');
-    if (summaryEl) {
-        if (historyScores.length === 0) {
-            summaryEl.textContent = 'Not enough historical risk data to generate a forecast yet.';
-        } else {
-            const nextForecast = forecastScores[0] ?? historyScores[historyScores.length - 1] ?? 0;
-            summaryEl.textContent = `Using a ${windowSize}-point moving average. Next predicted risk score: ${nextForecast}.`;
-        }
-    }
-
-    const ctx = canvas.getContext('2d');
-    if (charts.riskForecast) charts.riskForecast.destroy();
-
-    charts.riskForecast = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: fullLabels,
-            datasets: [
-                {
-                    label: 'Historical Average Risk',
-                    data: historyDataset,
-                    borderColor: '#2B6CB0',
-                    backgroundColor: 'rgba(43, 108, 176, 0.12)',
-                    borderWidth: 3,
-                    tension: 0.3,
-                    fill: false,
-                    pointRadius: 4,
-                },
-                {
-                    label: 'Forecast Risk',
-                    data: forecastDataset,
-                    borderColor: '#DD6B20',
-                    backgroundColor: 'rgba(221, 107, 32, 0.16)',
-                    borderWidth: 3,
-                    borderDash: [6, 4],
-                    tension: 0.3,
-                    fill: false,
-                    pointRadius: 4,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                },
-            },
-        },
-    });
 }
 
 function getRiskColor(level) {

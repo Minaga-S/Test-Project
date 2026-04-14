@@ -23,8 +23,6 @@ const CRITICALITY_RISK_SCORE = {
     High: 12,
     Critical: 16,
 };
-const FORECAST_WINDOW_SIZE = 3;
-const FORECAST_DAY_COUNT = 7;
 
 function getRiskRank(level) {
     return RISK_LEVEL_RANK[level] || 1;
@@ -36,23 +34,6 @@ function getHigherRiskLevel(currentLevel, nextLevel) {
     }
 
     return currentLevel || nextLevel || 'Low';
-}
-
-function toIsoDay(dateValue) {
-    return new Date(dateValue).toISOString().split('T')[0];
-}
-
-function average(values) {
-    if (!Array.isArray(values) || values.length === 0) {
-        return 0;
-    }
-
-    const total = values.reduce((sum, value) => sum + value, 0);
-    return total / values.length;
-}
-
-function roundTwo(value) {
-    return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function buildAssetRiskRecord(asset) {
@@ -219,71 +200,6 @@ class RiskController {
         } catch (error) {
             logger.error('Get risk trends error:', error.message);
             next(error);
-        }
-    }
-
-    async getRiskForecast(req, res, next) {
-        try {
-            const incidents = await Incident.find({ userId: req.user.userId })
-                .select('createdAt riskScore')
-                .sort({ createdAt: 1 });
-
-            const dailyScores = new Map();
-
-            incidents.forEach((incident) => {
-                const day = toIsoDay(incident.createdAt);
-                if (!dailyScores.has(day)) {
-                    dailyScores.set(day, []);
-                }
-
-                dailyScores.get(day).push(Number(incident.riskScore) || 0);
-            });
-
-            const historyLabels = Array.from(dailyScores.keys());
-            const historyScores = historyLabels.map((day) => roundTwo(average(dailyScores.get(day))));
-
-            if (historyScores.length === 0) {
-                return res.json({
-                    success: true,
-                    forecast: {
-                        historyLabels: [],
-                        historyScores: [],
-                        forecastLabels: [],
-                        forecastScores: [],
-                        windowSize: FORECAST_WINDOW_SIZE,
-                    },
-                });
-            }
-
-            const rollingSeries = [...historyScores];
-            const forecastScores = [];
-            const forecastLabels = [];
-            const startDate = new Date(`${historyLabels[historyLabels.length - 1]}T00:00:00.000Z`);
-
-            for (let index = 0; index < FORECAST_DAY_COUNT; index += 1) {
-                const recentWindow = rollingSeries.slice(-FORECAST_WINDOW_SIZE);
-                const predictedScore = roundTwo(average(recentWindow));
-                rollingSeries.push(predictedScore);
-                forecastScores.push(predictedScore);
-
-                const labelDate = new Date(startDate);
-                labelDate.setUTCDate(labelDate.getUTCDate() + index + 1);
-                forecastLabels.push(labelDate.toISOString().split('T')[0]);
-            }
-
-            return res.json({
-                success: true,
-                forecast: {
-                    historyLabels,
-                    historyScores,
-                    forecastLabels,
-                    forecastScores,
-                    windowSize: FORECAST_WINDOW_SIZE,
-                },
-            });
-        } catch (error) {
-            logger.error('Get risk forecast error:', error.message);
-            return next(error);
         }
     }
 

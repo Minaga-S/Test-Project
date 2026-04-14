@@ -12,7 +12,6 @@ router.post('/calculate', requirePermission('incident:write'), withController(ri
 router.get('/assessment/:incidentId', requirePermission('incident:read'), withController(riskController, 'getRiskAssessment'));
 router.get('/matrix', requirePermission('incident:read'), withController(riskController, 'getRiskMatrix'));
 router.get('/trends', requirePermission('incident:read'), withController(riskController, 'getRiskTrends'));
-router.get('/forecast', requirePermission('incident:read'), withController(riskController, 'getRiskForecast'));
 router.get('/by-asset', requirePermission('incident:read'), withController(riskController, 'getRiskByAsset'));
 router.get('/summary', requirePermission('incident:read'), withController(riskController, 'getRiskSummary'));
 
