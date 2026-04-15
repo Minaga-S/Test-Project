@@ -40,18 +40,24 @@ frontend/
 ## Using NmapLocalScanner
 
 ### Prerequisites
-- Install Nmap on the machine if it is not already installed.
 - Download the latest NmapLocalScanner release.
+- Use the `--doctor` flow to install Nmap on a clean machine.
 
 ### User steps
-1. Extract the release files to a folder of your choice.
-2. Run NmapLocalScanner.exe.
-3. Allow any Windows permission prompts if they appear.
-4. Keep NmapLocalScanner running while you use the dashboard.
+1. Download the latest NmapLocalScanner release from GitHub.
+2. Save it in a folder of your choice.
+3. Open PowerShell in that folder and run `./NmapLocalScanner.exe --doctor`.
+4. Copy and paste the Nmap install command that the doctor output prints.
+5. If PowerShell still cannot find Nmap, copy and paste the `NMAP_PATH` command that the doctor output prints.
+6. Run `nmap --version` to confirm Nmap is installed and reachable from the current shell.
+7. Run `./NmapLocalScanner.exe`.
+8. Allow any Windows permission prompts if they appear.
+9. Keep the scanner app running while you use live scans in the dashboard.
 
 ### Notes
 - The scanner is intended to run as a Windows executable for a simple end-user experience.
 - If the scanner is not running, local scanner features in the dashboard will not be available.
+- The `--doctor` mode prints the exact setup commands for a clean machine.
 
 ## Local Development Setup
 
