@@ -336,17 +336,62 @@
                         </div>
 
                         <div id="local-scanner-health-message" class="local-scanner-health-message" aria-live="polite">
-                            Scanner is not reachable on your machine.
+                            Scanner is not reachable. Start the local scanner app and allow loopback/local network access in Chrome if prompted.
                         </div>
 
-                        <ol class="local-scanner-steps">
-                            <li>Install Nmap if it is not already installed on this computer.</li>
-                            <li>Download the latest <strong>NmapLocalScanner.exe</strong> release from GitHub.</li>
-                            <li>Extract the files to a folder of your choice.</li>
-                            <li>Run <strong>NmapLocalScanner.exe</strong>.</li>
-                            <li>Allow any Windows permission prompts if they appear.</li>
-                            <li>Keep the scanner app running while using live scans in this dashboard.</li>
-                        </ol>
+                        <div class="local-scanner-command-panel">
+                            <div class="two-factor-recovery-header">
+                                <p class="two-factor-recovery-title">Setup Commands</p>
+                            </div>
+                            <p class="two-factor-recovery-copy">Use these commands in PowerShell on the same machine that will run the scanner. Each command can be copied independently.</p>
+                            <ol class="local-scanner-command-list">
+                                <li class="local-scanner-command-item">
+                                    <div class="local-scanner-command-item-header">
+                                        <span class="local-scanner-command-label">Launch the setup guide</span>
+                                        <button type="button" class="btn btn-secondary two-factor-recovery-copy-btn local-scanner-command-copy-btn" aria-label="Copy setup guide command" title="Copy setup guide command">
+                                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <code class="local-scanner-command-snippet">cd "$HOME\Downloads"; ./NmapLocalScanner.exe --doctor</code>
+                                </li>
+                                <li class="local-scanner-command-item">
+                                    <div class="local-scanner-command-item-header">
+                                        <span class="local-scanner-command-label">Install Nmap if it is not already available</span>
+                                        <button type="button" class="btn btn-secondary two-factor-recovery-copy-btn local-scanner-command-copy-btn" aria-label="Copy Nmap install command" title="Copy Nmap install command">
+                                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <code class="local-scanner-command-snippet">winget install --id Insecure.Nmap --silent --accept-package-agreements --accept-source-agreements</code>
+                                </li>
+                                <li class="local-scanner-command-item">
+                                    <div class="local-scanner-command-item-header">
+                                        <span class="local-scanner-command-label">Set the NMAP_PATH variable if PowerShell cannot locate Nmap</span>
+                                        <button type="button" class="btn btn-secondary two-factor-recovery-copy-btn local-scanner-command-copy-btn" aria-label="Copy NMAP_PATH command" title="Copy NMAP_PATH command">
+                                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <code class="local-scanner-command-snippet">$env:NMAP_PATH = &quot;C:\Program Files (x86)\Nmap\nmap.exe&quot;</code>
+                                </li>
+                                <li class="local-scanner-command-item">
+                                    <div class="local-scanner-command-item-header">
+                                        <span class="local-scanner-command-label">Verify that Nmap is installed and accessible</span>
+                                        <button type="button" class="btn btn-secondary two-factor-recovery-copy-btn local-scanner-command-copy-btn" aria-label="Copy verification command" title="Copy verification command">
+                                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <code class="local-scanner-command-snippet">nmap --version</code>
+                                </li>
+                                <li class="local-scanner-command-item">
+                                    <div class="local-scanner-command-item-header">
+                                        <span class="local-scanner-command-label">Start the scanner and keep it running during live scans</span>
+                                        <button type="button" class="btn btn-secondary two-factor-recovery-copy-btn local-scanner-command-copy-btn" aria-label="Copy scanner launch command" title="Copy scanner launch command">
+                                            <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <code class="local-scanner-command-snippet">./NmapLocalScanner.exe</code>
+                                </li>
+                            </ol>
+                        </div>
 
                         <div class="form-actions local-scanner-actions">
                             <a id="local-scanner-download-link" class="btn btn-primary" href="https://github.com/dev-pahan/NmapLocalScanner" target="_blank" rel="noopener noreferrer">Download Scanner App</a>

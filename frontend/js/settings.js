@@ -387,6 +387,19 @@ function setupFormHandlers() {
             }
         });
     }
+
+    const localScannerCommandButtons = document.querySelectorAll('.local-scanner-command-copy-btn');
+    localScannerCommandButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            const commandItem = button.closest('.local-scanner-command-item');
+            const commandSnippet = commandItem?.querySelector('.local-scanner-command-snippet');
+            const commandText = commandSnippet?.textContent?.trim() || '';
+            const isCopied = await copyTextToClipboard(commandText);
+            if (isCopied) {
+                showNotification('Command copied to clipboard.', 'success');
+            }
+        });
+    });
 }
 
 function getInitialSettingsTab() {
@@ -700,7 +713,10 @@ async function copyRecoveryCodesFromList(listId) {
     }
 
     const recoveryCodes = Array.from(recoveryCodesList.querySelectorAll('li'))
-        .map((item) => item.textContent.trim())
+        .map((item) => {
+            const codeElement = item.querySelector('code');
+            return (codeElement?.textContent || item.textContent).trim();
+        })
         .filter((code) => code.length > 0);
 
     if (recoveryCodes.length === 0) {
@@ -709,6 +725,14 @@ async function copyRecoveryCodesFromList(listId) {
     }
 
     const textToCopy = recoveryCodes.join('\n');
+
+    return copyTextToClipboard(textToCopy);
+}
+
+async function copyTextToClipboard(textToCopy) {
+    if (!textToCopy) {
+        return false;
+    }
 
     try {
         if (navigator.clipboard && window.isSecureContext) {
@@ -733,7 +757,7 @@ async function copyRecoveryCodesFromList(listId) {
 
         return true;
     } catch (error) {
-        showNotification('Could not copy recovery codes. Please copy them manually.', 'error');
+        showNotification('Could not copy text to clipboard. Please copy it manually.', 'error');
         return false;
     }
 }
