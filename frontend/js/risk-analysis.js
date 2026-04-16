@@ -20,6 +20,25 @@ let charts = {};
 let chartJsLoadPromise = null;
 let jsPdfLoadPromise = null;
 
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function sanitizeClassToken(value, fallback = 'unknown') {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) {
+        return fallback;
+    }
+
+    const sanitized = normalized.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return sanitized || fallback;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeRiskAnalysis();
 });
@@ -476,7 +495,7 @@ function displayAssetRisks(assetRisks) {
 
         container.innerHTML = assetsOfLevel
             .slice(0, 8)
-            .map((asset) => `<p>- ${asset.assetName}</p>`)
+            .map((asset) => `<p>- ${escapeHtml(asset.assetName || 'Unknown')}</p>`)
             .join('');
     });
 }
@@ -508,12 +527,12 @@ function displayRecommendationsPriority(incidents) {
     }
 
     container.innerHTML = ranked.map((item) => `
-        <div class="priority-item ${item.riskLevel.toLowerCase()}">
+        <div class="priority-item ${sanitizeClassToken(item.riskLevel, 'low')}">
             <div>
-                <strong>${item.riskLevel} Priority</strong>
-                <p>${item.recommendation}</p>
+                <strong>${escapeHtml(item.riskLevel)} Priority</strong>
+                <p>${escapeHtml(item.recommendation)}</p>
             </div>
-            <small>${item.incidentId} • ${item.threatType}</small>
+            <small>${escapeHtml(item.incidentId)} • ${escapeHtml(item.threatType)}</small>
         </div>
     `).join('');
 }
@@ -532,16 +551,25 @@ function displayRiskBreakdown(incidents) {
     }
 
     incidentList.forEach((incident) => {
+        const safeIncidentId = escapeHtml(incident.incidentId || 'N/A');
+        const safeAssetName = escapeHtml(incident.asset?.assetName || 'Unknown');
+        const safeThreatType = escapeHtml(incident.threatType || 'Unknown');
+        const safeLikelihood = escapeHtml(`${incident.likelihood || 0}`);
+        const safeImpact = escapeHtml(`${incident.impact || 0}`);
+        const safeRiskScore = escapeHtml(`${incident.riskScore || 0}`);
+        const safeRiskLevel = escapeHtml(incident.riskLevel || 'Low');
+        const riskPriority = incident.riskLevel === 'Critical' ? 'Urgent' : incident.riskLevel === 'High' ? 'High' : incident.riskLevel === 'Medium' ? 'Medium' : 'Low';
+        const safeRiskPriority = escapeHtml(riskPriority);
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td data-label="Incident ID">${incident.incidentId || 'N/A'}</td>
-            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
-            <td data-label="Threat Type">${incident.threatType || 'Unknown'}</td>
-            <td data-label="Likelihood">${incident.likelihood || 0}/4</td>
-            <td data-label="Impact">${incident.impact || 0}/4</td>
-            <td data-label="Risk Score"><strong class="animated-risk-score" data-target-score="${incident.riskScore || 0}">0</strong></td>
-            <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel || 'Low'}</span></td>
-            <td data-label="Priority">${incident.riskLevel === 'Critical' ? 'Urgent' : incident.riskLevel === 'High' ? 'High' : incident.riskLevel === 'Medium' ? 'Medium' : 'Low'}</td>
+            <td data-label="Incident ID">${safeIncidentId}</td>
+            <td data-label="Asset">${safeAssetName}</td>
+            <td data-label="Threat Type">${safeThreatType}</td>
+            <td data-label="Likelihood">${safeLikelihood}/4</td>
+            <td data-label="Impact">${safeImpact}/4</td>
+            <td data-label="Risk Score"><strong class="animated-risk-score" data-target-score="${safeRiskScore}">0</strong></td>
+            <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${safeRiskLevel}</span></td>
+            <td data-label="Priority">${safeRiskPriority}</td>
         `;
         tbody.appendChild(row);
 

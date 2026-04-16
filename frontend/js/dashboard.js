@@ -22,6 +22,25 @@ let isTwoFactorEnabled = false;
 let dashboardBadgeTimer = null;
 let shouldShowTwoFactorStatus = true;
 
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function sanitizeClassToken(value, fallback = 'unknown') {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) {
+        return fallback;
+    }
+
+    const sanitized = normalized.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return sanitized || fallback;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeDashboard();
 });
@@ -528,6 +547,14 @@ function displayRecentIncidents(incidents) {
     incidentList.slice(0, 5).forEach((incident) => {
         const riskLevel = incident.riskLevel || 'Low';
         const status = incident.status || 'Open';
+        const safeIncidentId = escapeHtml(incident.incidentId || 'N/A');
+        const safeAssetName = escapeHtml(incident.asset?.assetName || 'Unknown');
+        const safeThreatType = escapeHtml(incident.threatType || 'Unknown');
+        const safeRiskLevel = escapeHtml(riskLevel);
+        const safeRiskClass = sanitizeClassToken(riskLevel, 'low');
+        const safeStatus = escapeHtml(status);
+        const safeStatusClass = sanitizeClassToken(status, 'open');
+        const safeDate = escapeHtml(formatDate(incident.createdAt));
         const incidentDbId = String(incident?._id || incident?.id || '').trim();
         const incidentPublicId = String(incident?.incidentId || '').trim();
         const viewUrl = new URL('incident-logs.html', window.location.href);
@@ -542,12 +569,12 @@ function displayRecentIncidents(incidents) {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td data-label="Incident ID">${incident.incidentId}</td>
-            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
-            <td data-label="Threat Type">${incident.threatType || 'Unknown'}</td>
-            <td data-label="Risk Level"><span class="risk-${riskLevel.toLowerCase()}">${riskLevel}</span></td>
-            <td data-label="Status"><span class="status-badge status-${status}">${status}</span></td>
-            <td data-label="Date">${formatDate(incident.createdAt)}</td>
+            <td data-label="Incident ID">${safeIncidentId}</td>
+            <td data-label="Asset">${safeAssetName}</td>
+            <td data-label="Threat Type">${safeThreatType}</td>
+            <td data-label="Risk Level"><span class="risk-${safeRiskClass}">${safeRiskLevel}</span></td>
+            <td data-label="Status"><span class="status-badge status-${safeStatusClass}">${safeStatus}</span></td>
+            <td data-label="Date">${safeDate}</td>
             <td data-label="Action">
                 <button type="button" class="btn btn-sm btn-secondary">View</button>
             </td>

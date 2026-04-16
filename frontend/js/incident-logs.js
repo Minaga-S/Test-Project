@@ -141,6 +141,16 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function sanitizeClassToken(value, fallback = 'unknown') {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) {
+        return fallback;
+    }
+
+    const sanitized = normalized.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return sanitized || fallback;
+}
+
 function normalizeRecommendationText(rawText) {
     const collapsedText = String(rawText || '').replace(/\s+/g, ' ').trim();
     if (!collapsedText) {
@@ -382,7 +392,8 @@ function setupEventListeners() {
         deleteOverlay.addEventListener('click', closeDeleteModal);
     }
 
-    document.querySelectorAll('[data-incidents-pagination-action="prev"]').forEach((previousPageButton) => {
+    const previousPageButton = document.getElementById('incidents-prev-page');
+    if (previousPageButton) {
         previousPageButton.addEventListener('click', () => {
             if (incidentsCurrentPage <= 1) {
                 return;
@@ -391,9 +402,10 @@ function setupEventListeners() {
             incidentsCurrentPage -= 1;
             displayIncidentsPage();
         });
-    });
+    }
 
-    document.querySelectorAll('[data-incidents-pagination-action="next"]').forEach((nextPageButton) => {
+    const nextPageButton = document.getElementById('incidents-next-page');
+    if (nextPageButton) {
         nextPageButton.addEventListener('click', () => {
             const totalPages = getIncidentsTotalPages();
             if (incidentsCurrentPage >= totalPages) {
@@ -403,9 +415,10 @@ function setupEventListeners() {
             incidentsCurrentPage += 1;
             displayIncidentsPage();
         });
-    });
+    }
 
-    document.querySelectorAll('[data-incidents-pagination-role="list"]').forEach((pageList) => {
+    const pageList = document.getElementById('incidents-page-list');
+    if (pageList) {
         pageList.addEventListener('click', (event) => {
             const pageButton = event.target.closest('[data-incidents-page]');
             if (!pageButton) {
@@ -421,7 +434,7 @@ function setupEventListeners() {
             incidentsCurrentPage = requestedPage;
             displayIncidentsPage();
         });
-    });
+    }
 
     const detailClose = document.getElementById('detail-close');
     if (detailClose) {
@@ -461,36 +474,7 @@ function getIncidentsTotalPages() {
     return Math.max(1, Math.ceil(count / INCIDENTS_ROWS_PER_PAGE));
 }
 
-function getIncidentsPaginationControls() {
-    return Array.from(document.querySelectorAll('[data-incidents-pagination-container]')).map((container) => {
-        return {
-            previousPageButton: container.querySelector('[data-incidents-pagination-action="prev"]'),
-            nextPageButton: container.querySelector('[data-incidents-pagination-action="next"]'),
-            pageList: container.querySelector('[data-incidents-pagination-role="list"]'),
-            info: container.querySelector('[data-incidents-pagination-role="info"]'),
-        };
-    });
-}
-
 function buildPaginationModel(currentPage, totalPages) {
-    const isMobileViewport = window.matchMedia('(max-width: 640px)').matches;
-
-    if (isMobileViewport) {
-        if (totalPages <= 3) {
-            return Array.from({ length: totalPages }, (_, index) => index + 1);
-        }
-
-        if (currentPage <= 2) {
-            return [1, 2, 'ellipsis', totalPages];
-        }
-
-        if (currentPage >= totalPages - 1) {
-            return [1, 'ellipsis', totalPages - 1, totalPages];
-        }
-
-        return [1, 'ellipsis', currentPage, 'ellipsis', totalPages];
-    }
-
     if (totalPages <= 7) {
         return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
@@ -507,13 +491,40 @@ function buildPaginationModel(currentPage, totalPages) {
 }
 
 function renderIncidentsPagination() {
-    const paginationControls = getIncidentsPaginationControls();
+    const pageList = document.getElementById('incidents-page-list');
+    const info = document.getElementById('incidents-pagination-info');
+    const previousPageButton = document.getElementById('incidents-prev-page');
+    const nextPageButton = document.getElementById('incidents-next-page');
 
     const totalRecords = Array.isArray(filteredIncidents) ? filteredIncidents.length : 0;
     const totalPages = getIncidentsTotalPages();
 
+    if (info) {
+        info.classList.remove('table-pagination-info-skeleton');
+    }
+
+    if (info) {
+        if (totalRecords === 0) {
+            info.textContent = 'No records';
+        } else {
+            info.textContent = `Page ${incidentsCurrentPage} of ${totalPages} (${totalRecords} total)`;
+        }
+    }
+
+    if (previousPageButton) {
+        previousPageButton.disabled = incidentsCurrentPage <= 1;
+    }
+
+    if (nextPageButton) {
+        nextPageButton.disabled = incidentsCurrentPage >= totalPages || totalRecords === 0;
+    }
+
+    if (!pageList) {
+        return;
+    }
+
     const model = buildPaginationModel(incidentsCurrentPage, totalPages);
-    const pageMarkup = model.map((item) => {
+    pageList.innerHTML = model.map((item) => {
         if (item === 'ellipsis') {
             return '<span class="table-pagination-ellipsis">...</span>';
         }
@@ -521,54 +532,34 @@ function renderIncidentsPagination() {
         const activeClass = item === incidentsCurrentPage ? ' is-active' : '';
         return `<button type="button" class="btn btn-secondary btn-sm table-pagination-number${activeClass}" data-incidents-page="${item}" aria-label="Go to page ${item}" ${item === incidentsCurrentPage ? 'aria-current="page"' : ''}>${item}</button>`;
     }).join('');
-
-    paginationControls.forEach(({ info, previousPageButton, nextPageButton, pageList }) => {
-        if (info) {
-            info.classList.remove('table-pagination-info-skeleton');
-            info.textContent = totalRecords === 0
-                ? 'No records'
-                : `Page ${incidentsCurrentPage} of ${totalPages} (${totalRecords} total)`;
-        }
-
-        if (previousPageButton) {
-            previousPageButton.disabled = incidentsCurrentPage <= 1;
-        }
-
-        if (nextPageButton) {
-            nextPageButton.disabled = incidentsCurrentPage >= totalPages || totalRecords === 0;
-        }
-
-        if (pageList) {
-            pageList.innerHTML = pageMarkup;
-        }
-    });
 }
 
 function setIncidentsPaginationLoading() {
-    const paginationControls = getIncidentsPaginationControls();
+    const pageList = document.getElementById('incidents-page-list');
+    const info = document.getElementById('incidents-pagination-info');
+    const previousPageButton = document.getElementById('incidents-prev-page');
+    const nextPageButton = document.getElementById('incidents-next-page');
 
-    paginationControls.forEach(({ pageList, info, previousPageButton, nextPageButton }) => {
-        if (pageList) {
-            pageList.innerHTML = [
-                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
-                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
-                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
-            ].join('');
-        }
+    if (pageList) {
+        pageList.innerHTML = [
+            '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+            '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+            '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+        ].join('');
+    }
 
-        if (info) {
-            info.textContent = '\u00A0';
-            info.classList.add('table-pagination-info-skeleton');
-        }
+    if (info) {
+        info.textContent = '\u00A0';
+        info.classList.add('table-pagination-info-skeleton');
+    }
 
-        if (previousPageButton) {
-            previousPageButton.disabled = true;
-        }
+    if (previousPageButton) {
+        previousPageButton.disabled = true;
+    }
 
-        if (nextPageButton) {
-            nextPageButton.disabled = true;
-        }
-    });
+    if (nextPageButton) {
+        nextPageButton.disabled = true;
+    }
 }
 
 function displayIncidentsPage() {
@@ -596,19 +587,27 @@ function displayIncidents(incidentsToDisplay) {
         row.style.cursor = 'pointer';
         const isSelected = selectedIncidentIds.has(incident._id);
         const selectButtonLabel = isSelected ? 'Unselect' : 'Select';
+        const safeIncidentId = escapeHtml(incident.incidentId || 'N/A');
+        const safeAssetName = escapeHtml(incident.asset?.assetName || 'Unknown');
+        const safeThreatType = escapeHtml(incident.threatType || 'Unknown');
+        const safeRiskLevel = escapeHtml(incident.riskLevel || 'Low');
+        const safeStatus = escapeHtml(incident.status || 'Open');
+        const safeStatusClass = sanitizeClassToken(incident.status || 'Open', 'open');
+        const safeIncidentDbId = escapeHtml(incident._id || '');
+        const safeDate = escapeHtml(formatDate(incident.createdAt));
 
         row.innerHTML = `
-            <td data-label="Select"><button type="button" class="btn btn-sm incident-select-btn ${isSelected ? 'is-selected' : ''}" data-incident-id="${incident._id}" aria-label="Select ${incident.incidentId}" aria-pressed="${isSelected ? 'true' : 'false'}">${selectButtonLabel}</button></td>
-            <td data-label="Incident ID">${incident.incidentId}</td>
-            <td data-label="Asset">${incident.asset?.assetName || 'Unknown'}</td>
-            <td data-label="Threat Type">${incident.threatType}</td>
-            <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${incident.riskLevel}</span></td>
-            <td data-label="Status"><span class="status-badge status-${incident.status.toLowerCase()}">${incident.status}</span></td>
-            <td data-label="Date">${formatDate(incident.createdAt)}</td>
+            <td data-label="Select"><button type="button" class="btn btn-sm incident-select-btn ${isSelected ? 'is-selected' : ''}" data-incident-id="${safeIncidentDbId}" aria-label="Select ${safeIncidentId}" aria-pressed="${isSelected ? 'true' : 'false'}">${selectButtonLabel}</button></td>
+            <td data-label="Incident ID">${safeIncidentId}</td>
+            <td data-label="Asset">${safeAssetName}</td>
+            <td data-label="Threat Type">${safeThreatType}</td>
+            <td data-label="Risk Level"><span style="color: ${getRiskColor(incident.riskLevel)}; font-weight: 600;">${safeRiskLevel}</span></td>
+            <td data-label="Status"><span class="status-badge status-${safeStatusClass}">${safeStatus}</span></td>
+            <td data-label="Date">${safeDate}</td>
             <td data-label="Actions">
                 <div class="row-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="viewIncidentDetails('${incident._id}')">View</button>
-                    <button class="btn btn-sm btn-danger" onclick="openDeleteIncidentModal('${incident._id}')">Delete</button>
+                    <button class="btn btn-sm btn-secondary" onclick="viewIncidentDetails('${safeIncidentDbId}')">View</button>
+                    <button class="btn btn-sm btn-danger" onclick="openDeleteIncidentModal('${safeIncidentDbId}')">Delete</button>
                 </div>
             </td>
         `;
@@ -808,12 +807,12 @@ function displayIncidentDetails(incident) {
 
     const nistFunctions = document.getElementById('detail-nist-functions');
     nistFunctions.innerHTML = (incident.nistFunctions || [])
-        .map((f) => `<span class="nist-tag">${f}</span>`)
+        .map((f) => `<span class="nist-tag">${escapeHtml(f)}</span>`)
         .join('');
 
     const nistControls = document.getElementById('detail-nist-controls');
     nistControls.innerHTML = (incident.nistControls || [])
-        .map((c) => `<span class="nist-tag">${c}</span>`)
+        .map((c) => `<span class="nist-tag">${escapeHtml(c)}</span>`)
         .join('');
 
     const recommendationsEl = document.getElementById('detail-recommendations');
