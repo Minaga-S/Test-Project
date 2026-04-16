@@ -56,6 +56,19 @@
     margin-top: 0;
 }
 
+#signup-form fieldset.form-group {
+    border: 0;
+    padding: 0;
+    margin: 0 0 0.5rem;
+}
+
+#signup-form fieldset.form-group legend {
+    padding: 0;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+    color: var(--secondary-color);
+}
+
 /* Custom Checkbox Styling */
 .form-group.checkbox {
     flex-direction: row;
