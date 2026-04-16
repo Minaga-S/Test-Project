@@ -380,7 +380,17 @@ function normalizeIconography() {
         }
 
         const label = text.replace(firstToken, '').trim();
-        element.innerHTML = `<span class="material-symbols-rounded" aria-hidden="true">${mappedIcon}</span> ${label}`;
+        element.textContent = '';
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'material-symbols-rounded';
+        iconSpan.setAttribute('aria-hidden', 'true');
+        iconSpan.textContent = mappedIcon;
+
+        element.appendChild(iconSpan);
+        if (label) {
+            element.appendChild(document.createTextNode(` ${label}`));
+        }
     });
 }
 

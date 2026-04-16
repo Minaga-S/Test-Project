@@ -227,10 +227,20 @@ function setupSecurityQuestionSelects() {
         }
 
         const currentValue = select.value;
-        select.innerHTML = [
-            '<option value="">Select a question</option>',
-            ...questionOptions.map((question) => `<option value="${question}">${question}</option>`),
-        ].join('');
+        select.textContent = '';
+
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select a question';
+        select.appendChild(defaultOption);
+
+        questionOptions.forEach((question) => {
+            const option = document.createElement('option');
+            option.value = question;
+            option.textContent = question;
+            select.appendChild(option);
+        });
+
         select.value = questionOptions.includes(currentValue) ? currentValue : '';
     });
 
@@ -278,10 +288,19 @@ function populateDepartmentSelect(selectId) {
     const departments = Array.isArray(window.APP_DEPARTMENTS) ? window.APP_DEPARTMENTS : [];
     const currentValue = select.value;
 
-    select.innerHTML = [
-        '<option value="">Select department</option>',
-        ...departments.map((department) => `<option value="${department}">${department}</option>`),
-    ].join('');
+    select.textContent = '';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select department';
+    select.appendChild(defaultOption);
+
+    departments.forEach((department) => {
+        const option = document.createElement('option');
+        option.value = department;
+        option.textContent = department;
+        select.appendChild(option);
+    });
 
     select.value = departments.includes(currentValue) ? currentValue : '';
 }
