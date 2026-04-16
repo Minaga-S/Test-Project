@@ -30,6 +30,21 @@ async function initializeIncidentLogs() {
     await openIncidentFromNavigationHint();
 }
 
+function getIncidentPaginationControls() {
+    return Array.from(document.querySelectorAll('[data-incidents-pagination-container]')).map((container) => ({
+        previousButton: container.querySelector('[data-incidents-pagination-action="prev"]'),
+        nextButton: container.querySelector('[data-incidents-pagination-action="next"]'),
+        pageList: container.querySelector('[data-incidents-pagination-role="list"]'),
+        info: container.querySelector('[data-incidents-pagination-role="info"]'),
+    }));
+}
+
+function goToIncidentPage(pageNumber) {
+    const totalPages = getIncidentsTotalPages();
+    incidentsCurrentPage = Math.min(Math.max(pageNumber, 1), totalPages);
+    displayIncidentsPage();
+}
+
 async function openIncidentFromNavigationHint() {
     const query = new URLSearchParams(window.location.search);
     const queryTarget = {
@@ -396,49 +411,45 @@ function setupEventListeners() {
         deleteOverlay.addEventListener('click', closeDeleteModal);
     }
 
-    const previousPageButton = document.getElementById('incidents-prev-page');
-    if (previousPageButton) {
-        previousPageButton.addEventListener('click', () => {
-            if (incidentsCurrentPage <= 1) {
-                return;
-            }
+    getIncidentPaginationControls().forEach(({ previousButton, nextButton, pageList }) => {
+        if (previousButton) {
+            previousButton.addEventListener('click', () => {
+                if (incidentsCurrentPage <= 1) {
+                    return;
+                }
 
-            incidentsCurrentPage -= 1;
-            displayIncidentsPage();
-        });
-    }
+                goToIncidentPage(incidentsCurrentPage - 1);
+            });
+        }
 
-    const nextPageButton = document.getElementById('incidents-next-page');
-    if (nextPageButton) {
-        nextPageButton.addEventListener('click', () => {
-            const totalPages = getIncidentsTotalPages();
-            if (incidentsCurrentPage >= totalPages) {
-                return;
-            }
+        if (nextButton) {
+            nextButton.addEventListener('click', () => {
+                const totalPages = getIncidentsTotalPages();
+                if (incidentsCurrentPage >= totalPages) {
+                    return;
+                }
 
-            incidentsCurrentPage += 1;
-            displayIncidentsPage();
-        });
-    }
+                goToIncidentPage(incidentsCurrentPage + 1);
+            });
+        }
 
-    const pageList = document.getElementById('incidents-page-list');
-    if (pageList) {
-        pageList.addEventListener('click', (event) => {
-            const pageButton = event.target.closest('[data-incidents-page]');
-            if (!pageButton) {
-                return;
-            }
+        if (pageList) {
+            pageList.addEventListener('click', (event) => {
+                const pageButton = event.target.closest('[data-incidents-page]');
+                if (!pageButton) {
+                    return;
+                }
 
-            const requestedPage = Number.parseInt(pageButton.dataset.incidentsPage, 10);
-            const totalPages = getIncidentsTotalPages();
-            if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > totalPages) {
-                return;
-            }
+                const requestedPage = Number.parseInt(pageButton.dataset.incidentsPage, 10);
+                const totalPages = getIncidentsTotalPages();
+                if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > totalPages) {
+                    return;
+                }
 
-            incidentsCurrentPage = requestedPage;
-            displayIncidentsPage();
-        });
-    }
+                goToIncidentPage(requestedPage);
+            });
+        }
+    });
 
     const detailClose = document.getElementById('detail-close');
     if (detailClose) {
@@ -495,40 +506,9 @@ function buildPaginationModel(currentPage, totalPages) {
 }
 
 function renderIncidentsPagination() {
-    const pageList = document.getElementById('incidents-page-list');
-    const info = document.getElementById('incidents-pagination-info');
-    const previousPageButton = document.getElementById('incidents-prev-page');
-    const nextPageButton = document.getElementById('incidents-next-page');
-
     const totalRecords = Array.isArray(filteredIncidents) ? filteredIncidents.length : 0;
     const totalPages = getIncidentsTotalPages();
-
-    if (info) {
-        info.classList.remove('table-pagination-info-skeleton');
-    }
-
-    if (info) {
-        if (totalRecords === 0) {
-            info.textContent = 'No records';
-        } else {
-            info.textContent = `Page ${incidentsCurrentPage} of ${totalPages} (${totalRecords} total)`;
-        }
-    }
-
-    if (previousPageButton) {
-        previousPageButton.disabled = incidentsCurrentPage <= 1;
-    }
-
-    if (nextPageButton) {
-        nextPageButton.disabled = incidentsCurrentPage >= totalPages || totalRecords === 0;
-    }
-
-    if (!pageList) {
-        return;
-    }
-
-    const model = buildPaginationModel(incidentsCurrentPage, totalPages);
-    pageList.innerHTML = model.map((item) => {
+    const pageMarkup = buildPaginationModel(incidentsCurrentPage, totalPages).map((item) => {
         if (item === 'ellipsis') {
             return '<span class="table-pagination-ellipsis">...</span>';
         }
@@ -536,34 +516,54 @@ function renderIncidentsPagination() {
         const activeClass = item === incidentsCurrentPage ? ' is-active' : '';
         return `<button type="button" class="btn btn-secondary btn-sm table-pagination-number${activeClass}" data-incidents-page="${item}" aria-label="Go to page ${item}" ${item === incidentsCurrentPage ? 'aria-current="page"' : ''}>${item}</button>`;
     }).join('');
+
+    getIncidentPaginationControls().forEach(({ info, previousButton, nextButton, pageList }) => {
+        if (info) {
+            info.classList.remove('table-pagination-info-skeleton');
+            if (totalRecords === 0) {
+                info.textContent = 'No records';
+            } else {
+                info.textContent = `Page ${incidentsCurrentPage} of ${totalPages} (${totalRecords} total)`;
+            }
+        }
+
+        if (previousButton) {
+            previousButton.disabled = incidentsCurrentPage <= 1;
+        }
+
+        if (nextButton) {
+            nextButton.disabled = incidentsCurrentPage >= totalPages || totalRecords === 0;
+        }
+
+        if (pageList) {
+            pageList.innerHTML = pageMarkup;
+        }
+    });
 }
 
 function setIncidentsPaginationLoading() {
-    const pageList = document.getElementById('incidents-page-list');
-    const info = document.getElementById('incidents-pagination-info');
-    const previousPageButton = document.getElementById('incidents-prev-page');
-    const nextPageButton = document.getElementById('incidents-next-page');
+    getIncidentPaginationControls().forEach(({ info, previousButton, nextButton, pageList }) => {
+        if (pageList) {
+            pageList.innerHTML = [
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+                '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
+            ].join('');
+        }
 
-    if (pageList) {
-        pageList.innerHTML = [
-            '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
-            '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
-            '<span class="table-pagination-number table-pagination-number-skeleton"></span>',
-        ].join('');
-    }
+        if (info) {
+            info.textContent = '\u00A0';
+            info.classList.add('table-pagination-info-skeleton');
+        }
 
-    if (info) {
-        info.textContent = '\u00A0';
-        info.classList.add('table-pagination-info-skeleton');
-    }
+        if (previousButton) {
+            previousButton.disabled = true;
+        }
 
-    if (previousPageButton) {
-        previousPageButton.disabled = true;
-    }
-
-    if (nextPageButton) {
-        nextPageButton.disabled = true;
-    }
+        if (nextButton) {
+            nextButton.disabled = true;
+        }
+    });
 }
 
 function displayIncidentsPage() {
