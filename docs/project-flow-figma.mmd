@@ -1,0 +1,120 @@
+flowchart LR
+  %% Business-readable architecture map for Figma Mermaid plugin
+
+  U[Business User / Analyst]
+
+  subgraph FE[Frontend Experience]
+    FEH[HTML Pages\nindex.html\ndashboard.html\nreport-incident.html\nincident-logs.html\nassets.html\nrisk-analysis.html\nsettings.html\nfaq.html\ncontact-support.html\nuser-guide.html]
+    FES[Page Scripts\nauth.js\ndashboard.js\nincident-report.js\nincident-logs.js\nassets.js\nrisk-analysis.js\nsettings.js]
+    FEC[Shared Client\napi-client.js\nutils.js]
+    FESS[Styling\nstyle.css\nforms.css\ndashboard.css\nresponsive.css\nMaterialSymbolsRounded.woff2]
+  end
+
+  subgraph BE[Backend API Engine]
+    BES[server.js]
+
+    subgraph BEM[Middleware]
+      BEM1[auth.js]
+      BEM2[rateLimiter.js]
+      BEM3[validateRequest.js]
+      BEM4[errorHandler.js]
+    end
+
+    subgraph BER[Routes]
+      BER1[auth.js]
+      BER2[assets.js]
+      BER3[incidents.js]
+      BER4[threats.js]
+      BER5[risk.js]
+      BER6[nist.js]
+      BER7[dashboard.js]
+    end
+
+    subgraph BEC[Controllers]
+      BEC1[authController.js]
+      BEC2[assetController.js]
+      BEC3[incidentController.js]
+      BEC4[threatController.js]
+      BEC5[riskController.js]
+      BEC6[nistController.js]
+      BEC7[dashboardController.js]
+    end
+
+    subgraph BESV[Services]
+      BESV1[aiService.js]
+      BESV2[threatClassificationService.js]
+      BESV3[riskCalculationService.js]
+      BESV4[recommendationService.js]
+      BESV5[nistMappingService.js]
+      BESV6[auditLogService.js]
+    end
+
+    subgraph BED[Data Models]
+      BED1[User.js]
+      BED2[Asset.js]
+      BED3[Incident.js]
+      BED4[Threat.js]
+      BED5[RiskAssessment.js]
+      BED6[ThreatKnowledgeBase.js]
+      BED7[AuditLog.js]
+    end
+
+    subgraph BEU[Backend Utilities]
+      BEU1[config/database.js]
+      BEU2[config/ai-config.js]
+      BEU3[utils/constants.js]
+      BEU4[utils/logger.js]
+      BEU5[utils/validators.js]
+      BEU6[scripts/seedDatabase.js]
+    end
+  end
+
+  subgraph DB[Storage and External]
+    DB1[(MongoDB)]
+    DB2[AI Provider]
+  end
+
+  subgraph OPS[Delivery and Governance]
+    OPS1[.github/workflows/deploy-frontend.yml]
+    OPS2[README.md]
+    OPS3[DAILY_SUMMARY_2026-03-19.md]
+    OPS4[DAILY_SUMMARY_2026-03-27.md]
+    OPS5[backend/package.json + package-lock.json]
+    OPS6[root package-lock.json + .gitignore]
+  end
+
+  U --> FEH
+  FEH --> FES
+  FEH --> FEC
+  FES --> FEC
+  FEC --> BES
+
+  BES --> BEM
+  BEM --> BER
+  BER --> BEC
+  BEC --> BESV
+  BESV --> BED
+  BED --> DB1
+
+  BESV1 --> DB2
+
+  BEU1 --> DB1
+  BEU2 --> BESV1
+  BEU4 --> OPS
+
+  FEH -. visual style .-> FESS
+
+  OPS1 --> FEH
+  OPS2 -. onboarding .-> U
+
+  classDef user fill:#fff3cd,stroke:#8a6d3b,color:#5a4500,stroke-width:2px;
+  classDef front fill:#e8f4ff,stroke:#1f6fb2,color:#0f3f66;
+  classDef back fill:#eaf8ea,stroke:#2c7a2c,color:#1f4f1f;
+  classDef data fill:#f5ecff,stroke:#6f42c1,color:#3f2166;
+  classDef ops fill:#fff5e6,stroke:#b06b00,color:#6a3f00;
+
+  class U user;
+  class FEH,FES,FEC,FESS front;
+  class BES,BEM1,BEM2,BEM3,BEM4,BER1,BER2,BER3,BER4,BER5,BER6,BER7,BEC1,BEC2,BEC3,BEC4,BEC5,BEC6,BEC7,BESV1,BESV2,BESV3,BESV4,BESV5,BESV6,BED1,BED2,BED3,BED4,BED5,BED6,BED7,BEU1,BEU2,BEU3,BEU4,BEU5,BEU6 back;
+  class DB1,DB2 data;
+  class OPS1,OPS2,OPS3,OPS4,OPS5,OPS6 ops;
