@@ -24,6 +24,7 @@ This documentation set follows a Diataxis-style structure and the principles fro
 ### Manuals / Reference (authoritative details)
 - [API Reference](manuals/api-reference.md)
 - [Data Model and Configuration Reference](manuals/data-model-reference.md)
+- [Calculation and Visualization Reference](manuals/calculation-and-visualization-reference.md)
 - [Technical Documentation (Professional Edition)](Hotel-Cybersecurity-Technical-Documentation-Professional.md)
 
 ## Current Implementation Notes
@@ -31,21 +32,3 @@ This documentation set follows a Diataxis-style structure and the principles fro
 - The backend API includes local scanner bridge routes under `/api/local-scanner`.
 - Authentication includes refresh tokens, 2FA flows, and security-question recovery support.
 - Audit log read endpoints are available under `/api/audit-logs` for privileged users.
-
-## Suggested Reading Paths
-
-### New developer
-1. [System Overview](overview/system-overview.md)
-2. [Local Development Setup](tutorials/local-development.md)
-3. [Architecture and Request Flow](guides/architecture-and-request-flow.md)
-4. [API Reference](manuals/api-reference.md)
-
-### QA / tester
-1. [Local Development Setup](tutorials/local-development.md)
-2. [Report Your First Incident End-to-End](tutorials/report-first-incident.md)
-3. [API Reference](manuals/api-reference.md)
-
-### Maintainer / operator
-1. [System Overview](overview/system-overview.md)
-2. [Security and Operations Gotchas](guides/security-and-operations-gotchas.md)
-3. [Data Model and Configuration Reference](manuals/data-model-reference.md)
