@@ -135,6 +135,7 @@ function setupGuideTabs(elements) {
         }
 
         const orderedTabs = checklistIsComplete
+            // Move checklist to the end when complete so action-oriented tabs remain first.
             ? tabOrder.filter((tabId) => tabId !== 'guide-tab-checklist').concat('guide-tab-checklist')
             : tabOrder;
 
@@ -286,6 +287,8 @@ async function detectGuideTaskCompletion() {
     const detectedState = readAutoDetectedState();
     const currentPath = String(window.location.pathname.split('/').pop() || '').toLowerCase();
 
+    // Auto-detection reduces manual checklist maintenance while still allowing users
+    // to explicitly toggle checklist items when needed.
     // Visiting dashboard page is treated as first completion for dashboard review.
     if (currentPath === 'dashboard.html') {
         detectedState['dashboard-review'] = true;

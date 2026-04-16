@@ -65,6 +65,8 @@ function startDashboardBadgeRotation() {
     }
 
     dashboardBadgeTimer = window.setInterval(() => {
+        // Rotate status focus between scanner state and 2FA posture to keep both
+        // security signals visible without adding extra UI clutter.
         shouldShowTwoFactorStatus = !shouldShowTwoFactorStatus;
         updateBadgeDisplay();
     }, DASHBOARD_BADGE_ROTATION_MS);
@@ -79,6 +81,8 @@ function startDashboardBadgeRotation() {
 
 async function displayUserInfo() {
     try {
+        // Prefer cached user payload for instant header paint, then rely on normal
+        // profile refresh flows in other views to keep data synchronized.
         const profileResponse = getLocalStorage('user') || await apiClient.getProfile();
         const user = profileResponse?.user || profileResponse;
 

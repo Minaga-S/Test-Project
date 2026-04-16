@@ -67,6 +67,8 @@ function readStoredIncidentOpenTarget() {
         }
 
         const parsed = JSON.parse(stored);
+        // Expire hints quickly so stale links do not keep opening unrelated incidents
+        // long after the user navigation context changed.
         const isStale = Number(parsed?.createdAt || 0) < (Date.now() - 10 * 60 * 1000);
         if (isStale) {
             clearStoredIncidentOpenTarget();
@@ -107,6 +109,8 @@ async function openIncidentFromQuery(params = {}) {
 
     if (normalizedPublicId) {
         try {
+            // Public incident IDs are user-facing and searchable, so resolve through
+            // API search if the current page payload does not already contain the target.
             const searchResponse = await apiClient.searchIncidents(normalizedPublicId);
             const matchedIncidents = Array.isArray(searchResponse?.incidents)
                 ? searchResponse.incidents

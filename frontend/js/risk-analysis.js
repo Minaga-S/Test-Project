@@ -129,6 +129,8 @@ async function ensureChartJsLoaded() {
     }
 
     if (!chartJsLoadPromise) {
+        // Shared promise guarantees only one script injection even when multiple
+        // widgets request charts concurrently.
         chartJsLoadPromise = new Promise((resolve, reject) => {
             const existingScript = document.querySelector(`script[src="${CHART_JS_URL}"]`);
             if (existingScript) {
@@ -155,6 +157,8 @@ async function ensureJsPdfLoaded() {
     }
 
     if (!jsPdfLoadPromise) {
+        // Mirror chart loader behavior so export actions cannot race and append
+        // duplicate jsPDF script tags.
         jsPdfLoadPromise = new Promise((resolve, reject) => {
             const existingScript = document.querySelector(`script[src="${JSPDF_URL}"]`);
             if (existingScript) {
