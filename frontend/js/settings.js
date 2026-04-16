@@ -694,6 +694,13 @@ async function handleTwoFactorEnableFromSettings(e) {
 
         isTwoFactorEnabled = true;
         isTwoFactorSetupInProgress = false;
+
+        if (enableResponse?.forceReauth) {
+            apiClient.clearAuth();
+            renderTwoFactorStatus();
+            return;
+        }
+
         await refreshUserProfile();
         renderTwoFactorStatus();
     } catch (error) {
@@ -798,14 +805,22 @@ async function handleTwoFactorDisableFromSettings(e) {
     showLoading(true);
 
     try {
-        await apiClient.post('/auth/2fa/disable', { code });
+        const response = await apiClient.post('/auth/2fa/disable', { code });
         isTwoFactorEnabled = false;
         isTwoFactorSetupInProgress = false;
         shouldShowTwoFactorRecoveryCodes = false;
         document.getElementById('two-factor-disable-form').reset();
+        showNotification('2FA disabled successfully.', 'success');
+
+        if (response?.forceReauth) {
+            apiClient.clearAuth();
+            renderTwoFactorStatus();
+            window.location.href = 'login.html';
+            return;
+        }
+
         await refreshUserProfile();
         renderTwoFactorStatus();
-        showNotification('2FA disabled successfully.', 'success');
     } catch (error) {
         setTwoFactorFieldError('settings-two-factor-disable-code', 'settings-two-factor-disable-error', error.message || 'Could not disable 2FA.');
     } finally {
@@ -873,13 +888,19 @@ async function handlePasswordChange(e) {
     showLoading(true);
 
     try {
-        await apiClient.changePassword(currentPassword, newPassword);
+        const response = await apiClient.changePassword(currentPassword, newPassword);
 
         showNotification('Password changed successfully', 'success');
         document.getElementById('password-form').reset();
         document.getElementById('password-success').textContent = '';
         document.getElementById('password-error').textContent = '';
         renderPasswordGuidance('');
+
+        if (response?.forceReauth) {
+            await apiClient.logout();
+            window.location.href = 'login.html';
+            return;
+        }
     } catch (error) {
         console.error('Error changing password:', error);
         document.getElementById('password-error').textContent = error.message || 'Error changing password';

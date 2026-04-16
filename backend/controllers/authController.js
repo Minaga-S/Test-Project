@@ -13,6 +13,10 @@ const totpService = require('../services/totpService');
 
 const TWO_FACTOR_CHALLENGE_EXPIRATION = '5m';
 const DEFAULT_TOTP_APP_NAME = 'HCGS';
+const DEFAULT_ACCESS_TOKEN_EXPIRATION = '15m';
+const DEFAULT_REFRESH_TOKEN_EXPIRATION = '7d';
+const MAX_LOGIN_FAILED_ATTEMPTS = 5;
+const LOGIN_LOCK_MINUTES = 15;
 const PASSWORD_RESET_LOCK_MINUTES = 10;
 const MAX_PASSWORD_RESET_FAILED_ATTEMPTS = 5;
 const RECOVERY_CODE_COUNT = 8;
@@ -21,26 +25,103 @@ const SECURITY_QUESTION_COUNT = 3;
 class AuthController {
     createAccessToken(user) {
         return jwt.sign(
-            { userId: user._id, email: user.email, role: user.role, permissions: user.permissions || [] },
+            {
+                userId: user._id,
+                email: user.email,
+                role: user.role,
+                permissions: user.permissions || [],
+                sessionVersion: this.getSessionVersion(user),
+            },
             process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRATION || '24h' }
+            { expiresIn: DEFAULT_ACCESS_TOKEN_EXPIRATION }
         );
     }
 
     createRefreshToken(user) {
         return jwt.sign(
-            { userId: user._id },
+            {
+                userId: user._id,
+                sessionVersion: this.getSessionVersion(user),
+                refreshTokenVersion: this.getRefreshTokenVersion(user),
+            },
             process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_REFRESH_EXPIRATION || '7d' }
+            { expiresIn: process.env.JWT_REFRESH_EXPIRATION || DEFAULT_REFRESH_TOKEN_EXPIRATION }
         );
     }
 
     createTwoFactorChallengeToken(user) {
         return jwt.sign(
-            { userId: user._id, type: '2fa_login' },
+            { userId: user._id, type: '2fa_login', sessionVersion: this.getSessionVersion(user) },
             process.env.JWT_SECRET,
             { expiresIn: TWO_FACTOR_CHALLENGE_EXPIRATION }
         );
+    }
+
+    getSessionVersion(user) {
+        return Number(user?.sessionVersion || 0);
+    }
+
+    getRefreshTokenVersion(user) {
+        return Number(user?.refreshTokenVersion || 0);
+    }
+
+    normalizeRequestIp(requestIp) {
+        return String(requestIp || '').trim();
+    }
+
+    bumpAuthenticationVersions(user) {
+        user.sessionVersion = this.getSessionVersion(user) + 1;
+        user.refreshTokenVersion = this.getRefreshTokenVersion(user) + 1;
+    }
+
+    isLoginLocked(user) {
+        return Boolean(user.loginLockUntil && user.loginLockUntil.getTime() > Date.now());
+    }
+
+    async clearLoginFailures(user) {
+        user.loginFailedAttempts = 0;
+        user.loginLockUntil = null;
+        user.updatedAt = new Date();
+        await user.save();
+    }
+
+    async registerLoginFailure(user, requestIp) {
+        user.loginFailedAttempts = (user.loginFailedAttempts || 0) + 1;
+        user.lastFailedLoginAt = new Date();
+        user.lastFailedLoginIp = this.normalizeRequestIp(requestIp);
+        let isLocked = false;
+
+        if (user.loginFailedAttempts >= MAX_LOGIN_FAILED_ATTEMPTS) {
+            user.loginLockUntil = new Date(Date.now() + (LOGIN_LOCK_MINUTES * 60 * 1000));
+            user.loginFailedAttempts = 0;
+            isLocked = true;
+        }
+
+        user.updatedAt = new Date();
+        await user.save();
+        return isLocked;
+    }
+
+    async recordLoginAnomaly(user, requestIp) {
+        const currentIp = this.normalizeRequestIp(requestIp);
+        const previousIp = this.normalizeRequestIp(user.lastLoginIp);
+
+        if (previousIp && currentIp && previousIp !== currentIp) {
+            await auditLogService.record({
+                actorUserId: user._id,
+                action: 'USER_LOGIN_ANOMALY',
+                entityType: 'User',
+                entityId: String(user._id),
+                before: { lastLoginIp: previousIp, lastLoginAt: user.lastLoginAt || null },
+                after: { currentLoginIp: currentIp },
+                ipAddress: currentIp,
+            });
+        }
+
+        user.lastLoginAt = new Date();
+        user.lastLoginIp = currentIp || previousIp || '';
+        user.updatedAt = new Date();
+        await user.save();
     }
 
     getTwoFactorAppName() {
@@ -301,11 +382,21 @@ class AuthController {
                 });
             }
 
+            if (this.isLoginLocked(user)) {
+                return res.status(423).json({
+                    success: false,
+                    message: 'Account is temporarily locked due to repeated failed login attempts. Please try again later.',
+                });
+            }
+
             const isPasswordValid = await user.comparePassword(password);
             if (!isPasswordValid) {
-                return res.status(401).json({
+                const isLocked = await this.registerLoginFailure(user, req.ip || '');
+                return res.status(isLocked ? 423 : 401).json({
                     success: false,
-                    message: 'Invalid credentials',
+                    message: isLocked
+                        ? 'Account is temporarily locked due to repeated failed login attempts. Please try again later.'
+                        : 'Invalid credentials',
                 });
             }
 
@@ -327,6 +418,9 @@ class AuthController {
             }
 
             const shouldPromptToEnableTwoFactor = !user.twoFactorEnabled && Boolean(user.hasLoggedInOnce);
+
+            await this.clearLoginFailures(user);
+            await this.recordLoginAnomaly(user, req.ip || '');
 
             if (!user.hasLoggedInOnce) {
                 user.hasLoggedInOnce = true;
@@ -479,6 +573,7 @@ class AuthController {
 
             await this.clearPasswordResetFailures(user);
             user.password = newPassword;
+            this.bumpAuthenticationVersions(user);
             user.passwordChangedAt = new Date();
             user.updatedAt = new Date();
 
@@ -500,6 +595,7 @@ class AuthController {
             return res.json({
                 success: true,
                 message: 'Password reset successful. Please log in again.',
+                forceReauth: true,
             });
         } catch (error) {
             logger.error(`Reset password error: ${error.message}`);
@@ -536,6 +632,13 @@ class AuthController {
                 });
             }
 
+            if (Number(decoded.sessionVersion || 0) !== this.getSessionVersion(user)) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid login attempt',
+                });
+            }
+
             if (!user.twoFactorEnabled || !user.twoFactorSecret) {
                 return res.status(400).json({
                     success: false,
@@ -550,6 +653,9 @@ class AuthController {
                     message: 'Invalid 2FA code',
                 });
             }
+
+            await this.clearLoginFailures(user);
+            await this.recordLoginAnomaly(user, req.ip || '');
 
             if (!user.hasLoggedInOnce) {
                 user.hasLoggedInOnce = true;
@@ -658,6 +764,7 @@ class AuthController {
             user.twoFactorTempSecret = '';
             user.twoFactorEnabled = true;
             user.recoveryCodeHashes = recoveryCodeHashes;
+            this.bumpAuthenticationVersions(user);
             user.updatedAt = new Date();
             await user.save();
 
@@ -673,6 +780,7 @@ class AuthController {
                 success: true,
                 message: 'Two-factor authentication enabled successfully',
                 recoveryCodes,
+                forceReauth: true,
             });
         } catch (error) {
             logger.error(`Enable 2FA error: ${error.message}`);
@@ -711,6 +819,7 @@ class AuthController {
             user.twoFactorSecret = '';
             user.twoFactorTempSecret = '';
             user.recoveryCodeHashes = [];
+            this.bumpAuthenticationVersions(user);
             user.updatedAt = new Date();
             await user.save();
 
@@ -725,6 +834,7 @@ class AuthController {
             return res.json({
                 success: true,
                 message: 'Two-factor authentication disabled successfully',
+                forceReauth: true,
             });
         } catch (error) {
             logger.error(`Disable 2FA error: ${error.message}`);
@@ -755,6 +865,18 @@ class AuthController {
                     message: 'Invalid refresh token',
                 });
             }
+
+            if (Number(decoded.sessionVersion || 0) !== this.getSessionVersion(user)
+                || Number(decoded.refreshTokenVersion || 0) !== this.getRefreshTokenVersion(user)) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid refresh token',
+                });
+            }
+
+            user.refreshTokenVersion = this.getRefreshTokenVersion(user) + 1;
+            user.updatedAt = new Date();
+            await user.save();
 
             const nextAccessToken = this.createAccessToken(user);
             const nextRefreshToken = this.createRefreshToken(user);
@@ -876,6 +998,7 @@ class AuthController {
             }
 
             user.password = newPassword;
+            this.bumpAuthenticationVersions(user);
             user.passwordChangedAt = new Date();
             user.updatedAt = new Date();
             await user.save();
@@ -893,6 +1016,7 @@ class AuthController {
             return res.json({
                 success: true,
                 message: 'Password changed successfully',
+                forceReauth: true,
             });
         } catch (error) {
             logger.error(`Change password error: ${error.message}`);

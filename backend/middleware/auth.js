@@ -25,7 +25,7 @@ async function authMiddleware(req, res, next) {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.userId).select('isActive passwordChangedAt permissions role');
+        const user = await User.findById(decoded.userId).select('isActive passwordChangedAt permissions role sessionVersion');
 
         if (!user || !user.isActive) {
             return res.status(401).json({
@@ -38,6 +38,15 @@ async function authMiddleware(req, res, next) {
             return res.status(401).json({
                 success: false,
                 message: 'Session expired after password change. Please log in again.',
+            });
+        }
+
+        const tokenSessionVersion = Number(decoded.sessionVersion || 0);
+        const currentSessionVersion = Number(user.sessionVersion || 0);
+        if (tokenSessionVersion !== currentSessionVersion) {
+            return res.status(401).json({
+                success: false,
+                message: 'Session expired after a security change. Please log in again.',
             });
         }
 

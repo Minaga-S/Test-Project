@@ -80,7 +80,7 @@ const securityQuestionsValidation = [
 
 const changePasswordValidation = [
     body('currentPassword').notEmpty().withMessage('Current password is required'),
-    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+    body('newPassword').matches(STRONG_PASSWORD_PATTERN).withMessage('New password must be at least 12 characters and include uppercase, lowercase, number, and symbol'),
     validateRequest,
 ];
 

@@ -101,6 +101,33 @@ describe('authController password reset flows', () => {
         }));
     });
 
+    it('should bump the session version when a password reset succeeds', async () => {
+        const user = createUser({ twoFactorEnabled: false, twoFactorSecret: '' });
+        mockUserModel.findOne.mockResolvedValue(user);
+
+        const request = {
+            ip: '127.0.0.1',
+            body: {
+                email: 'user@example.com',
+                newPassword: 'StrongPassword123!',
+                securityAnswers: [
+                    { question: 'What city were you born in?', answer: 'Colombo' },
+                    { question: 'What was your childhood nickname?', answer: 'Jay' },
+                    { question: 'What is your favorite movie?', answer: 'Inception' },
+                ],
+            },
+        };
+
+        const response = {
+            json: jest.fn(),
+            status: jest.fn().mockReturnThis(),
+        };
+
+        await authController.resetPassword(request, response, jest.fn());
+
+        expect(user.sessionVersion).toBe(1);
+    });
+
     it('should reject password reset with weak password', async () => {
         const request = {
             body: {

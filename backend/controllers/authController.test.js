@@ -85,3 +85,74 @@ describe('authController.register', () => {
         });
     });
 });
+
+describe('authController.login security controls', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should lock the account when failed login attempts reach the threshold', async () => {
+        const user = {
+            _id: 'user-id',
+            email: 'locked@example.com',
+            isActive: true,
+            loginFailedAttempts: 4,
+            comparePassword: jest.fn().mockResolvedValue(false),
+            save: jest.fn().mockResolvedValue(undefined),
+        };
+
+        mockUser.findOne.mockResolvedValue(user);
+
+        const request = {
+            body: {
+                email: 'locked@example.com',
+                password: 'WrongPassword123!',
+            },
+            ip: '127.0.0.1',
+        };
+
+        const response = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+
+        await authController.login(request, response, jest.fn());
+
+        expect(response.status).toHaveBeenCalledWith(423);
+    });
+
+    it('should rotate the refresh token version when refreshing a session', async () => {
+        const user = {
+            _id: 'user-id',
+            email: 'rotate@example.com',
+            role: 'User',
+            permissions: [],
+            isActive: true,
+            sessionVersion: 2,
+            refreshTokenVersion: 3,
+            save: jest.fn().mockResolvedValue(undefined),
+        };
+
+        mockUser.findById.mockResolvedValue(user);
+        require('jsonwebtoken').verify.mockReturnValue({
+            userId: 'user-id',
+            sessionVersion: 2,
+            refreshTokenVersion: 3,
+        });
+
+        const request = {
+            body: {
+                refreshToken: 'refresh-token',
+            },
+        };
+
+        const response = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+
+        await authController.refreshToken(request, response, jest.fn());
+
+        expect(user.refreshTokenVersion).toBe(4);
+    });
+});

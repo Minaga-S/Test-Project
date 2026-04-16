@@ -78,9 +78,43 @@ const UserSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    sessionVersion: {
+        type: Number,
+        default: 0,
+    },
+    refreshTokenVersion: {
+        type: Number,
+        default: 0,
+    },
     securityQuestions: {
         type: [SecurityQuestionSchema],
         default: [],
+    },
+    loginFailedAttempts: {
+        type: Number,
+        default: 0,
+    },
+    loginLockUntil: {
+        type: Date,
+        default: null,
+    },
+    lastLoginAt: {
+        type: Date,
+        default: null,
+    },
+    lastLoginIp: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    lastFailedLoginAt: {
+        type: Date,
+        default: null,
+    },
+    lastFailedLoginIp: {
+        type: String,
+        default: '',
+        trim: true,
     },
     passwordResetFailedAttempts: {
         type: Number,
@@ -144,6 +178,16 @@ UserSchema.methods.toJSON = function() {
     delete user.twoFactorSecret;
     delete user.twoFactorTempSecret;
     delete user.recoveryCodeHashes;
+    delete user.sessionVersion;
+    delete user.refreshTokenVersion;
+    delete user.loginFailedAttempts;
+    delete user.loginLockUntil;
+    delete user.lastLoginAt;
+    delete user.lastLoginIp;
+    delete user.lastFailedLoginAt;
+    delete user.lastFailedLoginIp;
+    delete user.passwordResetFailedAttempts;
+    delete user.passwordResetLockUntil;
     user.securityQuestions = Array.isArray(user.securityQuestions)
         ? user.securityQuestions.map((item) => ({ question: item.question }))
         : [];

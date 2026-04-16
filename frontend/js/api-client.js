@@ -15,6 +15,7 @@ const LOCAL_API_BASE_URL = 'http://localhost:5000/api';
 const SESSION_ACTIVITY_KEY = 'sessionLastActivityAt';
 const SESSION_STARTED_KEY = 'sessionStartedAt';
 const ACCESS_TOKEN_STORAGE_KEY = 'accessToken';
+const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
 const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
@@ -36,6 +37,8 @@ class APIClient {
     constructor() {
         this.token = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
             || localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+        this.refreshToken = sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)
+            || localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
         this.baseURL = API_BASE_URL;
         this.isSessionTrackingInitialized = false;
 
@@ -49,10 +52,16 @@ class APIClient {
         this.initializeSessionTracking();
     }
 
-    setToken(token) {
+    setToken(token, refreshToken = null) {
         this.token = token;
         sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
         localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+
+        if (refreshToken) {
+            this.refreshToken = refreshToken;
+            sessionStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+            localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        }
 
         const now = String(Date.now());
         if (!localStorage.getItem(SESSION_STARTED_KEY)) {
@@ -67,13 +76,21 @@ class APIClient {
             || localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     }
 
+    getRefreshToken() {
+        return sessionStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)
+            || localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    }
+
     clearAuth() {
         sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
         localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
         localStorage.removeItem('user');
         localStorage.removeItem(SESSION_ACTIVITY_KEY);
         localStorage.removeItem(SESSION_STARTED_KEY);
         this.token = null;
+        this.refreshToken = null;
     }
 
     getApiOrigin() {
@@ -182,6 +199,13 @@ class APIClient {
 
             const hasAuthorizationHeader = Boolean(headers.Authorization);
             if (response.status === 401 && hasAuthorizationHeader) {
+                if (!options.__retryAfterRefresh && this.getRefreshToken()) {
+                    const refreshed = await this.refreshSession();
+                    if (refreshed) {
+                        return this.request(endpoint, { ...options, __retryAfterRefresh: true });
+                    }
+                }
+
                 // Treat 401 on authenticated calls as hard session expiry to prevent
                 // loops where stale tokens keep triggering unauthorized requests.
                 this.handleSessionExpiry();
@@ -230,6 +254,38 @@ class APIClient {
         }
     }
 
+    async refreshSession() {
+        const refreshToken = this.getRefreshToken();
+        if (!refreshToken) {
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${this.baseURL}/auth/refresh`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken }),
+            });
+
+            if (!response.ok) {
+                return false;
+            }
+
+            const payload = await response.json();
+            if (payload?.token && payload?.refreshToken) {
+                this.setToken(payload.token, payload.refreshToken);
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Refresh session error:', error);
+            return false;
+        }
+    }
+
     get(endpoint, options = {}) {
         return this.request(endpoint, { ...options, method: 'GET' });
     }
@@ -263,7 +319,7 @@ class APIClient {
         });
 
         if (response.token && !response.requiresTwoFactor) {
-            this.setToken(response.token);
+            this.setToken(response.token, response.refreshToken);
             localStorage.setItem('user', JSON.stringify(response.user));
         }
 
@@ -285,7 +341,7 @@ class APIClient {
         });
 
         if (response.token) {
-            this.setToken(response.token);
+            this.setToken(response.token, response.refreshToken);
             localStorage.setItem('user', JSON.stringify(response.user));
         }
 

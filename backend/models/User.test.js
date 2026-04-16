@@ -62,4 +62,15 @@ describe('User model', () => {
             { question: 'What is your favorite movie?' },
         ]);
     });
+
+    it('should not expose internal security state when serializing', () => {
+        const user = new User({
+            email: 'secure-state@example.com',
+            password: 'Password123!',
+            fullName: 'Secure State User',
+        });
+
+        const serialized = user.toJSON();
+        expect(serialized).not.toHaveProperty('sessionVersion');
+    });
 });
