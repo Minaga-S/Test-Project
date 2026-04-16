@@ -14,17 +14,18 @@ Hotel Cybersecurity Governance System is a web application for small and medium 
 
 ### In scope
 - Authentication and profile management.
+- Two-factor authentication setup, verification, and recovery-assisted password reset.
 - Asset lifecycle (create, read, update, soft delete).
 - Incident lifecycle (create, update, status, notes, search, soft delete).
 - Threat analysis and knowledge base retrieval.
 - Risk scoring, matrix, trends, and asset risk aggregation.
 - Dashboard metrics and chart feeds.
+- Local scanner request/result bridge for controlled Nmap-assisted enrichment.
 
 ### Out of scope (current implementation)
 - Fine-grained RBAC enforcement by permission string.
 - Multi-tenant organization model beyond per-user ownership.
 - Automated alerting/notification pipelines.
-- Password reset workflow implementation.
 
 ## High-Level Architecture
 
@@ -53,6 +54,7 @@ flowchart LR
 - Backend: Node.js + Express server in backend/server.js.
 - Database: MongoDB via Mongoose.
 - AI provider: Gemini API through backend/config/ai-config.js.
+- Companion scanner: local bridge endpoints that integrate with the NmapLocalScanner app.
 
 ## Request Lifecycle
 

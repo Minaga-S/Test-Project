@@ -58,10 +58,22 @@ Expected checks:
 From frontend directory, use any static server, for example:
 
 ```bash
-npx serve frontend
+npx serve -l tcp://127.0.0.1:3000 .
 ```
 
 Open the served URL in browser.
+
+## Optional: Run Local Scanner Companion
+
+If you want live local scanner workflows:
+
+```bash
+cd NmapLocalScanner
+npm install
+npm run dev
+```
+
+Keep this process running while using local scanner features in the frontend.
 
 ## Step 5: Verify API base URL selection
 

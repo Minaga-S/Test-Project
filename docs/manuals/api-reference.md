@@ -30,8 +30,10 @@ Request:
 
 Validation:
 - email must be valid
-- password min length 8
+- password must be at least 12 characters and include uppercase, lowercase, number, and symbol
 - fullName required
+- department required and must be a valid configured department
+- securityQuestions must include exactly 3 unique questions with answers
 
 Response:
 - 201 with token, refreshToken, user
@@ -65,6 +67,90 @@ Request:
 Response:
 - 200 with new token and refreshToken
 - 401 invalid/expired refresh token
+
+### POST /auth/forgot-password
+
+Request:
+
+```json
+{
+  "email": "staff@example.com"
+}
+```
+
+Response:
+- 200 with reset challenge details when account exists
+
+### POST /auth/reset-password
+
+Request:
+
+```json
+{
+  "email": "staff@example.com",
+  "newPassword": "NewStrongPass123!",
+  "totpCode": "123456",
+  "recoveryCode": "RECOVERY-CODE-EXAMPLE",
+  "securityAnswers": [
+    { "question": "First school?", "answer": "Answer" },
+    { "question": "Favorite teacher?", "answer": "Answer" },
+    { "question": "Childhood nickname?", "answer": "Answer" }
+  ]
+}
+```
+
+Validation:
+- email required
+- newPassword min length 12
+- at least one of totpCode, recoveryCode, or valid securityAnswers is required
+
+### POST /auth/2fa/verify-login
+
+Request:
+
+```json
+{
+  "challengeToken": "<challenge-token>",
+  "code": "123456"
+}
+```
+
+### POST /auth/2fa/setup
+
+Auth required.
+
+Response:
+- returns 2FA setup details (for example secret/provisioning payload)
+
+### POST /auth/2fa/enable
+### POST /auth/2fa/disable
+
+Auth required.
+
+Request:
+
+```json
+{
+  "code": "123456"
+}
+```
+
+### GET /auth/security-questions
+### PUT /auth/security-questions
+
+Auth required.
+
+`PUT` request:
+
+```json
+{
+  "securityQuestions": [
+    { "question": "First school?", "answer": "Answer" },
+    { "question": "Favorite teacher?", "answer": "Answer" },
+    { "question": "Childhood nickname?", "answer": "Answer" }
+  ]
+}
+```
 
 ### GET /auth/profile
 
@@ -260,6 +346,72 @@ All dashboard endpoints require auth.
 ### GET /dashboard/charts/vulnerable-assets
 ### GET /dashboard/recent-incidents
 ### GET /dashboard/overview
+
+## Local Scanner Endpoints
+
+### POST /local-scanner/requests
+
+Auth required.
+Permission required: `asset:write`
+
+Request:
+
+```json
+{
+  "assetId": "<optional-asset-id>",
+  "assetName": "Core PMS Server",
+  "assetType": "Server",
+  "liveScan": {
+    "target": "192.168.1.10",
+    "ports": "22,80,443"
+  },
+  "vulnerabilityProfile": {
+    "osName": "Linux",
+    "vendor": "Ubuntu",
+    "product": "OpenSSH",
+    "productVersion": "9.6",
+    "cpeUri": "cpe:/o:canonical:ubuntu_linux"
+  }
+}
+```
+
+Validation highlights:
+- `liveScan.target` required
+- profile fields constrained to safe character patterns
+
+### POST /local-scanner/results
+
+Request:
+
+```json
+{
+  "bridgeToken": "<bridge-token>",
+  "scanResult": {
+    "target": "192.168.1.10",
+    "requestedPorts": "22,80,443",
+    "openPorts": [22, 80, 443],
+    "services": [],
+    "osInfo": "Linux",
+    "osCpe": "cpe:/o:canonical:ubuntu_linux",
+    "rawOutput": "..."
+  }
+}
+```
+
+## Audit Log Endpoints
+
+Permission required: `user:manage`
+
+### GET /audit-logs
+
+Query params:
+- `page` positive integer
+- `limit` integer 1 to 100
+- `scope` one of `me` or `all`
+- `from` ISO date
+- `to` ISO date
+
+### GET /audit-logs/summary
 
 ## HTTP Status Guidance
 
