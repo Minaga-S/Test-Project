@@ -77,6 +77,11 @@ let assetScanMeta = {
 };
 let isCriticalityManuallyOverridden = false;
 let isApplyingDetectedCriticality = false;
+let assetScannerBadgeRequestToken = 0;
+
+function waitFor(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 async function updateAssetScannerBadge() {
     const badgeEl = document.getElementById('asset-scanner-badge');
@@ -86,11 +91,26 @@ async function updateAssetScannerBadge() {
         return;
     }
 
+    const requestToken = ++assetScannerBadgeRequestToken;
+
     badgeEl.classList.remove('live-badge-warning');
     badgeEl.classList.add('live-badge-loading');
     statusEl.textContent = 'Checking Scanner...';
 
-    const isConnected = await isLocalScannerReachable();
+    let isConnected = false;
+    try {
+        isConnected = await Promise.race([
+            isLocalScannerReachable(),
+            waitFor(2500).then(() => false),
+        ]);
+    } catch (error) {
+        isConnected = false;
+    }
+
+    if (requestToken !== assetScannerBadgeRequestToken) {
+        return;
+    }
+
     badgeEl.classList.remove('live-badge-loading');
     
     if (isConnected) {
@@ -1018,6 +1038,14 @@ async function runLiveScanPreview() {
         stopAssetScanTerminalSimulation(false);
         hideAssetScanWorkflowModal();
         const errorMessage = String(error?.message || '').toLowerCase();
+
+        updateAssetScannerBadge();
+
+        if (errorMessage.includes('econnrefused') || errorMessage.includes('connection refused')) {
+            showNotification('Scan upload failed because backend API is unreachable on localhost:5000. Start backend or map it to 127.0.0.1:5000 and retry.', 'warning');
+            return;
+        }
+
         if (errorMessage.includes('failed to fetch') || errorMessage.includes('private network')) {
             showNotification('Scan blocked by browser local-network restrictions. In Chrome, allow local network access for this site and retry.', 'warning');
             return;
@@ -1457,8 +1485,8 @@ function openAssetModal() {
     resetScanPreviewFields();
     isCriticalityManuallyOverridden = false;
     setAssetModalMode(false);
-    updateAssetScannerBadge();
     showModal('asset-modal');
+    updateAssetScannerBadge();
 }
 
 function closeAssetModal() {
@@ -1510,8 +1538,9 @@ async function editAsset(assetId) {
             previewServicesEl.value = 'Run live scan to refresh';
         }
 
-            setAssetModalMode(true);
+        setAssetModalMode(true);
         showModal('asset-modal');
+        updateAssetScannerBadge();
     } catch (error) {
         console.error('Error loading asset:', error);
         showNotification('Error loading asset', 'error');
