@@ -2,158 +2,220 @@
 
 ## Purpose
 
-This guide explains how the project evolved across the main repository and the local NmapLocalScanner companion repository.
+This guide documents the engineering thought process that can be inferred from commit history in both repositories:
+- the main application repository,
+- the NmapLocalScanner companion repository.
 
-It is written as a lifecycle reference, not a commit-by-commit changelog. The goal is to show the logic behind the codebase structure: why features were added in the order they were, why the scanner moved to a local companion app, and why the docs now describe the system as a layered, security-first workflow.
+The goal is to explain what was implemented, what was fixed, what was changed, and why those changes happened in that order.
 
-## How To Read This Project History
+## Method Used For This Timeline
 
-The commit history shows a repeating pattern:
+This document is based on dated commit history from both repositories.
 
-1. Build the core workflow.
-2. Add a user-facing feature.
-3. Harden security and failure handling.
-4. Polish the UI and navigation.
-5. Document the behavior so the next change is easier.
+Interpretation rules used here:
+- "Implemented" means commits that add a new capability or workflow.
+- "Fixed" means commits that stabilize behavior, security, or reliability.
+- "Changed" means commits that refine UX, docs, policy, or architecture direction.
 
-That pattern appears in both repositories:
-- The main repository focuses on the hotel cybersecurity application.
-- The NmapLocalScanner repository focuses on the local companion app that performs private scans on the user’s own machine.
+## High-Level Engineering Arc
 
-## Main Repository Evolution
+Across both repositories, the lifecycle follows a consistent pattern:
 
-### 1. Core application shape
+1. Build a working security workflow.
+2. Integrate scanner and enrichment data into incident analysis.
+3. Stabilize reliability and reduce unsafe edge behavior.
+4. Harden auth/session/security boundaries.
+5. Improve UX and operator clarity.
+6. Document the system so future changes remain coherent.
 
-The application started as a classic operational dashboard:
-- users authenticate,
-- register assets,
-- report incidents,
-- review risk,
-- and inspect dashboard summaries.
+NmapLocalScanner is not the primary repository, but it is a necessary supporting track in phases 2 and 3.
 
-That is why the current structure is layered into routes, controllers, services, models, and page-level frontend scripts.
+## Commit-Informed Timeline (Main Repository)
 
-### 2. Security-first refinement
+### 2026-04-01: Risk analysis interaction stabilization
 
-The repository then moved into a long hardening phase:
-- stronger authentication and session handling,
-- rate limiting,
-- request validation,
-- safer frontend rendering,
-- and reduced exposure of internal data.
+Implemented:
+- Better desktop collapsible behavior in risk analysis views.
 
-That phase explains why the app now uses explicit validation at the backend boundary and why the frontend avoids rendering dynamic values directly without sanitizing them first.
+Fixed:
+- Panel toggle behavior and cache-busting issues that prevented expected interaction updates.
 
-### 3. Operational visibility
+Thought process:
+- The team first made sure risk views were reliably interactive before adding heavier incident and scanner-linked features.
 
-Once the core workflows were stable, the codebase added operational visibility:
-- dashboard metrics,
-- incident trends,
-- risk distributions,
-- asset vulnerability concentration,
-- and audit logging for privileged users.
+### 2026-04-04: Identity and access hardening + 2FA rollout
 
-The current docs now treat those views as part of the product’s operating model, not as decorative UI.
+Implemented:
+- TOTP 2FA flow (signup prompt and settings management).
+- Role and department updates in user-facing flows.
 
-### 4. Scanner integration
+Fixed:
+- Hosted deployment edge cases in TOTP verification.
+- Mobile alignment and layout consistency issues.
 
-The next important step was the move from ad hoc scanning logic to a dedicated local scanner bridge:
-- the frontend requests a scan through the backend bridge,
-- the local companion app runs Nmap on the user’s machine,
-- and the result is returned to the backend for enrichment.
+Changed:
+- Documentation alignment around Gemini config references.
 
-This change is important because it keeps scanning local, private, and explicit. The backend validates target scope and the companion app refuses broad or unsafe behavior.
+Thought process:
+- Before expanding operational risk features, identity assurance and account governance were strengthened.
 
-### 5. Documentation as part of the product
+### 2026-04-06 to 2026-04-07: Scanner-to-incident pipeline implementation
 
-The later commits added more documentation because the system became more interconnected:
-- authentication now has multiple flows,
-- risk calculation is deterministic but informed by threat intelligence,
-- CVE enrichment feeds both incident data and graphs,
-- and the scanner requires a separate local companion app.
+Implemented:
+- Asset scanning workflow.
+- Incident threat analysis pipeline connected to scan data.
+- NIST CVE pipeline integration.
+- Incident deep-link and incident detail enrichment behavior.
 
-The docs therefore need to explain behavior, not just list files.
+Fixed:
+- Live scan context consistency for incident analysis.
+- CVE detail UX and deep-link modal behavior.
 
-## NmapLocalScanner Evolution
+Thought process:
+- This is the core transition from static incident reporting to evidence-backed incident analysis.
+- The implementation quickly moved into stabilization once real scan context started affecting risk outputs.
 
-The companion repository follows a narrower lifecycle.
+### 2026-04-08: Hardening wave for scanner UX, frontend safety, and secrets
 
-### 1. Secure scaffold
+Implemented:
+- 2FA UX polish and consistent skeleton loading.
+- Live scan workflow modal and terminal-output guidance.
+- Dashboard badge unification and criticality UX improvements.
 
-The earliest scanner release established a localhost-only scanner companion:
-- bind to `127.0.0.1`,
-- allow only local/private scan targets,
-- and upload scan results through a controlled bridge.
+Fixed:
+- Scan propagation and enrichment fallback behavior.
+- Product/OS field propagation issues.
+- Session model simplification (remember-me flow removal).
 
-### 2. Deployment and origin hardening
+Changed:
+- Backend env secret tracking removed and local secret handling improved.
 
-Later commits expanded the security posture:
-- CORS handling for local development and hosted UI origins,
-- manual setup guidance for Nmap,
-- and improved user instructions so the scanner could be used safely by non-experts.
+Thought process:
+- After scanner + enrichment integration landed, a broad hardening pass reduced UI ambiguity, stale state drift, and secret-management risk.
 
-### 3. Operator clarity
+### 2026-04-09: UX architecture refinement and policy tightening
 
-The scanner repository also grew better release and usage documentation:
-- clear executable-first instructions,
-- explicit Nmap setup helper mode,
-- release checksum handling,
-- and terminal visibility for troubleshooting.
+Implemented:
+- Terms and conditions flow across registration/settings.
+- Unified incident scan and asset preview behavior.
+- Accurate scan time estimation for user trust in long operations.
 
-That is why the main repository now describes the companion app as an intentional part of the system rather than an optional extra.
+Fixed:
+- Scan preview validation for CPE and field repopulation.
+- Gemini fallback chain reliability and model compatibility.
 
-## Development Lifecycle In Practice
+Changed:
+- Push-notification direction was introduced in one phase and then cleaned up/removed in later commits, indicating policy/UX reassessment.
 
-The project now follows a practical lifecycle for changes:
+Thought process:
+- This phase shows active convergence: feature work continued, but unstable or confusing behavior was revised quickly to preserve operator confidence.
 
-1. Define the workflow and its security boundaries.
-2. Add or adjust backend validation and service logic.
-3. Wire the frontend view or control.
-4. Add scanner or enrichment integration if the feature depends on live host data.
-5. Harden rendering, error handling, and permissions.
-6. Update docs so the behavior is traceable.
+### 2026-04-10: Scanner architecture pivot and integration hardening
 
-This is the same pattern the recent commit history shows:
-- feature additions for auth, scanner, and incident flows,
-- fixes for pagination, menu visibility, and dashboard metrics,
-- and repeated docs updates after the code settled.
+Implemented:
+- Local scanner-first runtime behavior and status exposure in frontend.
+- CVE-backed fallback mitigation strategy when AI output is weak.
 
-## How The Scanner Fits The Product Lifecycle
+Fixed:
+- Local network and loopback fetch behavior (PNA and origin-related constraints).
+- Render/local-subnet validation issues.
 
-The scanner is not a side project. It is the local execution layer for safe network enrichment.
+Changed:
+- Legacy backend Nmap execution paths removed.
+- Embedded scanner gitlink removed from parent repository.
 
-### End-to-end flow
+Thought process:
+- This is the clearest architecture decision point.
+- Scanning responsibility was consolidated into the local companion model, reducing server-side scan ambiguity and clarifying trust boundaries.
 
-1. The user opens the frontend and triggers a scan-related workflow.
-2. The backend creates a controlled local-scanner request.
-3. The NmapLocalScanner app receives the request on localhost.
-4. Nmap runs locally against a private or loopback target.
-5. The companion app returns scan details to the backend.
-6. The backend enriches the asset security context with:
-   - open ports,
-   - OS hints,
-   - service data,
-   - CPE data,
-   - and CVE matches.
-7. The incident, risk, and dashboard views consume that context.
+### 2026-04-12 to 2026-04-13: Pre-deployment stabilization and operational polish
 
-### Why this design exists
+Implemented:
+- Pre-deployment checklist and UI polish work.
 
-- It keeps the scanning engine local.
-- It avoids exposing raw Nmap execution to the browser.
-- It lets the backend enforce target scope and validation.
-- It gives the UI a consistent security-context payload.
+Fixed:
+- Dashboard metrics behavior.
+- Pagination and audit-log behavior.
 
-## Where This Shows Up In The Codebase
+Changed:
+- Documentation updates to match stabilized runtime behavior.
 
-- Backend validation and orchestration live in `backend/controllers` and `backend/services`.
-- Security context assembly lives in `backend/services/assetSecurityContextService.js`.
-- Threat and risk derivation live in `backend/services/threatClassificationService.js` and `backend/services/riskCalculationService.js`.
-- Chart and dashboard rendering live in `frontend/js/dashboard.js` and `frontend/js/risk-analysis.js`.
-- Local scanner UI and flow handling live in `frontend/js/settings.js`, `frontend/js/assets.js`, and incident-related page scripts.
-- The scanner companion documentation lives in `NmapLocalScanner/README.md`.
+Thought process:
+- The focus shifted from adding features to making behavior predictable under real operator workflows.
 
-## Related Reference Material
+### 2026-04-14 to 2026-04-16: Security hardening, docs consolidation, and targeted fixes
+
+Implemented:
+- Security-question recovery and forgot-password refinements.
+- Consolidated technical documentation references.
+
+Fixed:
+- npm vulnerability remediation for follow-redirects.
+- Incident top pagination control wiring.
+- Audit log menu visibility by user role.
+
+Changed:
+- Risk forecast feature removed.
+- Documentation expanded to include calculation and visualization references.
+
+Thought process:
+- Late-phase work is exactly what mature projects should show: targeted vulnerability fixes, permission-scope cleanup, and improved internal documentation.
+
+## Commit-Informed Timeline (NmapLocalScanner Repository)
+
+NmapLocalScanner is a supporting repository, but it follows a clear lifecycle that mirrors main-repo needs.
+
+### 2026-04-10: Foundation release sequence
+
+Implemented:
+- Secure companion scaffold for local scanning (v1.0.0).
+- CORS expansion for LAN/hosted integration needs (v1.0.1).
+- Manual Nmap setup helper mode and polished guidance (v1.0.2).
+
+Thought process:
+- The scanner was built for secure local execution first, then opened only enough for real deployment and user setup reliability.
+
+### 2026-04-14: Operator clarity and packaging polish
+
+Implemented/Changed:
+- Exe-first instructions clarified.
+- Release-note and checksum maintenance updates.
+- Repository cleanup (release-note removal commit).
+
+Thought process:
+- Once functional stability was acceptable, operator onboarding and release hygiene became the primary maintenance concern.
+
+## Integrated Thought Process Across Both Repositories
+
+The combined history suggests this intent:
+
+1. Keep scanning local and controlled.
+2. Keep backend analysis deterministic where possible (risk formula, CVE-severity influence).
+3. Keep AI as an enrichment layer, not an unchecked authority.
+4. Keep frontend behavior explainable with visible states (skeletons, badges, status labels).
+5. Keep security posture iterative, not one-time.
+6. Keep docs synchronized with operational reality.
+
+This is why recent docs now include both:
+- a calculation/visualization reference,
+- and this lifecycle narrative.
+
+## Where NmapLocalScanner Fits (Supporting, Not Dominant)
+
+NmapLocalScanner is intentionally a supporting subsystem:
+- It does not replace backend logic.
+- It supplies local scan evidence that the backend normalizes and enriches.
+- It improves data quality for threat/risk classification while preserving local privacy boundaries.
+
+In practice:
+1. Frontend initiates scan-related workflow.
+2. Backend issues controlled scanner request.
+3. NmapLocalScanner executes locally.
+4. Backend receives result and builds security context.
+5. Threat/risk/recommendation layers consume that context.
+6. Dashboard and risk views visualize the result.
+
+## Related References
 
 - [Calculation and Visualization Reference](../manuals/calculation-and-visualization-reference.md)
 - [API Reference](../manuals/api-reference.md)
