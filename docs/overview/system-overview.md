@@ -90,5 +90,6 @@ flowchart LR
 - Setup and first run: ../tutorials/local-development.md
 - First workflow execution: ../tutorials/report-first-incident.md
 - Architectural details: ../guides/architecture-and-request-flow.md
+- Repository evolution and lifecycle: ../guides/development-lifecycle-and-repository-evolution.md
 - Full endpoint catalog: ../manuals/api-reference.md
 - Schemas and config: ../manuals/data-model-reference.md
