@@ -434,6 +434,15 @@ small {
     font-size: 1.3rem;
 }
 
+/* Audit Logs navigation is admin-only: hidden by default and enabled only for verified admin sessions. */
+a[href="audit-logs.html"].nav-item {
+    display: none;
+}
+
+body.is-admin a[href="audit-logs.html"].nav-item {
+    display: flex;
+}
+
 .material-symbols-rounded {
     font-family: 'Material Symbols Rounded';
     font-style: normal;
