@@ -69,6 +69,8 @@ flowchart LR
 ## Security Model Summary
 
 - JWT Bearer authentication for all non-auth routes.
+- Audit log API and UI are restricted to Admin role only.
+- Non-admin users do not see the Audit Logs sidebar navigation entry.
 - Request rate limiting:
   - Global API limiter: 500 requests per 15 minutes.
   - Auth limiter: 20 requests per 15 minutes.

@@ -32,4 +32,4 @@ This documentation set follows a Diataxis-style structure and the principles fro
 
 - The backend API includes local scanner bridge routes under `/api/local-scanner`.
 - Authentication includes refresh tokens, 2FA flows, and security-question recovery support.
-- Audit log read endpoints are available under `/api/audit-logs` for privileged users.
+- Audit log page and endpoints under `/api/audit-logs` are admin-only, and the sidebar navigation item is hidden for non-admin users.
