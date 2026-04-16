@@ -730,6 +730,20 @@ function setupMobileHaptics() {
     }, { passive: true });
 }
 
+function hideAuditLogNavigationForNonAdmins() {
+    const user = getLocalStorage('user');
+    const isAdmin = String(user?.role || '').trim() === 'Admin';
+
+    if (isAdmin) {
+        return;
+    }
+
+    document.querySelectorAll('a[href="audit-logs.html"]').forEach((link) => {
+        link.hidden = true;
+        link.setAttribute('aria-hidden', 'true');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     normalizeIconography();
     injectHeaderBreadcrumbs();
@@ -738,6 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSidebarToggle();
     setupPageTransitions();
     setupMobileHaptics();
+    hideAuditLogNavigationForNonAdmins();
 });
 
 document.addEventListener('click', (event) => {
