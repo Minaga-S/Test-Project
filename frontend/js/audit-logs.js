@@ -21,9 +21,43 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAuditLogs();
 });
 
+async function enforceAdminOnlyAuditAccess() {
+    const cachedUser = getLocalStorage('user') || null;
+    const cachedRole = String(cachedUser?.role || '').trim();
+
+    if (cachedRole === 'Admin') {
+        return true;
+    }
+
+    try {
+        const profileResponse = await apiClient.getProfile();
+        const user = profileResponse?.user || profileResponse;
+        const profileRole = String(user?.role || '').trim();
+
+        if (user) {
+            setLocalStorage('user', user);
+        }
+
+        if (profileRole === 'Admin') {
+            return true;
+        }
+    } catch (error) {
+        console.warn('Unable to verify admin role for audit logs:', error);
+    }
+
+    showNotification('Audit logs are only available to admin users', 'warning');
+    window.location.href = 'dashboard.html';
+    return false;
+}
+
 async function initializeAuditLogs() {
     if (!apiClient.isAuthenticated()) {
         window.location.href = 'login.html';
+        return;
+    }
+
+    const canAccessAuditLogs = await enforceAdminOnlyAuditAccess();
+    if (!canAccessAuditLogs) {
         return;
     }
 
