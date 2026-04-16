@@ -33,7 +33,7 @@ function sanitizeVulnerabilityProfileInput(profileInput = {}) {
     };
 }
 
-function getLiveScanScopeError(liveScanInput = {}, requestIp = '') {
+function getLiveScanScopeError(liveScanInput = {}) {
     const liveScan = sanitizeLiveScanInput(liveScanInput);
     if (!liveScan.target) {
         return '';
@@ -44,6 +44,10 @@ function getLiveScanScopeError(liveScanInput = {}, requestIp = '') {
     }
 
     return '';
+}
+
+function escapeRegex(input = '') {
+    return String(input).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 class AssetController {
@@ -58,7 +62,7 @@ class AssetController {
                 });
             }
 
-            const createScopeError = getLiveScanScopeError(req.body.liveScan, req.ip);
+            const createScopeError = getLiveScanScopeError(req.body.liveScan);
             if (createScopeError) {
                 return res.status(400).json({
                     success: false,
@@ -170,7 +174,7 @@ class AssetController {
                 });
             }
 
-            const updateScopeError = getLiveScanScopeError(req.body.liveScan !== undefined ? req.body.liveScan : asset.liveScan, req.ip);
+            const updateScopeError = getLiveScanScopeError(req.body.liveScan !== undefined ? req.body.liveScan : asset.liveScan);
             if (updateScopeError) {
                 return res.status(400).json({
                     success: false,
@@ -273,14 +277,15 @@ class AssetController {
 
     async searchAssets(req, res, next) {
         try {
-            const query = req.query.query || '';
+            const query = String(req.query.query || '').trim().slice(0, 80);
+            const escapedQuery = escapeRegex(query);
 
             const assets = await Asset.find({
                 userId: req.user.userId,
                 $or: [
-                    { assetName: { $regex: query, $options: 'i' } },
-                    { description: { $regex: query, $options: 'i' } },
-                    { location: { $regex: query, $options: 'i' } },
+                    { assetName: { $regex: escapedQuery, $options: 'i' } },
+                    { description: { $regex: escapedQuery, $options: 'i' } },
+                    { location: { $regex: escapedQuery, $options: 'i' } },
                 ],
             });
 
@@ -321,7 +326,7 @@ class AssetController {
                 });
             }
 
-            const securityContextScopeError = getLiveScanScopeError(asset.liveScan, req.ip);
+            const securityContextScopeError = getLiveScanScopeError(asset.liveScan);
             if (securityContextScopeError) {
                 return res.status(400).json({
                     success: false,

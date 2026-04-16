@@ -10,6 +10,7 @@ const { DEPARTMENTS } = require('../utils/constants');
 
 const router = express.Router();
 const REQUIRED_SECURITY_QUESTION_COUNT = 3;
+const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])\S{12,}$/;
 
 const withController = (controller, methodName) => (req, res, next) => controller[methodName](req, res, next);
 
@@ -34,7 +35,9 @@ const hasValidSecurityQuestionSet = (value) => {
 
 const registerValidation = [
     body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    body('password')
+        .matches(STRONG_PASSWORD_PATTERN)
+        .withMessage('Password must be at least 12 characters and include uppercase, lowercase, number, and symbol'),
     body('fullName').trim().notEmpty().withMessage('Full name is required'),
     body('department').trim().isIn(DEPARTMENTS).withMessage('Valid department is required'),
     body('securityQuestions').custom((value) => {

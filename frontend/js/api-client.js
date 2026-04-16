@@ -14,6 +14,7 @@ const PROD_API_BASE_URL = 'https://test-project-x7d2.onrender.com/api';
 const LOCAL_API_BASE_URL = 'http://localhost:5000/api';
 const SESSION_ACTIVITY_KEY = 'sessionLastActivityAt';
 const SESSION_STARTED_KEY = 'sessionStartedAt';
+const ACCESS_TOKEN_STORAGE_KEY = 'accessToken';
 const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
@@ -33,15 +34,23 @@ const API_BASE_URL = resolveApiBaseUrl();
 
 class APIClient {
     constructor() {
-        this.token = localStorage.getItem('accessToken');
+        this.token = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+            || localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
         this.baseURL = API_BASE_URL;
         this.isSessionTrackingInitialized = false;
+
+        if (this.token && localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)) {
+            localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+            sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, this.token);
+        }
+
         this.initializeSessionTracking();
     }
 
     setToken(token) {
         this.token = token;
-        localStorage.setItem('accessToken', token);
+        sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+        localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
 
         const now = String(Date.now());
         if (!localStorage.getItem(SESSION_STARTED_KEY)) {
@@ -52,11 +61,13 @@ class APIClient {
     }
 
     getToken() {
-        return localStorage.getItem('accessToken');
+        return sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
+            || localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
     }
 
     clearAuth() {
-        localStorage.removeItem('accessToken');
+        sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
         localStorage.removeItem('user');
         localStorage.removeItem(SESSION_ACTIVITY_KEY);
         localStorage.removeItem(SESSION_STARTED_KEY);
@@ -337,7 +348,8 @@ class APIClient {
     }
 
     async searchAssets(query) {
-        return this.get(`/assets/search?query=${query}`);
+        const encodedQuery = encodeURIComponent(String(query || ''));
+        return this.get(`/assets/search?query=${encodedQuery}`);
     }
 
     async getAssetTypes() {

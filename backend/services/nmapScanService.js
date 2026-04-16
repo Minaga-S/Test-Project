@@ -98,12 +98,6 @@ function isAllowedScanTarget(target) {
     return isPrivateIpv4Address(normalizedTarget);
 }
 
-function assertAllowedTarget(target) {
-    if (!isAllowedScanTarget(target)) {
-        throw new Error('Nmap scans are restricted to localhost and private-network targets');
-    }
-}
-
 function areInSameIpv4Subnet(target, requestIp, subnetMaskBits = 24) {
     const targetOctets = parseIpv4Address(target);
     const requesterOctets = parseIpv4Address(requestIp);

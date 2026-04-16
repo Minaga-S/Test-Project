@@ -1294,6 +1294,15 @@ function displayAssetsPage() {
     renderAssetsPagination();
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function displayAssets(assetsToDisplay) {
     const tbody = document.getElementById('assets-tbody');
     tbody.innerHTML = '';
@@ -1307,20 +1316,28 @@ function displayAssets(assetsToDisplay) {
     assetsToDisplay.forEach((asset) => {
         const isSelected = selectedAssetIds.has(asset._id);
         const selectButtonLabel = isSelected ? 'Unselect' : 'Select';
+        const safeAssetId = escapeHtml(asset._id);
+        const safeAssetName = escapeHtml(asset.assetName);
+        const safeAssetType = escapeHtml(asset.assetType);
+        const safeLocation = escapeHtml(asset.location || '-');
+        const safeStatus = escapeHtml(asset.status);
+        const safeStatusClass = escapeHtml(String(asset.status || '').toLowerCase());
+        const safeCriticality = escapeHtml(asset.criticality);
+        const safeOwner = escapeHtml(asset.owner || '-');
         const row = document.createElement('tr');
         row.style.cursor = 'pointer';
         row.innerHTML = `
-            <td data-label="Select"><button type="button" class="btn btn-sm asset-select-btn ${isSelected ? 'is-selected' : ''}" data-asset-id="${asset._id}" aria-label="Select ${asset.assetName}" aria-pressed="${isSelected ? 'true' : 'false'}">${selectButtonLabel}</button></td>
-            <td data-label="Asset Name">${asset.assetName}</td>
-            <td data-label="Type">${asset.assetType}</td>
-            <td data-label="Location">${asset.location || '-'}</td>
-            <td data-label="Status"><span class="status-badge status-${asset.status.toLowerCase()}">${asset.status}</span></td>
-            <td data-label="Criticality">${asset.criticality}</td>
-            <td data-label="Owner">${asset.owner || '-'}</td>
+            <td data-label="Select"><button type="button" class="btn btn-sm asset-select-btn ${isSelected ? 'is-selected' : ''}" data-asset-id="${safeAssetId}" aria-label="Select ${safeAssetName}" aria-pressed="${isSelected ? 'true' : 'false'}">${selectButtonLabel}</button></td>
+            <td data-label="Asset Name">${safeAssetName}</td>
+            <td data-label="Type">${safeAssetType}</td>
+            <td data-label="Location">${safeLocation}</td>
+            <td data-label="Status"><span class="status-badge status-${safeStatusClass}">${safeStatus}</span></td>
+            <td data-label="Criticality">${safeCriticality}</td>
+            <td data-label="Owner">${safeOwner}</td>
             <td data-label="Actions">
                 <div class="row-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editAsset('${asset._id}')">Edit</button>
-                    <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${asset._id}')">Delete</button>
+                    <button class="btn btn-sm btn-secondary" onclick="editAsset('${safeAssetId}')">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="openDeleteModal('${safeAssetId}')">Delete</button>
                 </div>
             </td>
         `;

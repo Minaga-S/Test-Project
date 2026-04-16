@@ -962,40 +962,6 @@ function removeLocalStorage(key) {
     }
 }
 
-// ============== TABLE RENDERING ==============
-
-function createTableRow(data) {
-    const tr = document.createElement('tr');
-    Object.values(data).forEach(value => {
-        const td = document.createElement('td');
-        td.innerHTML = value;
-        tr.appendChild(td);
-    });
-    return tr;
-}
-
-function populateTable(tableBodyId, data, columns) {
-    const tbody = document.getElementById(tableBodyId);
-    tbody.innerHTML = '';
-
-    if (data.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="${columns.length}" class="text-center">No data found</td>`;
-        tbody.appendChild(tr);
-        return;
-    }
-
-    data.forEach(item => {
-        const tr = document.createElement('tr');
-        columns.forEach(col => {
-            const td = document.createElement('td');
-            td.innerHTML = item[col.key];
-            tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-    });
-}
-
 // ============== EXPORT FUNCTIONS ==============
 
 function exportToCSV(filename, data) {
@@ -1021,11 +987,6 @@ function exportToCSV(filename, data) {
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', filename);
     link.click();
-}
-
-function exportToPDF(filename, htmlContent) {
-    // Note: This is a placeholder. In production, use a library like jsPDF
-    console.log('PDF export requires a library like jsPDF');
 }
 
 // ============== ADD ANIMATIONS ==============

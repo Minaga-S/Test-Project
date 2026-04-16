@@ -66,8 +66,7 @@ const corsOptions = {
         }
 
         const requestOrigin = normalizeOrigin(origin);
-        const isGithubPagesOrigin = /^https:\/\/[a-z0-9-]+\.github\.io$/i.test(requestOrigin);
-        const isAllowed = effectiveAllowedOrigins.includes(requestOrigin) || isGithubPagesOrigin;
+        const isAllowed = effectiveAllowedOrigins.includes(requestOrigin);
 
         if (isAllowed) {
             return callback(null, true);
@@ -134,14 +133,27 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '127.0.0.1';
 
+function shouldSeedDatabase() {
+    const normalizedEnvironment = String(process.env.NODE_ENV || '').toLowerCase();
+    const explicitSeedFlag = String(process.env.SEED_ON_STARTUP || '').toLowerCase();
+
+    if (explicitSeedFlag === 'true') {
+        return true;
+    }
+
+    return normalizedEnvironment === 'development' || normalizedEnvironment === 'test';
+}
+
 async function startServer() {
     try {
         // Connect to database
         await connectDatabase();
         console.log('? Database connected');
 
-        // Seed database with test users
-        await seedDatabase();
+        // Seed only in non-production environments unless explicitly enabled.
+        if (shouldSeedDatabase()) {
+            await seedDatabase();
+        }
 
         // Start server
         const server = app.listen(PORT, HOST, () => {
