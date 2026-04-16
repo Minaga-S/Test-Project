@@ -19,6 +19,7 @@ This documentation set follows a Diataxis-style structure and the principles fro
 
 ### Guides (learn concepts and patterns)
 - [Architecture and Request Flow](guides/architecture-and-request-flow.md)
+- [Development Lifecycle and Repository Evolution](guides/development-lifecycle-and-repository-evolution.md)
 - [Security and Operations Gotchas](guides/security-and-operations-gotchas.md)
 
 ### Manuals / Reference (authoritative details)
