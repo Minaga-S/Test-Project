@@ -31,6 +31,8 @@ function mergeClientSecurityContext(securityContext, clientSecurityContext) {
     };
 
     const persistedLiveScan = securityContext?.liveScan || {};
+    // Persisted scan data is treated as canonical; client payload can enrich missing fields,
+    // but should not silently erase previously stored high-confidence telemetry.
     const mergedLiveScan = {
         ...persistedLiveScan,
         ...(clientSecurityContext?.liveScan || {}),
@@ -63,6 +65,8 @@ function mergeClientSecurityContext(securityContext, clientSecurityContext) {
     const clientCveMatches = Array.isArray(clientSecurityContext?.cve?.matches)
         ? clientSecurityContext.cve.matches
         : [];
+    // If the client explicitly sends CVE matches from a fresh local scan, prefer them so
+    // response analysis reflects the newest findings even before persistence catches up.
     if (clientCveMatches.length > 0) {
         mergedCve.matches = clientCveMatches;
         mergedCve.totalMatches = clientCveMatches.length;

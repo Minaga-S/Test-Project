@@ -62,6 +62,7 @@ const effectiveAllowedOrigins = [
 const corsOptions = {
     origin: (origin, callback) => {
         if (!origin) {
+            // Allow non-browser and same-origin calls (health checks, server-to-server).
             return callback(null, true);
         }
 
@@ -141,6 +142,7 @@ function shouldSeedDatabase() {
         return true;
     }
 
+    // Default to safe behavior: seed only in non-production runtimes.
     return normalizedEnvironment === 'development' || normalizedEnvironment === 'test';
 }
 

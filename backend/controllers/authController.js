@@ -53,6 +53,8 @@ class AuthController {
 
     getTwoFactorAccountName(email, secret) {
         const normalizedEmail = String(email || '').trim().toLowerCase();
+        // The short suffix keeps authenticator labels distinct when users re-enroll 2FA,
+        // reducing accidental reuse of stale app entries with the same email label.
         const suffix = String(secret || '')
             .replace(/[^A-Za-z0-9]/g, '')
             .slice(-6)
@@ -117,6 +119,7 @@ class AuthController {
             return false;
         }
 
+        // Map answers by normalized question text so ordering from the client does not matter.
         const normalizedAnswers = new Map(
             securityAnswers.map((item) => [
                 this.normalizeSecurityQuestionText(item.question).toLowerCase(),
@@ -172,6 +175,7 @@ class AuthController {
     async registerPasswordResetFailure(user) {
         user.passwordResetFailedAttempts = (user.passwordResetFailedAttempts || 0) + 1;
 
+        // Rotate the counter after locking so a new lock window always reflects fresh failures.
         if (user.passwordResetFailedAttempts >= MAX_PASSWORD_RESET_FAILED_ATTEMPTS) {
             user.passwordResetLockUntil = new Date(Date.now() + (PASSWORD_RESET_LOCK_MINUTES * 60 * 1000));
             user.passwordResetFailedAttempts = 0;
@@ -201,6 +205,7 @@ class AuthController {
         for (let index = 0; index < user.recoveryCodeHashes.length; index += 1) {
             const isMatch = await bcryptjs.compare(normalizedCode, user.recoveryCodeHashes[index]);
             if (isMatch) {
+                // Recovery codes are one-time credentials; remove the matched hash immediately.
                 const remainingRecoveryCodeHashes = user.recoveryCodeHashes.filter((_, hashIndex) => hashIndex !== index);
                 return {
                     isValid: true,

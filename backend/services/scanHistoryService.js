@@ -126,6 +126,7 @@ function isLikelyOperatingSystem(value) {
         return false;
     }
 
+    // Heuristic gate to avoid polluting OS profile fields with service banners or free text.
     return [
         'windows',
         'linux',
@@ -164,6 +165,7 @@ function inferProfileUpdates(asset, scanResult) {
 
     const nextProfile = {
         ...existingProfile,
+        // Never overwrite manually curated fields with weaker inferred values.
         osName: currentOsName || detectedOsName,
         vendor: currentVendor,
         product: currentProduct,
@@ -187,6 +189,7 @@ async function persistInferredProfile(asset, userId, scanResult) {
         return;
     }
 
+    // Keep updates scoped to both asset and owner to prevent cross-tenant profile mutation.
     await Asset.updateOne(
         { _id: asset._id, userId },
         {
@@ -264,6 +267,7 @@ class ScanHistoryService {
 
         const assetId = String(assetDraft?._id || assetDraft?.assetId || '').trim();
         if (!assetId) {
+            // Preview mode: return enriched context without persisting scan history records.
             return {
                 scanResult,
                 cveResult,

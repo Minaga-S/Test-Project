@@ -259,6 +259,8 @@ function setAuditPaginationLoading() {
 }
 
 function buildPaginationModel(currentPage, totalPages) {
+    // Compact pagination keeps the control stable for large result sets while preserving
+    // jump access to first/last pages.
     if (totalPages <= 7) {
         return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
@@ -287,6 +289,7 @@ function renderAuditLogs(logs) {
 
     tbody.innerHTML = logs.map((log) => {
         const timestamp = formatDateTime(log.createdAt || new Date().toISOString());
+        // Escape all server-provided fields because audit values may include free-form text.
         const action = escapeHtml(log.action || 'N/A');
         const entityType = escapeHtml(log.entityType || 'N/A');
         const entityId = escapeHtml(log.entityId || 'N/A');

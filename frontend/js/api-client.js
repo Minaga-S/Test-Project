@@ -39,6 +39,8 @@ class APIClient {
         this.baseURL = API_BASE_URL;
         this.isSessionTrackingInitialized = false;
 
+        // Backward-compatible migration: keep existing users logged in while moving
+        // token persistence from localStorage to sessionStorage.
         if (this.token && localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)) {
             localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
             sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, this.token);
@@ -90,6 +92,8 @@ class APIClient {
         const lastActivityAt = Number.parseInt(localStorage.getItem(SESSION_ACTIVITY_KEY) || '0', 10);
         const now = Date.now();
 
+        // If legacy/session metadata is missing, avoid unexpected forced logout and
+        // let the backend token validity remain the source of truth.
         if (!startedAt || !lastActivityAt) {
             return true;
         }
@@ -178,6 +182,8 @@ class APIClient {
 
             const hasAuthorizationHeader = Boolean(headers.Authorization);
             if (response.status === 401 && hasAuthorizationHeader) {
+                // Treat 401 on authenticated calls as hard session expiry to prevent
+                // loops where stale tokens keep triggering unauthorized requests.
                 this.handleSessionExpiry();
                 return null;
             }
@@ -208,6 +214,8 @@ class APIClient {
                     : [];
 
                 const detailedMessage = fieldErrors.length > 0
+                    // Merge field-level validation details into one message so UI callers
+                    // can surface actionable errors without endpoint-specific parsing.
                     ? `${errorPayload.message || 'Request failed'} - ${fieldErrors.join(', ')}`
                     : (errorPayload.message || `HTTP ${response.status}`);
 

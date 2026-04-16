@@ -32,6 +32,8 @@ class RecommendationService {
                 return this.prioritizeRecommendations(threatType, databaseRecommendations);
             }
 
+            // Third tier fallback: threat-intel templates keep guidance actionable even
+            // when AI output is empty or malformed.
             logger.info(`Using threat intelligence recommendations for threat: ${threatType}`);
             const fallbackRecommendations = this.getThreatIntelRecommendations(threatType);
             const normalizedFallback = this.toRecommendationArray(fallbackRecommendations);
@@ -117,6 +119,8 @@ class RecommendationService {
         const nonNistRecommendations = alignedRecommendations
             .filter((item) => !this.isNistRecommendation(item));
 
+        // Always surface NIST-mapped actions first so response teams see compliance-aligned
+        // remediation before generic guidance.
         if (nistRecommendations.length > 0) {
             return [...nistRecommendations, ...nonNistRecommendations];
         }

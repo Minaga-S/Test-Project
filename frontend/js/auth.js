@@ -189,6 +189,8 @@ function setupForgotPasswordActions() {
                 return;
             }
 
+            // Security-question reset is the baseline fallback; switch to 2FA mode only
+            // when explicitly requested and available for the account.
             isForgotPasswordTwoFactorMode = !isForgotPasswordTwoFactorMode;
 
             if (securitySection) {
@@ -261,6 +263,8 @@ function setupUniqueSecurityQuestionSelection(selectIds) {
 
         selects.forEach((select) => {
             const currentValue = select.value;
+            // Keep each selected option editable while preventing duplicates across
+            // the remaining selectors.
             Array.from(select.options).forEach((option) => {
                 if (!option.value) {
                     option.disabled = false;

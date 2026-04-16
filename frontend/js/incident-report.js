@@ -242,6 +242,8 @@ function appendScanTerminalLine(text) {
 
 function startScanTerminalSimulation() {
     stopScanTerminalSimulation(false);
+    // Sequence tokens ensure stale async terminal writes from earlier runs are ignored
+    // when the user restarts analysis quickly.
     analysisTerminalSequenceToken += 1;
 
     const shellEl = document.getElementById('analysis-terminal-shell');
@@ -256,6 +258,7 @@ function startScanTerminalSimulation() {
 }
 
 function stopScanTerminalSimulation(autoCloseTerminal = true) {
+    // Incrementing the token invalidates pending closures without extra cancellation APIs.
     analysisTerminalSequenceToken += 1;
 
     if (autoCloseTerminal) {
@@ -334,6 +337,7 @@ function getLocalScannerAddressSpace(url) {
             return 'loopback';
         }
 
+        // Browser private-network checks classify LAN scanner hosts as local/private.
         return 'local';
     } catch (error) {
         return 'local';
@@ -348,6 +352,8 @@ function buildLocalScannerFetchOptions(options = {}) {
     };
 
     if (window.isSecureContext) {
+        // Explicitly declaring targetAddressSpace improves compatibility with browsers
+        // enforcing Private Network Access preflight rules.
         requestOptions.targetAddressSpace = getLocalScannerAddressSpace(LOCAL_SCANNER_BASE_URL);
     }
 
@@ -679,6 +685,9 @@ function getEstimatedAnalysisDurationMs(isLiveScanEnabled) {
     const upperBoundMs = isLiveScanEnabled ? ANALYSIS_ESTIMATED_MAX_LIVE_MS : ANALYSIS_ESTIMATED_MAX_CACHED_MS;
     const historicalAverageMs = toBoundedNumber(metrics[averageKey], defaultDurationMs);
     const paddedEstimateMs = historicalAverageMs * 1.15;
+
+    // Keep progress believable by adapting to historical device/runtime speed while
+    // preserving hard bounds that prevent extreme ETA swings.
 
     return Math.max(lowerBoundMs, Math.min(upperBoundMs, paddedEstimateMs));
 }

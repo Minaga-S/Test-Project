@@ -394,6 +394,8 @@ function appendAssetScanTerminalLine(line) {
 
 function startAssetScanTerminalSimulation() {
     stopAssetScanTerminalSimulation(false);
+    // Token invalidation prevents delayed async output from earlier scans appearing
+    // in the current terminal session.
     assetScanTerminalSequenceToken += 1;
 
     const terminalShell = document.getElementById('asset-scan-terminal-shell');
@@ -407,6 +409,7 @@ function startAssetScanTerminalSimulation() {
     }
 }
 function stopAssetScanTerminalSimulation(autoCloseTerminal = true) {
+    // Bump token so pending terminal steps can self-cancel without explicit abort handles.
     assetScanTerminalSequenceToken += 1;
 
     if (assetScanTerminalTimer) {
@@ -561,6 +564,8 @@ function getEstimatedAssetScanDurationMs() {
     const metrics = readAssetScanDurationMetrics();
     const historicalAverageMs = toBoundedNumber(metrics.averageMs, ASSET_SCAN_DEFAULT_ESTIMATED_MS);
     const paddedEstimateMs = historicalAverageMs * 1.15;
+
+    // Adaptive ETA improves perceived accuracy while hard bounds prevent extreme jitter.
 
     return Math.max(ASSET_SCAN_ESTIMATED_MIN_MS, Math.min(ASSET_SCAN_ESTIMATED_MAX_MS, paddedEstimateMs));
 }

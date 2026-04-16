@@ -134,6 +134,8 @@ class ThreatClassificationService {
         const fallbackLikelihood = aiAnalysis.likelihood || threatCharacteristics.likelihood || 2;
         const fallbackImpact = aiAnalysis.impact || threatCharacteristics.impact || 2;
         const deterministicRisk = DETERMINISTIC_RISK_SCORING
+            // CVE severity takes precedence for scoring consistency across environments,
+            // while still allowing opt-out for experimentation.
             ? this.deriveRiskFromCveSeverity(cveList, fallbackLikelihood, fallbackImpact)
             : {
                 likelihood: Math.max(1, Math.min(4, fallbackLikelihood)),
@@ -180,6 +182,8 @@ class ThreatClassificationService {
             return classification;
         }
 
+        // Guardrail: ransomware reports with multiple severe operational indicators should
+        // never be downgraded by low-confidence model output.
         if (signal.isCriticalRansomware) {
             return {
                 ...classification,

@@ -313,6 +313,8 @@ function ensureLogoutModal() {
         }
 
         if (event.target.id === 'logout-confirm-btn') {
+            // Logout stays client-driven because tokens are bearer-based and cleared locally;
+            // this keeps the flow resilient even if backend logout endpoints are unavailable.
             apiClient.logout();
             window.location.href = 'login.html';
         }
@@ -380,6 +382,7 @@ function normalizeIconography() {
         }
 
         const label = text.replace(firstToken, '').trim();
+        // Rebuild with DOM nodes so mapped icon labels never flow through HTML parsing.
         element.textContent = '';
 
         const iconSpan = document.createElement('span');

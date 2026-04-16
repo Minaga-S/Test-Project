@@ -625,6 +625,8 @@ async function startTwoFactorSetupFromSettings() {
         recoveryCodesList.innerHTML = '';
     }
 
+    // Recovery codes are only valid after successful enable; hide any previous list
+    // so users do not rely on stale values.
     shouldShowTwoFactorRecoveryCodes = false;
 
     if (submitButton) {
@@ -759,6 +761,7 @@ async function copyTextToClipboard(textToCopy) {
             return true;
         }
 
+        // Legacy fallback for browsers/contexts where Clipboard API is unavailable.
         const fallbackTextarea = document.createElement('textarea');
         fallbackTextarea.value = textToCopy;
         fallbackTextarea.setAttribute('readonly', '');
