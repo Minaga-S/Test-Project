@@ -776,11 +776,17 @@ class AuthController {
                 ipAddress: req.ip || '',
             });
 
+            const token = this.createAccessToken(user);
+            const refreshToken = this.createRefreshToken(user);
+
             return res.json({
                 success: true,
                 message: 'Two-factor authentication enabled successfully',
                 recoveryCodes,
-                forceReauth: true,
+                forceReauth: false,
+                token,
+                refreshToken,
+                user: user.toJSON(),
             });
         } catch (error) {
             logger.error(`Enable 2FA error: ${error.message}`);
