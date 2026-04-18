@@ -97,8 +97,6 @@ From backend/:
 npm run dev
 npm start
 npm test
-npm run seed:test-data
-npm run reset:test-data
 ```
 
 ## Environment Variables
@@ -164,11 +162,10 @@ npm test -- backend/services/scanHistoryService.test.js
 - Node service hosting compatible (for example Render).
 - Docker deployment is recommended when scanner features require nmap in runtime image.
 
-## Default Seed Users
-When seed scripts are enabled in your environment:
-
-- admin@test.com / Admin123456
-- staff@test.com / Staff123456
+## User Provisioning
+- No default users are seeded at startup.
+- Create the first account through the sign-up flow.
+- All accounts use the same `User` role and user-level permissions.
 
 ## Project Goals
 - Improve cybersecurity visibility for hotel operations.

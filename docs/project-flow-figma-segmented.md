@@ -111,7 +111,7 @@ flowchart TB
     F2[config/database.js\nDB connection]
     F3[config/ai-config.js\nAI setup]
     F4[utils/logger.js\nOperational logs]
-    F5[scripts/seedDatabase.js\nInitial data and users]
+    F5[auth/register flow\nUser provisioning]
   end
 
   subgraph DELIVERY[Delivery Pipeline]
