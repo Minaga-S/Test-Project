@@ -16,7 +16,7 @@ describe('User model', () => {
         });
     });
 
-    it('should keep admin permissions for admin users', async () => {
+    it('should normalize any supplied role to User permissions', async () => {
         const user = new User({
             email: 'admin@example.com',
             password: 'Password123!',
@@ -27,8 +27,8 @@ describe('User model', () => {
         await user.validate();
 
         expect(user.toObject()).toMatchObject({
-            role: 'Admin',
-            permissions: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'user:manage', 'dashboard:read'],
+            role: 'User',
+            permissions: ['asset:read', 'asset:write', 'incident:read', 'incident:write', 'dashboard:read'],
         });
     });
 

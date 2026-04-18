@@ -57,7 +57,7 @@ describe('auditLogController.getAuditLogSummary', () => {
         };
     }
 
-    it('should return grouped action and entity counts', async () => {
+    it('should return grouped action and entity counts for current user scope', async () => {
         mockAuditLogModel.aggregate
             .mockResolvedValueOnce([{ _id: 'INCIDENT_CREATE', count: 4 }])
             .mockResolvedValueOnce([{ _id: 'Incident', count: 4 }]);
@@ -65,8 +65,12 @@ describe('auditLogController.getAuditLogSummary', () => {
         const response = createResponse();
 
         await auditLogController.getAuditLogSummary({
-            user: { userId: 'admin-1', role: 'Admin' },
+            user: { userId: 'user-1', role: 'User' },
         }, response, jest.fn());
+
+        expect(mockAuditLogModel.aggregate).toHaveBeenNthCalledWith(1, expect.arrayContaining([
+            expect.objectContaining({ $match: { actorUserId: 'user-1' } }),
+        ]));
 
         expect(response.json).toHaveBeenCalledWith({
             success: true,

@@ -45,6 +45,7 @@ mockUser.findByIdAndUpdate = jest.fn();
 jest.mock('../models/User', () => mockUser);
 
 const authController = require('./authController');
+const totpService = require('../services/totpService');
 
 describe('authController.register', () => {
     beforeEach(() => {
@@ -154,5 +155,128 @@ describe('authController.login security controls', () => {
         await authController.refreshToken(request, response, jest.fn());
 
         expect(user.refreshTokenVersion).toBe(4);
+    });
+
+    it('should prompt to enable 2FA when user 2FA is disabled and user has logged in before', async () => {
+        const user = {
+            _id: 'user-id',
+            email: 'no2fa@example.com',
+            role: 'User',
+            permissions: ['asset:read'],
+            isActive: true,
+            hasLoggedInOnce: true,
+            twoFactorEnabled: false,
+            twoFactorSecret: '',
+            comparePassword: jest.fn().mockResolvedValue(true),
+            save: jest.fn().mockResolvedValue(undefined),
+            toJSON: jest.fn(() => ({ email: 'no2fa@example.com', role: 'User' })),
+        };
+
+        mockUser.findOne.mockResolvedValue(user);
+
+        const request = {
+            body: {
+                email: 'no2fa@example.com',
+                password: 'CorrectPassword123!',
+            },
+            ip: '127.0.0.1',
+        };
+
+        const response = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+
+        await authController.login(request, response, jest.fn());
+
+        expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            promptToEnableTwoFactor: true,
+        }));
+    });
+
+    it('should not prompt to enable 2FA on first successful login', async () => {
+        const user = {
+            _id: 'user-id',
+            email: 'first-login@example.com',
+            role: 'User',
+            permissions: ['asset:read'],
+            isActive: true,
+            hasLoggedInOnce: false,
+            twoFactorEnabled: false,
+            twoFactorSecret: '',
+            comparePassword: jest.fn().mockResolvedValue(true),
+            save: jest.fn().mockResolvedValue(undefined),
+            toJSON: jest.fn(() => ({ email: 'first-login@example.com', role: 'User' })),
+        };
+
+        mockUser.findOne.mockResolvedValue(user);
+
+        const request = {
+            body: {
+                email: 'first-login@example.com',
+                password: 'CorrectPassword123!',
+            },
+            ip: '127.0.0.1',
+        };
+
+        const response = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+
+        await authController.login(request, response, jest.fn());
+
+        expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            promptToEnableTwoFactor: false,
+        }));
+    });
+});
+
+describe('authController.enableTwoFactor', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should return fresh access and refresh tokens after enabling 2FA', async () => {
+        const user = {
+            _id: 'user-id',
+            email: '2fa@example.com',
+            twoFactorEnabled: false,
+            twoFactorTempSecret: 'TEMPSECRET',
+            recoveryCodeHashes: [],
+            sessionVersion: 0,
+            refreshTokenVersion: 0,
+            save: jest.fn().mockResolvedValue(undefined),
+            toJSON: jest.fn(() => ({ email: '2fa@example.com', role: 'User', twoFactorEnabled: true })),
+        };
+
+        mockUser.findById.mockResolvedValue(user);
+        totpService.verifyToken.mockReturnValue(true);
+        jest.spyOn(authController, 'createRecoveryCodes').mockResolvedValue({
+            recoveryCodes: ['CODE1'],
+            recoveryCodeHashes: ['HASH1'],
+        });
+
+        const request = {
+            body: { code: '123456' },
+            user: { userId: 'user-id' },
+            ip: '127.0.0.1',
+        };
+
+        const response = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+
+        await authController.enableTwoFactor(request, response, jest.fn());
+
+        expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            token: 'signed-token',
+            refreshToken: 'signed-token',
+            forceReauth: false,
+        }));
     });
 });

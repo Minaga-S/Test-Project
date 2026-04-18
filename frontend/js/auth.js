@@ -16,6 +16,7 @@ let pendingForgotPasswordResetOptions = {
     canUseTwoFactor: false,
 };
 let isForgotPasswordTwoFactorMode = false;
+let hasCompletedTwoFactorSetup = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
@@ -457,6 +458,12 @@ function setupTwoFactorModalActions() {
     if (cancelTwoFactorSetupButton) {
         cancelTwoFactorSetupButton.addEventListener('click', () => {
             closeTwoFactorSetupModal();
+
+            if (hasCompletedTwoFactorSetup) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
             window.location.href = 'dashboard.html';
         });
     }
@@ -644,6 +651,8 @@ async function openTwoFactorSetupModal() {
         recoveryList.innerHTML = '';
     }
 
+    hasCompletedTwoFactorSetup = false;
+
     if (cancelButton) {
         cancelButton.textContent = 'Skip for Now';
     }
@@ -686,6 +695,16 @@ async function handleTwoFactorEnableSubmit(e) {
     try {
         const response = await apiClient.post('/auth/2fa/enable', { code });
         const recoveryCodes = Array.isArray(response.recoveryCodes) ? response.recoveryCodes : [];
+
+        if (response.token) {
+            apiClient.setToken(response.token, response.refreshToken || null);
+        }
+
+        if (response.user) {
+            localStorage.setItem('user', JSON.stringify(response.user));
+        }
+
+        hasCompletedTwoFactorSetup = true;
         showLoading(false);
 
         if (recoveryCodes.length === 0) {
@@ -813,6 +832,8 @@ function closeTwoFactorSetupModal() {
     if (modal) {
         modal.style.display = 'none';
     }
+
+    hasCompletedTwoFactorSetup = false;
 }
 
 function openForgotPasswordModal() {

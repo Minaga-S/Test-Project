@@ -15,7 +15,6 @@ const { connectDatabase, closeDatabase } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
 const { authMiddleware } = require('./middleware/auth');
 const { apiLimiter } = require('./middleware/rateLimiter');
-const { seedDatabase } = require('./scripts/seedDatabase');
 const logger = require('./utils/logger');
 
 const app = express();
@@ -134,28 +133,11 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '127.0.0.1';
 
-function shouldSeedDatabase() {
-    const normalizedEnvironment = String(process.env.NODE_ENV || '').toLowerCase();
-    const explicitSeedFlag = String(process.env.SEED_ON_STARTUP || '').toLowerCase();
-
-    if (explicitSeedFlag === 'true') {
-        return true;
-    }
-
-    // Default to safe behavior: seed only in non-production runtimes.
-    return normalizedEnvironment === 'development' || normalizedEnvironment === 'test';
-}
-
 async function startServer() {
     try {
         // Connect to database
         await connectDatabase();
         console.log('? Database connected');
-
-        // Seed only in non-production environments unless explicitly enabled.
-        if (shouldSeedDatabase()) {
-            await seedDatabase();
-        }
 
         // Start server
         const server = app.listen(PORT, HOST, () => {

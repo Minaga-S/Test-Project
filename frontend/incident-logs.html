@@ -288,7 +288,12 @@
                             <p id="detail-cve-count">0</p>
                         </div>
                     </div>
-                    <div id="detail-cve-list" class="recommendations-list"></div>
+                    <div id="detail-cve-list" class="cve-preview-list"></div>
+                    <div class="cve-intelligence-action-row">
+                        <button id="open-cve-intelligence-modal-btn" class="btn btn-secondary" type="button" disabled>
+                            View Full CVE Intelligence
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Threat Analysis -->
@@ -388,6 +393,21 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CVE Intelligence Nested Modal -->
+    <div id="cve-intelligence-modal" class="modal nested-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="cve-intelligence-title">
+        <div class="modal-overlay" id="cve-intelligence-overlay"></div>
+        <div class="modal-content modal-content-large cve-intelligence-modal-content">
+            <div class="modal-header">
+                <h2 id="cve-intelligence-title">CVE Intelligence</h2>
+                <button class="modal-close" id="cve-intelligence-close" aria-label="Close CVE intelligence dialog">&times;</button>
+            </div>
+            <div class="cve-intelligence-modal-body">
+                <div id="cve-intelligence-summary" class="cve-intelligence-summary"></div>
+                <div id="cve-intelligence-list" class="cve-intelligence-list"></div>
             </div>
         </div>
     </div>

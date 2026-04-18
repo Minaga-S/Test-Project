@@ -3,7 +3,6 @@
 const express = require('express');
 const { query } = require('express-validator');
 const auditLogController = require('../controllers/auditLogController');
-const { requirePermission, requireRole } = require('../middleware/auth');
 const { validateRequest } = require('../middleware/validateRequest');
 
 const router = express.Router();
@@ -19,7 +18,7 @@ const auditLogQueryValidation = [
     validateRequest,
 ];
 
-router.get('/', requireRole('Admin'), requirePermission('user:manage'), auditLogQueryValidation, withController(auditLogController, 'getAuditLogs'));
-router.get('/summary', requireRole('Admin'), requirePermission('user:manage'), withController(auditLogController, 'getAuditLogSummary'));
+router.get('/', auditLogQueryValidation, withController(auditLogController, 'getAuditLogs'));
+router.get('/summary', withController(auditLogController, 'getAuditLogSummary'));
 
 module.exports = router;

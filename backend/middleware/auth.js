@@ -80,20 +80,5 @@ function requirePermission(requiredPermission) {
     };
 }
 
-function requireRole(requiredRole) {
-    return function roleMiddleware(req, res, next) {
-        const role = String(req.user?.role || '').trim();
-
-        if (role !== requiredRole) {
-            return res.status(403).json({
-                success: false,
-                message: 'Forbidden',
-            });
-        }
-
-        return next();
-    };
-}
-
-module.exports = { authMiddleware, requirePermission, requireRole };
+module.exports = { authMiddleware, requirePermission };
 

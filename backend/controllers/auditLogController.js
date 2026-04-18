@@ -39,13 +39,9 @@ class AuditLogController {
             const limit = Math.min(requestedLimit, MAX_LIMIT);
             const skip = (page - 1) * limit;
 
-            const filters = {};
-            const requestedScope = String(req.query.scope || 'me').trim().toLowerCase();
-            const canReadAll = req.user?.role === 'Admin';
-
-            if (!canReadAll || requestedScope !== 'all') {
-                filters.actorUserId = req.user.userId;
-            }
+            const filters = {
+                actorUserId: req.user.userId,
+            };
 
             const action = String(req.query.action || '').trim();
             if (action) {
@@ -104,11 +100,9 @@ class AuditLogController {
 
     async getAuditLogSummary(req, res, next) {
         try {
-            const canReadAll = req.user?.role === 'Admin';
-            const baseMatch = {};
-            if (!canReadAll) {
-                baseMatch.actorUserId = req.user.userId;
-            }
+            const baseMatch = {
+                actorUserId: req.user.userId,
+            };
 
             const [actionSummary, entitySummary] = await Promise.all([
                 AuditLog.aggregate([
