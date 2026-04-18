@@ -168,16 +168,8 @@ Defined in backend/utils/constants.js:
 - GEMINI_MODEL (default gemini-1.5-flash)
 - GEMINI_MODEL_VERSION (default v1beta)
 
-## Seeded Default Data Behavior
+## Startup Data Behavior
 
-On server startup, seed script does:
-
-1. If no users exist, creates:
-- admin@test.com / Admin123456
-- staff@test.com / Staff123456
-
-2. Upserts threat knowledge base entries from constants.
-
-Important:
-- This startup seeding runs automatically.
-- For production, replace default credentials and review seed policy.
+- The backend does not seed default users on startup.
+- Threat intelligence is loaded dynamically through service logic and API integrations.
+- Create user accounts through the authentication registration flow.

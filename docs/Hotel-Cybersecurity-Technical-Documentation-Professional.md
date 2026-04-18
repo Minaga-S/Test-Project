@@ -130,12 +130,10 @@ npx serve -l tcp://127.0.0.1:3000 .
 
 Set `CORS_ORIGIN` with explicit trusted origins. Current backend normalizes origin values and checks against an effective allowlist.
 
-### Test Accounts / Seeding
+### User Provisioning
 
-Seed behavior is now guarded by environment policy:
-- automatic seeding in `development`/`test`.
-- disabled by default in production.
-- can be explicitly enabled with `SEED_ON_STARTUP=true`.
+- No default users are seeded at startup.
+- Accounts are created through the registration flow.
 
 ### Future Improvement Opportunities
 
@@ -262,7 +260,6 @@ CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-1.5-flash
 GEMINI_MODEL_VERSION=v1beta
-SEED_ON_STARTUP=true
 ```
 
 ### Common Issues
@@ -469,7 +466,6 @@ Recommended:
 - `JWT_REFRESH_SECRET`
 - `JWT_REFRESH_EXPIRATION`
 - `CORS_ORIGIN`
-- `SEED_ON_STARTUP`
 
 AI/analysis path:
 - `GEMINI_API_KEY`
@@ -507,7 +503,7 @@ Frontend:
 
 ## 12. Code Snippets Appendix (Expanded)
 
-### 12.1 Backend: Controlled CORS + Seeding Policy
+### 12.1 Backend: Controlled CORS Policy
 
 ```js
 const corsOptions = {
@@ -518,13 +514,6 @@ const corsOptions = {
     return isAllowed ? callback(null, true) : callback(new Error(`Not allowed by CORS: ${requestOrigin}`));
   }
 };
-
-function shouldSeedDatabase() {
-  const env = String(process.env.NODE_ENV || '').toLowerCase();
-  const seedFlag = String(process.env.SEED_ON_STARTUP || '').toLowerCase();
-  if (seedFlag === 'true') return true;
-  return env === 'development' || env === 'test';
-}
 ```
 
 ### 12.2 Backend: Regex-Safe Asset Search
@@ -785,14 +774,8 @@ ScanHistory:
 
 ### 15.7 Backend Scripts
 
-seedDatabase.js:
-- populates a development or test database with baseline records.
-
-seedTestIncidents.js:
-- produces repeatable incident fixtures for tests or demonstrations.
-
-resetTestDatabase.js:
-- clears and rebuilds test state for repeatable validation runs.
+No automatic data-seeding scripts are used in the current deployment path.
+User provisioning is handled through the registration flow.
 
 ### 15.8 Frontend Page Responsibilities
 

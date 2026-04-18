@@ -49,9 +49,7 @@ npm --prefix backend run dev
 
 Expected checks:
 - Backend responds at http://localhost:5000/health with status ok.
-- On first startup, database seed creates test users if user collection is empty:
-  - admin@test.com / Admin123456
-  - staff@test.com / Staff123456
+- No default users are seeded.
 
 ## Step 4: Serve frontend static files
 
@@ -90,7 +88,7 @@ localStorage.setItem('apiBaseUrlOverride', 'http://localhost:5000/api')
 ## Step 6: Smoke test
 
 1. Open login page.
-2. Sign in with seeded user.
+2. Create an account using Sign Up, then sign in.
 3. Create one asset.
 4. Submit one incident tied to that asset.
 5. Confirm dashboard metrics and recent incidents update.
