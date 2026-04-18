@@ -11,6 +11,8 @@ let pendingDeleteIncidentIds = [];
 const JSPDF_URL = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
 let jsPdfLoadPromise = null;
 const INCIDENTS_ROWS_PER_PAGE = 25;
+let currentIncidentCveCategories = [];
+let currentIncidentPublicId = '';
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeIncidentLogs();
@@ -221,6 +223,78 @@ function getIncidentCveMatches(incident) {
 
 const CVE_SEVERITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
 
+function getCveModalTitle() {
+    if (!currentIncidentPublicId) {
+        return 'CVE Intelligence';
+    }
+
+    return `CVE Intelligence - ${currentIncidentPublicId}`;
+}
+
+function closeCveIntelligenceModal() {
+    hideModal('cve-intelligence-modal');
+}
+
+function openCveIntelligenceModal() {
+    if (!Array.isArray(currentIncidentCveCategories) || currentIncidentCveCategories.length === 0) {
+        showNotification('No CVE intelligence data available for this incident', 'warning');
+        return;
+    }
+
+    showModal('cve-intelligence-modal');
+}
+
+function renderCveModalContent(categorizedMatches) {
+    const summaryEl = document.getElementById('cve-intelligence-summary');
+    const listEl = document.getElementById('cve-intelligence-list');
+    const titleEl = document.getElementById('cve-intelligence-title');
+
+    if (titleEl) {
+        titleEl.textContent = getCveModalTitle();
+    }
+
+    if (!summaryEl || !listEl) {
+        return;
+    }
+
+    const totalCount = categorizedMatches.reduce((sum, group) => sum + group.entries.length, 0);
+    summaryEl.innerHTML = `
+        <div class="cve-summary-pill">Total CVEs: <strong>${escapeHtml(String(totalCount))}</strong></div>
+        ${categorizedMatches.map((group) => `<div class="cve-summary-pill cve-summary-pill-${group.severity.toLowerCase()}">${escapeHtml(group.severity)}: <strong>${escapeHtml(String(group.entries.length))}</strong></div>`).join('')}
+    `;
+
+    listEl.innerHTML = categorizedMatches.map((group) => {
+        const severityClass = group.severity.toLowerCase();
+        const cveItems = group.entries.map((entry) => {
+            const cveId = entry.cveId || entry.id || 'Unknown CVE';
+            const normalizedSeverity = normalizeCveSeverity(entry);
+            const score = entry.cvssScore !== undefined && entry.cvssScore !== null ? entry.cvssScore : 'N/A';
+            const published = entry.published ? formatDate(entry.published) : 'N/A';
+            const description = entry.description || entry.title || 'No additional description available.';
+
+            return `
+                <article class="cve-modal-item">
+                    <div class="cve-modal-item-header">
+                        <span class="cve-modal-item-id">${escapeHtml(cveId)}</span>
+                        <span class="cve-modal-item-meta">Severity: ${escapeHtml(normalizedSeverity)} | CVSS: ${escapeHtml(score)} | Published: ${escapeHtml(published)}</span>
+                    </div>
+                    <p>${escapeHtml(description)}</p>
+                </article>
+            `;
+        }).join('');
+
+        return `
+            <details class="cve-modal-category cve-modal-category-${severityClass}" open>
+                <summary>
+                    <span class="cve-modal-category-title">${escapeHtml(group.severity)}</span>
+                    <span class="cve-modal-category-count">${group.entries.length} ${group.entries.length === 1 ? 'CVE' : 'CVEs'}</span>
+                </summary>
+                <div class="cve-modal-items-scroll">${cveItems}</div>
+            </details>
+        `;
+    }).join('');
+}
+
 function normalizeCveSeverity(entry) {
     const rawSeverity = String(entry?.severity || '').trim().toUpperCase();
     if (CVE_SEVERITY_ORDER.includes(rawSeverity)) {
@@ -275,6 +349,7 @@ function renderIncidentCveDetails(incident) {
     const countEl = document.getElementById('detail-cve-count');
     const cvePanel = document.getElementById('detail-cve-panel');
     const listEl = document.getElementById('detail-cve-list');
+    const openCveModalButton = document.getElementById('open-cve-intelligence-modal-btn');
 
     if (sourceEl) {
         sourceEl.textContent = enrichment.source || cve.source || 'NIST NVD API';
@@ -293,6 +368,9 @@ function renderIncidentCveDetails(incident) {
         countEl.textContent = String(cveMatches.length);
     }
 
+    currentIncidentPublicId = String(incident?.incidentId || '').trim();
+    currentIncidentCveCategories = cveMatches.length > 0 ? buildCveCategories(cveMatches) : [];
+
     if (cvePanel) {
         cvePanel.open = false;
     }
@@ -303,25 +381,23 @@ function renderIncidentCveDetails(incident) {
 
     if (cveMatches.length === 0) {
         listEl.innerHTML = '<div class="recommendation-item">No CVE matches were attached to this incident.</div>';
+        if (openCveModalButton) {
+            openCveModalButton.disabled = true;
+        }
+
+        renderCveModalContent([]);
         return;
     }
 
-    const categorizedMatches = buildCveCategories(cveMatches);
+    listEl.innerHTML = currentIncidentCveCategories
+        .map((group) => `<div class="cve-preview-item cve-preview-item-${group.severity.toLowerCase()}"><strong>${escapeHtml(group.severity)}:</strong> ${escapeHtml(String(group.entries.length))} ${group.entries.length === 1 ? 'CVE' : 'CVEs'}</div>`)
+        .join('');
 
-    listEl.innerHTML = categorizedMatches.map((group) => {
-        const severityClass = group.severity.toLowerCase();
-        const cveItems = group.entries.map((entry) => {
-            const cveId = entry.cveId || entry.id || 'Unknown CVE';
-            const normalizedSeverity = normalizeCveSeverity(entry);
-            const score = entry.cvssScore !== undefined && entry.cvssScore !== null ? entry.cvssScore : 'N/A';
-            const published = entry.published ? formatDate(entry.published) : 'N/A';
-            const description = entry.description || entry.title || 'No additional description available.';
+    if (openCveModalButton) {
+        openCveModalButton.disabled = false;
+    }
 
-            return `<details class="recommendation-item cve-item"><summary><span class="cve-summary-id">${escapeHtml(cveId)}</span><span class="cve-summary-meta">Severity: ${escapeHtml(normalizedSeverity)} | CVSS: ${escapeHtml(score)} | Published: ${escapeHtml(published)}</span></summary><p>${escapeHtml(description)}</p></details>`;
-        }).join('');
-
-        return `<details class="cve-category cve-category-${severityClass}"><summary><span class="cve-category-header-main"><span class="cve-category-title">${escapeHtml(group.severity)}</span><span class="cve-category-count">${group.entries.length} ${group.entries.length === 1 ? 'CVE' : 'CVEs'}</span><span class="cve-category-toggle" aria-hidden="true"></span></span></summary><div class="cve-category-items">${cveItems}</div></details>`;
-    }).join('');
+    renderCveModalContent(currentIncidentCveCategories);
 }
 
 function setupEventListeners() {
@@ -459,6 +535,21 @@ function setupEventListeners() {
     const detailOverlay = document.getElementById('detail-overlay');
     if (detailOverlay) {
         detailOverlay.addEventListener('click', closeDetailModal);
+    }
+
+    const openCveModalButton = document.getElementById('open-cve-intelligence-modal-btn');
+    if (openCveModalButton) {
+        openCveModalButton.addEventListener('click', openCveIntelligenceModal);
+    }
+
+    const closeCveModalButton = document.getElementById('cve-intelligence-close');
+    if (closeCveModalButton) {
+        closeCveModalButton.addEventListener('click', closeCveIntelligenceModal);
+    }
+
+    const cveModalOverlay = document.getElementById('cve-intelligence-overlay');
+    if (cveModalOverlay) {
+        cveModalOverlay.addEventListener('click', closeCveIntelligenceModal);
     }
 
     const saveUpdateBtn = document.getElementById('save-update');
@@ -886,6 +977,7 @@ async function saveIncidentUpdate() {
 }
 
 function closeDetailModal() {
+    closeCveIntelligenceModal();
     hideModal('detail-modal');
 }
 
