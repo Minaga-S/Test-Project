@@ -18,7 +18,7 @@ const METRIC_ANIMATION_DURATION_MS = 800;
 const DASHBOARD_BADGE_ROTATION_MS = 30000;
 let chartJsLoadPromise = null;
 let dashboardCharts = {};
-let isTwoFactorEnabled = false;
+let isTwoFactorEnabled = null;
 let dashboardBadgeTimer = null;
 let shouldShowTwoFactorStatus = true;
 
@@ -107,8 +107,17 @@ async function updateBadgeDisplay() {
         return;
     }
 
+    if (isTwoFactorEnabled === null) {
+        badgeEl.classList.remove('live-badge-warning');
+        badgeEl.classList.add('live-badge-loading');
+        statusEl.textContent = 'Loading status...';
+        return;
+    }
+
     const isConnected = await isLocalScannerReachable();
-    if (!isTwoFactorEnabled && shouldShowTwoFactorStatus) {
+    badgeEl.classList.remove('live-badge-loading');
+
+    if (isTwoFactorEnabled === false && shouldShowTwoFactorStatus) {
         badgeEl.classList.add('live-badge-warning');
         statusEl.textContent = '2FA Not Enabled';
         return;

@@ -730,33 +730,8 @@ function setupMobileHaptics() {
     }, { passive: true });
 }
 
-function hideAuditLogNavigationForNonAdmins() {
-    const user = getLocalStorage('user');
-    const isAdmin = String(user?.role || '').trim() === 'Admin';
-    document.body.classList.toggle('is-admin', isAdmin);
-
-    if (isAdmin) {
-        return;
-    }
-
-    // If local cache is missing or stale, re-verify role with the profile endpoint.
-    // Non-admin state remains the secure default while verification is in progress.
-    if (apiClient?.isAuthenticated && apiClient.isAuthenticated()) {
-        apiClient.getProfile()
-            .then((profileResponse) => {
-                const profile = profileResponse?.user || profileResponse || {};
-                const hasAdminRole = String(profile?.role || '').trim() === 'Admin';
-
-                if (profile && typeof setLocalStorage === 'function') {
-                    setLocalStorage('user', profile);
-                }
-
-                document.body.classList.toggle('is-admin', hasAdminRole);
-            })
-            .catch(() => {
-                document.body.classList.remove('is-admin');
-            });
-    }
+function ensureAuditLogNavigationVisible() {
+    document.body.classList.remove('is-admin');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -767,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSidebarToggle();
     setupPageTransitions();
     setupMobileHaptics();
-    hideAuditLogNavigationForNonAdmins();
+    ensureAuditLogNavigationVisible();
 });
 
 document.addEventListener('click', (event) => {
