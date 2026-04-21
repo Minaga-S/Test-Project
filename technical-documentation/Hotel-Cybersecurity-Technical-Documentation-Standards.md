@@ -20,19 +20,169 @@ From a technical design standpoint, the project uses a layered backend boundary 
 
 ## System Architecture
 
-The runtime architecture includes three primary planes: client interaction, API orchestration, and persistence/enrichment processing. Authentication and authorization gates are enforced before protected route execution, while enrichment and analysis services are invoked from incident and asset workflows.
+The runtime architecture is organized as a layered delivery pipeline. Browser pages handle presentation, the shared frontend client coordinates authentication and API calls, the Express backend applies security and validation controls, and the service layer performs business logic, enrichment, and persistence. This separation keeps user interaction, request handling, and data processing independent while still allowing the system to operate as a single end-to-end platform.
 
 ```mermaid
 flowchart LR
-    B[Browser Client] -->|HTTPS + JWT| A[Express API]
-    A --> M[(MongoDB)]
-    A --> T[Threat and AI Services]
-    A --> N[NIST and CVE Enrichment]
-    B --> L[Local Scanner Companion]
-    L -->|Bridge Token + Scan Result| A
+  subgraph Browser[Browser Experience]
+    P1[login.html]
+    P2[dashboard.html]
+    P3[assets.html]
+    P4[report-incident.html]
+    P5[incident-logs.html]
+    P6[risk-analysis.html]
+    P7[audit-logs.html]
+    P8[settings.html]
+  end
+
+  subgraph ClientRuntime[Shared Frontend Runtime]
+    A1[api-client.js]
+    A2[auth.js]
+    A3[assets.js]
+    A4[dashboard.js]
+    A5[incident-report.js]
+    A6[incident-logs.js]
+    A7[risk-analysis.js]
+    A8[settings.js]
+    A9[utils.js]
+  end
+
+  subgraph Gateway[Express Gateway and Security Controls]
+    G1[helmet]
+    G2[CORS allowlist]
+    G3[rate limiting]
+    G4[auth middleware]
+    G5[request validation]
+    G6[error handler]
+  end
+
+  subgraph API[Domain Route and Service Layer]
+    R1[/auth/]
+    R2[/assets/]
+    R3[/incidents/]
+    R4[/threats/]
+    R5[/risk/]
+    R6[/nist/]
+    R7[/dashboard/]
+    R8[/audit-logs/]
+    S1[authController]
+    S2[assetController]
+    S3[incidentController]
+    S4[threatClassificationService]
+    S5[riskCalculationService]
+    S6[nistThreatIntelService]
+    S7[scanHistoryService]
+  end
+
+  subgraph Data[Data and External Integrations]
+    D1[(MongoDB)]
+    D2[AI analysis provider]
+    D3[NIST and CVE services]
+    D4[Local scanner companion]
+  end
+
+  P1 --> A1
+  P2 --> A4
+  P3 --> A3
+  P4 --> A5
+  P5 --> A6
+  P6 --> A7
+  P7 --> A9
+  P8 --> A8
+
+  A1 --> G1
+  A1 --> G2
+  A1 --> G3
+  G4 --> R1
+  G4 --> R2
+  G4 --> R3
+  G4 --> R4
+  G4 --> R5
+  G4 --> R6
+  G4 --> R7
+  G4 --> R8
+
+  R1 --> S1
+  R2 --> S2
+  R3 --> S3
+  R4 --> S4
+  R5 --> S5
+  R6 --> S6
+  R7 --> S7
+  R8 --> S7
+
+  S1 --> D1
+  S2 --> D1
+  S3 --> D1
+  S4 --> D2
+  S4 --> D3
+  S5 --> D1
+  S6 --> D3
+  S7 --> D1
+  D4 --> S7
 ```
 
 Diagram placeholder: replace the Mermaid block above with the final rendered architecture diagram during publication.
+
+## Use Case Model
+
+The platform supports several distinct user journeys. The first use case diagram captures the primary hotel-operations workflow, where staff authenticate, register assets, report incidents, and review analysis outputs. The second use case diagram captures administrative and security-oriented workflows, where security admins manage account security controls and the local scanner bridge exchanges request and result payloads.
+
+```mermaid
+flowchart LR
+  Staff[Hotel Staff]
+  Analyst[Security Analyst]
+  Admin[Security Administrator]
+  Scanner[Local Scanner Companion]
+
+  UC1([Authenticate and access the platform])
+  UC2([Register or update an asset])
+  UC3([Submit an incident report])
+  UC4([Review incident analysis and risk])
+  UC5([Monitor dashboard metrics])
+  UC6([Add notes and update incident status])
+  UC7([Request a local scan token])
+  UC8([Upload scan results])
+  UC9([Manage passwords, security questions, and 2FA])
+
+  Staff --> UC1
+  Staff --> UC2
+  Staff --> UC3
+  Staff --> UC5
+  Analyst --> UC4
+  Analyst --> UC6
+  Admin --> UC9
+  Admin --> UC5
+  Scanner --> UC8
+  UC7 --> Scanner
+```
+
+Diagram placeholder: replace the Mermaid block above with the final rendered use case diagram during publication.
+
+```mermaid
+flowchart LR
+  AuthUser[Authenticated User]
+  SecurityTeam[Security Team]
+  BridgeClient[Scanner Bridge Client]
+
+  U1([Change password])
+  U2([Manage security questions])
+  U3([Enable or disable 2FA])
+  U4([Review audit trail])
+  U5([Inspect security context for an asset])
+  U6([Create bridge token for scanning])
+  U7([Submit scan result once])
+
+  AuthUser --> U1
+  AuthUser --> U2
+  AuthUser --> U3
+  SecurityTeam --> U4
+  SecurityTeam --> U5
+  BridgeClient --> U7
+  U6 --> BridgeClient
+```
+
+Diagram placeholder: replace the Mermaid block above with the final rendered security use case diagram during publication.
 
 ## Request Lifecycle and Control Flow
 
@@ -355,6 +505,20 @@ Permission granularity is currently functional but role expansion may be require
 ## Maintenance Guidance
 
 Any change that alters route behavior, security assumptions, data shape, or session logic should trigger a corresponding update in this document. This document is intended to remain a live technical baseline rather than a one-time project artifact.
+
+## Bug Fixes Implemented
+
+The current technical baseline includes a series of fixes that improved authentication reliability, incident analysis usability, scanner handling, and form presentation. These fixes are part of the live codebase and should be treated as active platform behavior rather than historical notes.
+
+The authentication and authorization flow was tightened so that role handling is simpler, session invalidation is more predictable, and audit behavior remains consistent after security-sensitive changes. Two-factor login handling was corrected so that users can complete the challenge flow without the dashboard or audit experience drifting out of sync with the current session state.
+
+The incident analysis experience was also stabilized. The CVE intelligence view now behaves more reliably in nested modal contexts, and scrolling remains usable when incident records contain lengthy enrichment data. This makes the detailed analysis output easier to read and reduces the chance that important risk context is hidden off screen.
+
+Asset-scanner handling received additional reliability work. Status feedback is clearer when scanner operations are pending or complete, and upload error handling was improved so failed enrichment submissions are easier to diagnose and recover from.
+
+The signup and account-security forms were refined to remove an unwanted security-questions fieldset border, which restored a cleaner and more consistent presentation for account setup and recovery workflows.
+
+Taken together, these fixes improve the stability of login, dashboard status behavior, audit visibility, incident review, and scanner-assisted asset workflows.
 
 ## Appendix A: Backend Module Inventory
 
