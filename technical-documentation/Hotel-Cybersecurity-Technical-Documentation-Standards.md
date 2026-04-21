@@ -126,7 +126,11 @@ Diagram placeholder: replace the Mermaid block above with the final rendered arc
 
 ## Use Case Model
 
-The platform supports several distinct user journeys. The first use case diagram captures the primary hotel-operations workflow, where staff authenticate, register assets, report incidents, and review analysis outputs. The second use case diagram captures administrative and security-oriented workflows, where security admins manage account security controls and the local scanner bridge exchanges request and result payloads.
+The platform supports several distinct user journeys.
+
+### Primary Operational Use Cases
+
+The first use case diagram captures the primary hotel-operations workflow, where staff authenticate, register assets, report incidents, and review analysis outputs.
 
 ```mermaid
 flowchart LR
@@ -158,6 +162,10 @@ flowchart LR
 ```
 
 Diagram placeholder: replace the Mermaid block above with the final rendered use case diagram during publication.
+
+### Security and Administrative Use Cases
+
+The second use case diagram captures administrative and security-oriented workflows, where security admins manage account security controls and the local scanner bridge exchanges request and result payloads.
 
 ```mermaid
 flowchart LR
@@ -510,13 +518,24 @@ Any change that alters route behavior, security assumptions, data shape, or sess
 
 The current technical baseline includes a series of fixes that improved authentication reliability, incident analysis usability, scanner handling, and form presentation. These fixes are part of the live codebase and should be treated as active platform behavior rather than historical notes.
 
-The authentication and authorization flow was tightened so that role handling is simpler, session invalidation is more predictable, and audit behavior remains consistent after security-sensitive changes. Two-factor login handling was corrected so that users can complete the challenge flow without the dashboard or audit experience drifting out of sync with the current session state.
+- **Authentication and Authorization Fixes:**
+  - Tightened role handling for simpler management.
+  - Improved session invalidation predictability.
+  - Ensured audit behavior consistency after security-sensitive changes.
+  - Corrected two-factor login handling to prevent dashboard or audit experience drift during challenge flow completion.
 
-The incident analysis experience was also stabilized. The CVE intelligence view now behaves more reliably in nested modal contexts, and scrolling remains usable when incident records contain lengthy enrichment data. This makes the detailed analysis output easier to read and reduces the chance that important risk context is hidden off screen.
+- **Incident Analysis Fixes:**
+  - Stabilized CVE intelligence view in nested modal contexts.
+  - Maintained scrolling usability for incident records with lengthy enrichment data.
+  - Enhanced readability of detailed analysis output and reduced risk of hidden context.
 
-Asset-scanner handling received additional reliability work. Status feedback is clearer when scanner operations are pending or complete, and upload error handling was improved so failed enrichment submissions are easier to diagnose and recover from.
+- **Asset-Scanner Handling Fixes:**
+  - Provided clearer status feedback for pending or complete scanner operations.
+  - Improved upload error handling for easier diagnosis and recovery of failed enrichment submissions.
 
-The signup and account-security forms were refined to remove an unwanted security-questions fieldset border, which restored a cleaner and more consistent presentation for account setup and recovery workflows.
+- **Form Presentation Fixes:**
+  - Refined signup and account-security forms by removing unwanted security-questions fieldset border.
+  - Restored cleaner and more consistent presentation for account setup and recovery workflows.
 
 Taken together, these fixes improve the stability of login, dashboard status behavior, audit visibility, incident review, and scanner-assisted asset workflows.
 
