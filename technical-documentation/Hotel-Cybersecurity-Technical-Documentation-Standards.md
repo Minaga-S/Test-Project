@@ -72,10 +72,6 @@ flowchart LR
     S5[riskCalculationService]
     S6[nistThreatIntelService]
     S7[scanHistoryService]
-    S8[cveEnrichmentService]
-    S9[shodanEnrichmentService]
-    S10[recommendationService]
-    S11[auditLogService]
   end
 
   subgraph Data[Data and External Integrations]
@@ -120,17 +116,18 @@ flowchart LR
   S3 --> D1
   S4 --> D2
   S4 --> D3
-  S4 --> D1
   S5 --> D1
   S6 --> D3
-  S6 --> D1
   S7 --> D1
-  S8 --> D1
-  S9 --> D1
-  S10 --> D1
-  S11 --> D1
   D4 --> S7
 ```
+
+Diagram placeholder: replace the Mermaid block above with the final rendered architecture diagram during publication.
+
+## Use Case Model
+
+The platform supports several distinct user journeys.
+
 
 Diagram placeholder: replace the Mermaid block above with the final rendered architecture diagram during publication.
 
