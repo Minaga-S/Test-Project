@@ -146,7 +146,7 @@ class ThreatClassificationService {
             threatType,
             threatCategory: aiAnalysis.threatCategory || threatIntel.threatType, 
             affectedAsset: aiAnalysis.affectedAsset || threatCharacteristics.assets?.[0] || 'General',
-            confidence: Math.max(aiAnalysis.confidence || 0, threatIntel.confidence || 0),
+            confidence: Math.min(100, Math.max(aiAnalysis.confidence || 0, threatIntel.confidence || 0)),
             likelihood: deterministicRisk.likelihood,
             impact: deterministicRisk.impact,
             nistFunctions: aiAnalysis.nistFunctions || nistMapping.functions || [],
@@ -189,7 +189,7 @@ class ThreatClassificationService {
                 ...classification,
                 threatType: 'Ransomware',
                 threatCategory: 'Malicious Software',
-                confidence: Math.max(classification.confidence || 0, 85),
+                confidence: Math.min(100, Math.max(classification.confidence || 0, 85)),
                 likelihood: Math.max(classification.likelihood || 1, 4),
                 impact: Math.max(classification.impact || 1, 4),
             };
@@ -199,7 +199,7 @@ class ThreatClassificationService {
             ...classification,
             threatType: 'Ransomware',
             threatCategory: 'Malicious Software',
-            confidence: Math.max(classification.confidence || 0, 75),
+            confidence: Math.min(100, Math.max(classification.confidence || 0, 75)),
             likelihood: Math.max(classification.likelihood || 1, 3),
             impact: Math.max(classification.impact || 1, 4),
         };
@@ -223,7 +223,7 @@ class ThreatClassificationService {
             return {
                 threatType,
                 threatCategory: threatType,
-                confidence: Math.max(65, intelClassification.confidence || 0),
+                confidence: Math.min(100, Math.max(65, intelClassification.confidence || 0)),
                 likelihood: deterministicRisk.likelihood,
                 impact: deterministicRisk.impact,
                 nistFunctions: nistMapping.functions || [],

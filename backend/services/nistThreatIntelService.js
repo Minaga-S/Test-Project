@@ -146,7 +146,7 @@ class NISTThreatIntelService {
             .map(([type, score]) => ({
                 threatType: type,
                 score: Math.min(100, score),
-                confidence: Math.min(95, 50 + (score / 100) * 45),
+                confidence: Math.min(100, 50 + (score / 100) * 45),
             }))
             .sort((a, b) => b.score - a.score);
     }
@@ -179,7 +179,7 @@ class NISTThreatIntelService {
         return {
             threatType: bestMatch || 'Unknown',
             score: bestScore,
-            confidence: Math.max(40, (bestScore / 50) * 100),
+            confidence: Math.min(100, Math.max(40, (bestScore / 50) * 100)),
         };
     }
 
@@ -200,7 +200,7 @@ class NISTThreatIntelService {
             return {
                 ...topCVEBased,
                 threatType: descriptionBased.threatType,
-                confidence: Math.max(topCVEBased.confidence, descriptionBased.confidence),
+                confidence: Math.min(100, Math.max(topCVEBased.confidence, descriptionBased.confidence)),
                 source: 'cve_and_description',
             };
         }
