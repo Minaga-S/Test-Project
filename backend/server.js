@@ -18,12 +18,32 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 const logger = require('./utils/logger');
 
 const app = express();
+const securityHeaders = helmet({
+    contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+            defaultSrc: ["'none'"],
+            baseUri: ["'none'"],
+            formAction: ["'none'"],
+            frameAncestors: ["'none'"],
+            objectSrc: ["'none'"],
+            imgSrc: ["'self'", 'data:'],
+            connectSrc: ["'self'"],
+            scriptSrc: ["'none'"],
+            styleSrc: ["'none'"],
+        },
+    },
+    hidePoweredBy: true,
+    referrerPolicy: { policy: 'no-referrer' },
+    xContentTypeOptions: true,
+    xFrameOptions: { action: 'deny' },
+});
 
 // ============== MIDDLEWARE ==============
 
 // Security middleware
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(securityHeaders);
 app.use(apiLimiter);
 
 app.use(morgan('combined', {
@@ -170,8 +190,11 @@ async function startServer() {
     }
 }
 
-startServer();
+if (require.main === module) {
+    startServer();
+}
 
 module.exports = app;
+module.exports.startServer = startServer;
 
 

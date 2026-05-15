@@ -4,8 +4,6 @@
    GLOBAL STYLES & VARIABLES
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap');
-
 @font-face {
     font-family: 'Material Symbols Rounded';
     font-style: normal;
@@ -71,9 +69,9 @@
     --shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.12);
     --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.04);
 
-    --font-display: 'Sora', 'Segoe UI', sans-serif;
-    --font-body: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', Consolas, monospace;
+    --font-display: 'Segoe UI', 'Aptos Display', 'Trebuchet MS', sans-serif;
+    --font-body: 'Segoe UI', 'Aptos', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'Cascadia Mono', 'Consolas', 'Liberation Mono', monospace;
     --type-xs: 12px;
     --type-sm: 14px;
     --type-md: 16px;
