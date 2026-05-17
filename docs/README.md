@@ -21,6 +21,7 @@ This documentation set follows a Diataxis-style structure and the principles fro
 - [Architecture and Request Flow](guides/architecture-and-request-flow.md)
 - [Development Lifecycle and Repository Evolution](guides/development-lifecycle-and-repository-evolution.md)
 - [Security and Operations Gotchas](guides/security-and-operations-gotchas.md)
+- [Viva Role Preparation (Code Ownership Split)](guides/viva-role-preparation.md)
 
 ### Manuals / Reference (authoritative details)
 - [API Reference](manuals/api-reference.md)
@@ -32,4 +33,4 @@ This documentation set follows a Diataxis-style structure and the principles fro
 
 - The backend API includes local scanner bridge routes under `/api/local-scanner`.
 - Authentication includes refresh tokens, 2FA flows, and security-question recovery support.
-- Audit log page and endpoints under `/api/audit-logs` are admin-only, and the sidebar navigation item is hidden for non-admin users.
+- Audit log flows are documented as admin-oriented in legacy notes, but current implementation is primarily user-scoped; see `guides/viva-role-preparation.md` for the viva clarification.
